@@ -15,9 +15,12 @@ xcuserdata/
 # Release artifacts (scripts/build-app.sh)
 /dist/
 
-# Swift bindings generated from livesplit-core by scripts/build-core.sh
-# (bind_gen). The hand-written wrapper in LiveSplitCore/ is committed.
-/LiveSplitCore/Sources/LiveSplitCoreGenerated/
+# Built by scripts/build-core.sh: the Rust libraries and the Swift bindings
+# generated from livesplit-core (bind_gen). The hand-written wrapper and the
+# module map in LiveSplitCore/ are committed.
+/LiveSplitCore/lib/
+/LiveSplitCore/Generated/
+/LiveSplitCore/CLiveSplitCore/include/livesplit_core.h
 
 # macOS Finder metadata
 .DS_Store
