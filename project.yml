@@ -1,0 +1,103 @@
+# The Xcode project (spec §4.1). Generate it with `xcodegen generate`; the
+# generated LiveSplitOne.xcodeproj and App/Info.plist are not committed.
+name: LiveSplitOne
+options:
+  bundleIdPrefix: dev.alexcosta
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    # Unsigned builds (spec §2), ad-hoc signed so they run on Apple Silicon.
+    CODE_SIGN_IDENTITY: "-"
+    CODE_SIGN_STYLE: Manual
+    DEVELOPMENT_TEAM: ""
+    ENABLE_HARDENED_RUNTIME: NO
+    # Development fallbacks. Releases pass the real version to xcodebuild
+    # (spec §4.2), so no committed file holds a release's version.
+    MARKETING_VERSION: "0.0.0"
+    CURRENT_PROJECT_VERSION: "0"
+    LSO_VERSION: 0.0.0-dev
+targets:
+  LiveSplitOne:
+    type: application
+    platform: macOS
+    sources: [App]
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleName: LiveSplit One
+        CFBundleDisplayName: LiveSplit One for macOS
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        # The full version, such as 0.4.0-rc.2, which
+        # CFBundleShortVersionString can't hold. The app shows this one.
+        LSOVersion: $(LSO_VERSION)
+        LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
+        NSPrincipalClass: NSApplication
+        NSHighResolutionCapable: true
+        NSLocalNetworkUsageDescription: >-
+          LiveSplit One connects to the timer server you choose, such as
+          livesplit-asr-bridge on another computer.
+    settings:
+      base:
+        PRODUCT_NAME: LiveSplit One
+        PRODUCT_MODULE_NAME: LiveSplitOne
+        PRODUCT_BUNDLE_IDENTIFIER: dev.alexcosta.livesplit-one-macos
+    scheme:
+      testTargets:
+        - LiveSplitOneUnitTests
+        - LiveSplitOneHeadlessUITests
+        - LiveSplitOneIntegrationTests
+        - LiveSplitOneE2ETests
+
+  # The test pyramid (spec §14.1). Unit and headless UI tests run inside the
+  # app, so they can use its internals.
+  LiveSplitOneUnitTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources: [Tests/Unit]
+    dependencies:
+      - target: LiveSplitOne
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_HOST: $(BUILT_PRODUCTS_DIR)/LiveSplit One.app/Contents/MacOS/LiveSplit One
+        BUNDLE_LOADER: $(TEST_HOST)
+  LiveSplitOneHeadlessUITests:
+    type: bundle.unit-test
+    platform: macOS
+    sources: [Tests/HeadlessUI]
+    dependencies:
+      - target: LiveSplitOne
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_HOST: $(BUILT_PRODUCTS_DIR)/LiveSplit One.app/Contents/MacOS/LiveSplit One
+        BUNDLE_LOADER: $(TEST_HOST)
+  # Not hosted: it checks the built app from outside, and links LiveSplitCore
+  # itself once that exists.
+  LiveSplitOneIntegrationTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources: [Tests/Integration]
+    dependencies:
+      - target: LiveSplitOne
+        link: false
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        # XcodeGen would otherwise host it in the app, by target name.
+        TEST_HOST: ""
+        BUNDLE_LOADER: ""
+  LiveSplitOneE2ETests:
+    type: bundle.ui-testing
+    platform: macOS
+    sources: [Tests/E2E]
+    dependencies:
+      - target: LiveSplitOne
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: LiveSplitOne
