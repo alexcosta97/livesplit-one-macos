@@ -1,0 +1,23 @@
+[package]
+name = "lso-core"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.95"
+description = "livesplit-core's C API plus the functions livesplit-one-macos adds to it."
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/alexcosta97/livesplit-one-macos"
+publish = false
+
+[lib]
+name = "lso_core"
+crate-type = ["staticlib"]
+
+# Both LiveSplit crates come from the same upstream revision (spec §4). The C
+# API crate only builds as a static library (no rlib), so this crate can't use
+# it. It is a dependency so that Cargo builds its liblivesplit_core.a in the
+# same build, from the same compiled livesplit-core this crate uses;
+# scripts/build-core.sh then links both libraries into the app.
+[dependencies]
+livesplit-core = { git = "https://github.com/LiveSplit/livesplit-core", rev = "61070c47ea91e6e148d6801cb7a03e8e32a2ebc9", default-features = false, features = ["std", "localization", "image-shrinking", "software-rendering", "font-loading"] }
+livesplit-core-capi = { git = "https://github.com/LiveSplit/livesplit-core", rev = "61070c47ea91e6e148d6801cb7a03e8e32a2ebc9", default-features = false, features = ["default-api", "localization", "image-shrinking", "software-rendering"] }
+futures-executor = "0.3.34"
