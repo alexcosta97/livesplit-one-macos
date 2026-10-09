@@ -13,9 +13,14 @@ extern "C" {
 /// `release` is called once when the sink is dropped. Callbacks may run on any
 /// thread that runs a command. All three callbacks must be non-null.
 ///
-/// A callback must not call back into the same sink on the same thread (for
-/// example `LsoCommandSink_handle_command` from `report`): that would abort the
-/// app. Dispatch to another thread or queue asynchronously instead.
+/// A callback must not call `LsoCommandSink_handle_command` (on any sink) on
+/// the thread it runs on, for example from `report`: that would abort the app.
+/// Dispatch to another thread or queue asynchronously instead.
+///
+/// `report` for a decided reset runs while the sink still treats the question
+/// as open, so a command another thread sends during that callback (including
+/// one the callback waits on synchronously) gets Busy. Return promptly and
+/// don't wait on other commands.
 typedef struct LsoHost {
     void *context;
     /// Each command's result: an event number (0 or more), or `-1 - error`.

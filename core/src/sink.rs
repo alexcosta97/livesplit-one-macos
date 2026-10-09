@@ -395,17 +395,28 @@ pub(crate) mod tests {
         assert_eq!(run(sink.start()), Ok(Event::Started));
     }
 
-    /// A host that, while a reset question is open, issues commands from other
-    /// threads and records what they got.
+    /// A host that, while a reset question is open and while the decided
+    /// reset is reported, issues commands from other threads and records what
+    /// they got.
     struct Probing {
         sink: Mutex<Option<Arc<EventSink<Probing>>>>,
         during: Mutex<Vec<Result>>,
         reported: Mutex<Vec<Result>>,
+        after_answer: Mutex<Vec<Result>>,
     }
 
     impl Host for Probing {
         fn report(&self, result: Result) {
             self.reported.lock().unwrap().push(result);
+            if result == Ok(Event::Reset) {
+                // The decided reset has been applied; the question is still
+                // open until this returns.
+                let sink = self.sink.lock().unwrap().clone().unwrap();
+                let other = std::thread::spawn(move || run(sink.split()))
+                    .join()
+                    .unwrap();
+                self.after_answer.lock().unwrap().push(other);
+            }
         }
         fn decide_reset(&self) -> ResetDecision {
             let sink = self.sink.lock().unwrap().clone().unwrap();
@@ -418,13 +429,14 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn nothing_slips_in_between_the_answer_and_the_reset() {
+    fn no_command_slips_in_between_the_answer_and_the_reset() {
         let sink = Arc::new(EventSink::new(
             timer(&["One", "Two"]),
             Probing {
                 sink: Mutex::new(None),
                 during: Mutex::default(),
                 reported: Mutex::default(),
+                after_answer: Mutex::default(),
             },
         ));
         *sink.host.sink.lock().unwrap() = Some(sink.clone());
@@ -438,10 +450,18 @@ pub(crate) mod tests {
             *sink.host.during.lock().unwrap(),
             [Err(Error::Busy), Err(Error::Busy)]
         );
-        // Every outcome is reported exactly once.
+        // Still Busy once the answer has been applied, until the reset is done.
+        assert_eq!(*sink.host.after_answer.lock().unwrap(), [Err(Error::Busy)]);
+        // Every outcome is reported exactly once (the last probe's Busy comes
+        // while the reset is being reported).
         assert_eq!(
             *sink.host.reported.lock().unwrap(),
-            [Err(Error::Busy), Err(Error::Busy), Ok(Event::Reset)]
+            [
+                Err(Error::Busy),
+                Err(Error::Busy),
+                Ok(Event::Reset),
+                Err(Error::Busy)
+            ]
         );
         assert_eq!(sink.get_timer().run().attempt_history().len(), 1);
         *sink.host.sink.lock().unwrap() = None; // Breaks the reference cycle.
