@@ -1,0 +1,17 @@
+# Rust build output
+target/
+
+# Generated from project.yml by `xcodegen generate`, never committed
+*.xcodeproj/
+
+# Xcode build output and per-user state
+DerivedData/
+build/
+xcuserdata/
+
+# Swift bindings generated from livesplit-core by scripts/build-core.sh
+# (bind_gen). The hand-written wrapper in LiveSplitCore/ is committed.
+/LiveSplitCore/Sources/LiveSplitCoreGenerated/
+
+# macOS Finder metadata
+.DS_Store
