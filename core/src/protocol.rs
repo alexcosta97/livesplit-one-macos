@@ -118,4 +118,46 @@ mod tests {
         assert_eq!(encode_event(Event::Reset as u32), r#"{"event":"Reset"}"#);
         assert_eq!(encode_event(9999), r#"{"event":"Unknown"}"#);
     }
+
+    /// Replies to a command from another thread while a reset question is open.
+    struct Asking(
+        std::sync::Mutex<Option<std::sync::mpsc::Sender<()>>>,
+        std::sync::Mutex<std::sync::mpsc::Receiver<()>>,
+    );
+
+    impl Host for Asking {
+        fn report(&self, _: livesplit_core::event::Result) {}
+        fn decide_reset(&self) -> ResetDecision {
+            self.0.lock().unwrap().take().unwrap().send(()).unwrap();
+            self.1.lock().unwrap().recv().unwrap();
+            ResetDecision::Save
+        }
+    }
+
+    #[test]
+    fn a_command_during_an_open_question_replies_busy() {
+        let (asked_tx, asked_rx) = std::sync::mpsc::channel();
+        let (go_tx, go_rx) = std::sync::mpsc::channel();
+        let sink = Arc::new(EventSink::new(
+            timer(&["One", "Two"]),
+            Asking(
+                std::sync::Mutex::new(Some(asked_tx)),
+                std::sync::Mutex::new(go_rx),
+            ),
+        ));
+        handle_command(&*sink, r#"{"command":"start"}"#);
+        std::thread::sleep(std::time::Duration::from_millis(2));
+        handle_command(&*sink, r#"{"command":"split"}"#);
+        let resetting = {
+            let sink = sink.clone();
+            std::thread::spawn(move || handle_command(&*sink, r#"{"command":"reset"}"#))
+        };
+        asked_rx.recv().unwrap();
+        assert_eq!(
+            handle_command(&*sink, r#"{"command":"split"}"#),
+            r#"{"error":{"code":"Busy"}}"#
+        );
+        go_tx.send(()).unwrap();
+        assert_eq!(resetting.join().unwrap(), r#"{"success":null}"#);
+    }
 }

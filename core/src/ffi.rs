@@ -16,7 +16,10 @@ use crate::{
 
 /// The app's callbacks. `context` is passed back to every callback, and
 /// `release` is called once when the sink is dropped. The callbacks may be
-/// called from any thread that runs a command.
+/// called from any thread that runs a command. All callbacks must be non-null,
+/// and must not call back into the same sink on the same thread (that would
+/// abort the app: `block_on` panics when nested inside an `extern "C"`
+/// function). Dispatch asynchronously instead.
 #[repr(C)]
 pub struct LsoHost {
     pub context: *mut c_void,
@@ -80,13 +83,13 @@ fn output(s: String) -> *const c_char {
 }
 
 /// Creates a sink for the shared timer. The sink keeps its own handle to the
-/// timer, so the caller may drop theirs.
+/// timer, so the caller may drop theirs. `timer` must be a valid handle.
 #[unsafe(no_mangle)]
 pub extern "C" fn LsoCommandSink_new(timer: &SharedTimer, host: LsoHost) -> Box<LsoCommandSink> {
     Box::new(EventSink::new(timer.clone(), host))
 }
 
-/// Drops the sink and releases the host's context.
+/// Drops the sink and releases the host's context. `this` must be a valid sink.
 #[unsafe(no_mangle)]
 pub extern "C" fn LsoCommandSink_drop(this: Box<LsoCommandSink>) {
     drop(this);
@@ -97,7 +100,7 @@ pub extern "C" fn LsoCommandSink_drop(this: Box<LsoCommandSink>) {
 /// stopping the app. A null `command` is treated as empty.
 ///
 /// # Safety
-/// `command` is null or a valid nul-terminated string.
+/// `this` is a valid sink, and `command` is null or a valid nul-terminated string.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn LsoCommandSink_handle_command(
     this: &LsoCommandSink,

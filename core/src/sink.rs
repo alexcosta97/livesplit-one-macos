@@ -68,8 +68,13 @@ impl<H: Host> EventSink<H> {
         result
     }
 
-    fn reset_decision(&self) -> core::result::Result<bool, Error> {
+    /// Resets without being told whether to keep the attempt's times: asks the
+    /// host when the attempt has new best times, then applies the answer and
+    /// reports the result. `deciding` stays set from the question until the
+    /// reset has been applied, so no other command can slip in between.
+    fn reset_asking(&self) -> Result {
         if self.deciding.swap(true, Ordering::AcqRel) {
+            self.host.report(Err(Error::Busy));
             return Err(Error::Busy);
         }
         // Clears the flag even if the host panics.
@@ -86,14 +91,18 @@ impl<H: Host> EventSink<H> {
             .read()
             .unwrap()
             .current_attempt_has_new_best_times();
-        if !has_new_best_times {
-            return Ok(true);
-        }
-        match self.host.decide_reset() {
-            ResetDecision::Save => Ok(true),
-            ResetDecision::Discard => Ok(false),
-            ResetDecision::Cancel => Err(Error::RunnerDecidedAgainstReset),
-        }
+        let save = if has_new_best_times {
+            match self.host.decide_reset() {
+                ResetDecision::Save => Ok(true),
+                ResetDecision::Discard => Ok(false),
+                ResetDecision::Cancel => Err(Error::RunnerDecidedAgainstReset),
+            }
+        } else {
+            Ok(true)
+        };
+        let result = save.and_then(|save| now(CommandSink::reset(&self.timer, Some(save))));
+        self.host.report(result);
+        result
     }
 }
 
@@ -121,17 +130,10 @@ impl<H: Host> CommandSink for EventSink<H> {
         ready(self.apply(|t| now(CommandSink::split_or_start(t))))
     }
     fn reset(&self, save_attempt: Option<bool>) -> impl Future<Output = Result> + 'static {
-        let result = match save_attempt {
+        ready(match save_attempt {
             Some(save) => self.apply(|t| now(CommandSink::reset(t, Some(save)))),
-            None => match self.reset_decision() {
-                Ok(save) => self.apply(|t| now(CommandSink::reset(t, Some(save)))),
-                Err(error) => {
-                    self.host.report(Err(error));
-                    Err(error)
-                }
-            },
-        };
-        ready(result)
+            None => self.reset_asking(),
+        })
     }
     fn undo_split(&self) -> impl Future<Output = Result> + 'static {
         ready(self.apply(|t| now(CommandSink::undo_split(t))))
@@ -391,5 +393,57 @@ pub(crate) mod tests {
         answer_tx.send(ResetDecision::Save).unwrap();
         assert_eq!(resetting.join().unwrap(), Ok(Event::Reset));
         assert_eq!(run(sink.start()), Ok(Event::Started));
+    }
+
+    /// A host that, while a reset question is open, issues commands from other
+    /// threads and records what they got.
+    struct Probing {
+        sink: Mutex<Option<Arc<EventSink<Probing>>>>,
+        during: Mutex<Vec<Result>>,
+        reported: Mutex<Vec<Result>>,
+    }
+
+    impl Host for Probing {
+        fn report(&self, result: Result) {
+            self.reported.lock().unwrap().push(result);
+        }
+        fn decide_reset(&self) -> ResetDecision {
+            let sink = self.sink.lock().unwrap().clone().unwrap();
+            let others = std::thread::spawn(move || [run(sink.split()), run(sink.reset(None))])
+                .join()
+                .unwrap();
+            self.during.lock().unwrap().extend(others);
+            ResetDecision::Save
+        }
+    }
+
+    #[test]
+    fn nothing_slips_in_between_the_answer_and_the_reset() {
+        let sink = Arc::new(EventSink::new(
+            timer(&["One", "Two"]),
+            Probing {
+                sink: Mutex::new(None),
+                during: Mutex::default(),
+                reported: Mutex::default(),
+            },
+        ));
+        *sink.host.sink.lock().unwrap() = Some(sink.clone());
+        run(sink.start()).unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(2));
+        run(sink.split()).unwrap();
+        sink.host.reported.lock().unwrap().clear();
+
+        assert_eq!(run(sink.reset(None)), Ok(Event::Reset));
+        assert_eq!(
+            *sink.host.during.lock().unwrap(),
+            [Err(Error::Busy), Err(Error::Busy)]
+        );
+        // Every outcome is reported exactly once.
+        assert_eq!(
+            *sink.host.reported.lock().unwrap(),
+            [Err(Error::Busy), Err(Error::Busy), Ok(Event::Reset)]
+        );
+        assert_eq!(sink.get_timer().run().attempt_history().len(), 1);
+        *sink.host.sink.lock().unwrap() = None; // Breaks the reference cycle.
     }
 }

@@ -11,7 +11,11 @@ extern "C" {
 
 /// The app's callbacks for a command sink. `context` is passed to each one;
 /// `release` is called once when the sink is dropped. Callbacks may run on any
-/// thread that runs a command.
+/// thread that runs a command. All three callbacks must be non-null.
+///
+/// A callback must not call back into the same sink on the same thread (for
+/// example `LsoCommandSink_handle_command` from `report`): that would abort the
+/// app. Dispatch to another thread or queue asynchronously instead.
 typedef struct LsoHost {
     void *context;
     /// Each command's result: an event number (0 or more), or `-1 - error`.
@@ -22,9 +26,12 @@ typedef struct LsoHost {
 } LsoHost;
 
 /// Creates a command sink for a `SharedTimer`. The sink keeps its own handle.
+/// `timer` must be a valid, non-null `SharedTimer` handle.
 void *LsoCommandSink_new(void *timer, LsoHost host);
+/// Drops the sink and calls `release`. `self` must be a valid, non-null sink.
 void LsoCommandSink_drop(void *self);
-/// Runs one server protocol message. The reply stays valid until the next call
+/// Runs one server protocol message. `self` must be a valid, non-null sink;
+/// `command` may be NULL (treated as empty). The reply stays valid until the next call
 /// on the same thread.
 char const *LsoCommandSink_handle_command(void *self, char const *command);
 /// Encodes an event for the server. Valid until the next call on the thread.
