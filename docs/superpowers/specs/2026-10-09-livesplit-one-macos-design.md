@@ -299,9 +299,8 @@ Quit
   without a scheme gets `ws://`. A URL that isn't `ws://` or `wss://` is
   rejected in the sheet with a reason.
 - The client is `URLSessionWebSocketTask`. It sets no `Origin` header unless
-  the server needs one; the first issue for the client (section 17, item 3)
-  checks livesplit-asr-bridge's handshake against a native client, before the
-  rest is built.
+  the server needs one; #7 checks livesplit-asr-bridge's handshake against a
+  native client before the rest of the client (#14) is built.
 - `Info.plist` contains `NSLocalNetworkUsageDescription`, so macOS asks for
   local network access the first time the app connects to another machine.
 
@@ -557,44 +556,48 @@ Tracked as GitHub issues, created in this order.
 
 Foundations:
 
-1. Repository scaffold: `AGENTS.md`, `CLAUDE.md`, `CONTRIBUTING.md`, issue
-   forms, PR template, labels, licenses, `mise.toml`, `rust-toolchain.toml`,
-   XcodeGen project with an empty AppKit app, version embedded at build time.
-2. `core/` crate and the LiveSplitCore Swift package: build script, generated
-   bindings, the C API additions (section 5.3) with unit tests.
-3. Check livesplit-asr-bridge's handshake with a native client: a test
-   `URLSessionWebSocketTask` connects to the real bridge from the Mac and runs a
-   command, and the `Origin` behaviour is settled. Done before item 8.
-4. CI checks (section 15), added as required checks in the `main` ruleset.
-5. Release pipeline and Renovate.
+- #2 Contributor docs: `AGENTS.md`, `CLAUDE.md`, `CONTRIBUTING.md`,
+  `README.md`, issue forms, PR template, licenses, `mise.toml`.
+- #3 Repository settings and the `main` rulesets (section 15).
+- #4 The implementation plan for the foundations.
+- #5 Xcode project scaffold: XcodeGen project with an empty AppKit app,
+  `rust-toolchain.toml`, version embedded at build time.
+- #6 `core/` crate and the LiveSplitCore Swift package: build script, generated
+  bindings, the C API additions (section 5.3) with unit tests.
+- #7 Check livesplit-asr-bridge's handshake with a native client: a test
+  `URLSessionWebSocketTask` connects to the real bridge from the Mac and runs a
+  command, and the `Origin` behaviour is settled. Done before #14.
+- #8 CI checks (section 15), added as required checks in the `main` ruleset.
+- #9 Release pipeline.
+- #10 Renovate.
 
 First version:
 
-6. Timer window: borderless window, rendering, size hint, resizing, Always on
-   Top, overlay notices.
-7. Files: open and save splits, open layout, Save Layout As, recents,
-   unsaved-changes and reset prompts, reopen on launch.
-8. Right-click menu and menu bar, with keyboard shortcuts while focused.
-9. Connect to Server: sheet, client, events to the server, status, automatic
-   reconnection.
-10. Splits editor.
-11. `app.toml` settings storage.
-12. Logging: categories, daily files, 7-day retention, size cap, Open Log
-    Folder, unified log.
-13. E2E harness and suite (section 14.2), filled in alongside items 6–12.
+- #11 Timer window: borderless window, rendering, size hint, resizing, Always
+  on Top, overlay notices.
+- #12 Files: open and save splits, open layout, Save Layout As, recents,
+  unsaved-changes and reset prompts, reopen on launch.
+- #13 Right-click menu and menu bar, with keyboard shortcuts while focused.
+- #14 Connect to Server: sheet, client, events to the server, status,
+  automatic reconnection.
+- #15 Splits editor.
+- #16 `app.toml` settings storage.
+- #17 Logging: categories, daily files, 7-day retention, size cap, Open Log
+  Folder, unified log.
+- #18 E2E harness and suite (section 14.2), filled in alongside #11–#17.
 
 Later:
 
-14. Global hotkeys, with a hotkey settings window (livesplit-core's hotkey
-    system supports macOS, and needs Accessibility or Input Monitoring
-    permission).
-15. Layout editor.
-16. Running auto splitters inside the app (livesplit-core's `auto-splitting`
-    feature).
-17. Code signing, notarisation and auto-update.
-18. Metal renderer, if needed (section 5.2).
-19. speedrun.com integration.
-20. Wiki.
+- #19 Global hotkeys, with a hotkey settings window (livesplit-core's hotkey
+  system supports macOS, and needs Accessibility or Input Monitoring
+  permission).
+- #20 Layout editor.
+- #21 Running auto splitters inside the app (livesplit-core's `auto-splitting`
+  feature).
+- #22 Code signing, notarisation and auto-update.
+- #23 Metal renderer, if needed (section 5.2).
+- #24 speedrun.com integration.
+- #25 Wiki.
 
 ## 18. License
 
