@@ -6,20 +6,20 @@
 
 **Architecture:** XcodeGen generates the Xcode project from `project.yml`. An empty AppKit app links `LiveSplitCore`, a static library target holding livesplit-core's generated Swift bindings and a hand-written wrapper. Its build phase runs `scripts/build-core.sh`, which builds the `core/` Rust crate, whose dependency on `livesplit-core-capi` makes Cargo build the C API's static library in the same build, and regenerates the bindings with livesplit-core's `bind_gen`. GitHub Actions run the checks on every pull request, and on every merge to `main` a release workflow, copied from livesplit-asr-bridge, publishes a release candidate and, after approval, the full release.
 
-**Tech Stack:** Swift 6, AppKit, Swift Testing, XCTest (XCUITest), Xcode 26, XcodeGen, Rust (stable, edition 2024), livesplit-core at upstream revision `61070c47ea91e6e148d6801cb7a03e8e32a2ebc9`, `futures-executor` 0.3, GitHub Actions, git-cliff, mise, Renovate, bash, `gh`.
+**Tech Stack:** Swift 6, AppKit, Swift Testing, XCTest (XCUITest), Xcode 26.6 or newer (27.0 locally, 26.6 in CI), XcodeGen, Rust (stable, edition 2024), livesplit-core at upstream revision `61070c47ea91e6e148d6801cb7a03e8e32a2ebc9`, `futures-executor` 0.3, GitHub Actions, git-cliff, mise, Renovate, bash, `gh`.
 
 **Spec:** `docs/superpowers/specs/2026-10-09-livesplit-one-macos-design.md` (sections 3, 4, 5.3, 8.1, 14.1, 15 and 17). Issues: #5, #6, #7, #8, #9, #10. This plan is issue #4.
 
 ## Before you start
 
 - **Issue #2 is merged first.** It adds `AGENTS.md`, `CONTRIBUTING.md`, the issue forms, the pull request template, the licenses, `commitlint.config.mjs`, `mise.toml` (git-cliff, shellcheck, actionlint, xcodegen) and `.gitignore`. Tasks here edit some of them; they never recreate them.
-- **The Mac needs full Xcode.** The maintainer's Mac only has the Command Line Tools (`xcode-select -p` prints `/Library/Developer/CommandLineTools`, and `/Applications` has no Xcode). `xcodebuild`, XCTest, XCUITest and Swift Testing all need Xcode. The maintainer installs Xcode 26 from the App Store, then:
+- **The Mac needs full Xcode.** The maintainer's Mac only has the Command Line Tools (`xcode-select -p` prints `/Library/Developer/CommandLineTools`, and `/Applications` has no Xcode). `xcodebuild`, XcodeGen projects and XCUITest need Xcode. (Swift Testing does work with the Command Line Tools, but only with extra `-F`/`-rpath` flags, and the plan always runs tests through `xcodebuild`.) The maintainer installs the current Xcode from the App Store, 27.0 as of October 2026, which needs macOS 26.6 or newer, then:
 
   ```bash
   sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer
   sudo xcodebuild -license accept
   xcodebuild -runFirstLaunch
-  xcodebuild -version   # Expected: Xcode 26.x
+  xcodebuild -version   # Expected: Xcode 26.6 or newer (27.0 from the App Store)
   ```
 
 - **Other tools:** rustup (installed through Homebrew on the maintainer's Mac; `scripts/build-core.sh` also looks in `/opt/homebrew/opt/rustup/bin`), mise (`brew install mise`, then `mise install` in the repository), and `jq`, which macOS ships at `/usr/bin/jq`.
@@ -488,7 +488,8 @@ In spec §4.2, replace the last bullet with:
 In `CONTRIBUTING.md`, under "Development setup", make the setup steps say (adapt the numbering to what issue #2 wrote):
 
 ```markdown
-1. Install Xcode 26 from the App Store, then run
+1. Install Xcode from the App Store (26.6 or newer; the version CI uses is
+   set in `.github/actions/setup/action.yml`), then run
    `sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer`.
 2. Install [rustup](https://rustup.rs/) and [mise](https://mise.jdx.dev/),
    then run `mise install` in the repository. Rust's version and targets come
@@ -2337,6 +2338,7 @@ Stop here. The maintainer merges.
 Key facts:
 - **Build once, test from it:** `setup` runs `xcodebuild build-for-testing` and passes `Build/Products` (the app, the test bundles and the `.xctestrun` file) to `test` and `e2e`, which run `xcodebuild test-without-building -xctestrun …`. `upload-artifact` doesn't keep file permissions, so the products travel as a tar.
 - **What is cached:** Swatinem/rust-cache caches `~/.cargo` and `core/target`, as in livesplit-asr-bridge, with one key shared by every job, saved by `setup` only. Xcode's DerivedData isn't cached between runs: a fresh checkout gives every file a new modification time, so Xcode would rebuild the Swift anyway; sharing the test build covers "build the app once".
+- **Xcode is chosen explicitly:** `macos-latest` is the macOS 26 arm64 image, whose newest and default Xcode is 26.6 (runner image 20260907; Xcode 27 isn't on it yet, see `actions/runner-images`, `images/macos/macos-26-arm64-Readme.md`). The setup action selects `/Applications/Xcode_$XCODE_VERSION.app`, so a change of the image's default can't silently change the build. Moving to Xcode 27 is a one-line change to `XCODE_VERSION` once an image ships it. 26.6 is also the oldest Xcode the project supports locally.
 - **Rust comes from `rust-toolchain.toml`:** GitHub's macOS runners have rustup, and `rustup toolchain install` with no argument installs what the file names, including the `x86_64-apple-darwin` target for `build`. `dtolnay/rust-toolchain` isn't used.
 - **On push to `main`** only `setup` runs, which builds and saves the Rust cache that pull requests restore (spec §15).
 - **Required checks:** the existing ruleset `24807167` has `deletion`, `non_fast_forward`, `required_linear_history`, `required_signatures` and `pull_request` (squash only, conversations resolved). Rulesets are replaced as a whole, so Step 8 sends every existing rule plus `required_status_checks`. `15368` is the GitHub Actions app's id (`gh api apps/github-actions --jq .id`).
@@ -2347,12 +2349,13 @@ Key facts:
 `.github/actions/setup/action.yml`:
 
 ```yaml
-# Installs the Rust toolchain from rust-toolchain.toml and the tools pinned in
-# mise.toml, and restores the Rust cache. Every CI job shares one cache key,
+# Selects the Xcode the project builds with, installs the Rust toolchain from
+# rust-toolchain.toml and the tools pinned in mise.toml, and restores the Rust
+# cache. Every CI job shares one cache key,
 # so the `setup` job compiles the dependencies once and the other jobs reuse
 # them.
 name: Setup
-description: Install Rust and the mise tools, and restore the Rust cache
+description: Select Xcode, install Rust and the mise tools, and restore the Rust cache
 
 inputs:
   save-cache:
@@ -2363,6 +2366,23 @@ inputs:
 runs:
   using: composite
   steps:
+    # The runner image has several Xcodes; choose one explicitly so the image's
+    # default changing never changes the build. Raise this when an image ships
+    # a newer Xcode (the list is in actions/runner-images'
+    # images/macos/macos-26-arm64-Readme.md).
+    - name: Select Xcode
+      shell: bash
+      env:
+        XCODE_VERSION: '26.6'
+      run: |
+        app="/Applications/Xcode_${XCODE_VERSION}.app"
+        if [ ! -d "$app" ]; then
+          echo "::error::Xcode ${XCODE_VERSION} isn't on this runner. Installed:" >&2
+          ls -d /Applications/Xcode_*.app >&2
+          exit 1
+        fi
+        sudo xcode-select --switch "$app/Contents/Developer"
+        xcodebuild -version
     # rustup is preinstalled on GitHub's macOS runners. With no arguments it
     # installs the toolchain, components and targets rust-toolchain.toml names.
     - name: Install the Rust toolchain
