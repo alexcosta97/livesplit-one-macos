@@ -1,0 +1,77 @@
+name: Bug report
+description: Report something that doesn't work as expected.
+labels: ["bug"]
+body:
+  - type: checkboxes
+    id: searched
+    attributes:
+      label: Existing issues
+      options:
+        - label: I searched the existing issues and this hasn't been reported.
+          required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What went wrong, including any error message or notice shown in the app.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open the splits ...
+        2. Right-click the timer and choose ...
+        3. ...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: livesplit-one-macos version
+      description: Shown in About LiveSplit One for macOS, or the release you downloaded.
+      placeholder: e.g. 0.3.0
+    validations:
+      required: true
+  - type: input
+    id: macos-version
+    attributes:
+      label: macOS version
+      description: Apple menu → About This Mac.
+      placeholder: e.g. macOS 26.0
+    validations:
+      required: true
+  - type: dropdown
+    id: chip
+    attributes:
+      label: Mac's chip
+      description: Apple menu → About This Mac shows it as Chip (Apple Silicon) or Processor (Intel).
+      options:
+        - Apple Silicon (M1 or newer)
+        - Intel
+    validations:
+      required: true
+  - type: input
+    id: server
+    attributes:
+      label: Server, if connected
+      description: The server the app was connected to through Connect to Server, and its version.
+      placeholder: e.g. livesplit-asr-bridge 0.3.0 on Linux
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: |
+        Attach or paste the relevant part of the day's log. The log files are in `~/Library/Logs/livesplit-one-macos/`, one per day, named `livesplit-one-macos-YYYY-MM-DD.log`. Right-click the timer and choose **Open Log Folder** to open it in Finder. Console.app also lists the files under **Log Reports**.
+      render: text
+    validations:
+      required: false
