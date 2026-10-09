@@ -23,8 +23,8 @@ Closes #
 - [ ] In `core/`, `cargo fmt --check`,
       `cargo clippy --all-targets --locked -- -D warnings` and
       `cargo test --locked` pass locally.
-- [ ] `swift format lint --strict --recursive App Tests` and `xcodebuild test`
-      for the app scheme pass locally.
+- [ ] `swift format lint --strict --recursive App Tests LiveSplitCore/Wrapper`
+      and `xcodebuild test` for the app scheme pass locally.
 - [ ] Tests are added at each level the change needs: unit, headless UI,
       integration, and E2E for user flows (spec §14).
 - [ ] Changes to the design are reflected in the design spec.
