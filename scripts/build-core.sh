@@ -21,6 +21,10 @@ root=$(cd "$(dirname "$0")/.." && pwd)
 manifest="$root/core/Cargo.toml"
 out="$root/LiveSplitCore"
 
+# rustup picks the toolchain from the current directory, so every cargo call
+# runs from the repository and sees rust-toolchain.toml.
+cd "$root"
+
 release=false
 bindings_only=false
 archs=$(uname -m)
@@ -53,6 +57,7 @@ rust_target() {
   esac
 }
 
+toolchain=$(rustup show active-toolchain | cut -d' ' -f1)
 metadata=$(cargo metadata --format-version 1 --locked --manifest-path "$manifest")
 # The C API's features are read from core/Cargo.toml, so the bindings always
 # describe the library that is built.
@@ -74,15 +79,17 @@ build_target() {
 }
 
 build_libraries() {
-  local arch target name path capi_libs=() core_libs=()
+  local arch target artifacts name path capi_libs=() core_libs=()
   for arch in $archs; do
     target=$(rust_target "$arch")
+    # Captured first, so a failing cargo build stops the script.
+    artifacts=$(build_target "$target")
     while IFS=$'\t' read -r name path; do
       case "$name" in
         livesplit_core) capi_libs+=("$path") ;;
         lso_core) core_libs+=("$path") ;;
       esac
-    done < <(build_target "$target")
+    done <<<"$artifacts"
   done
   local count
   count=$(wc -w <<<"$archs")
@@ -107,16 +114,21 @@ generate_bindings() {
   fi
   local bindings
   bindings=$(mktemp -d)
-  # bind_gen reads ../src relative to its own folder, so it runs from there,
-  # and builds into core/target instead of Cargo's checkout.
+  # Removed on any failure too; the success path removes it below.
+  trap 'rm -rf "$bindings"' EXIT
+  # bind_gen reads ../src relative to its own folder, so it runs from there
+  # (where rust-toolchain.toml isn't seen, hence RUSTUP_TOOLCHAIN), and builds
+  # into core/target instead of Cargo's checkout.
   (cd "$capi_dir/bind_gen" &&
-    cargo run --release --quiet --target-dir "$root/core/target/bind_gen" -- \
+    RUSTUP_TOOLCHAIN="$toolchain" cargo run --release --quiet \
+      --target-dir "$root/core/target/bind_gen" -- \
       --no-default-features --features "$features" --output-dir "$bindings")
   mkdir -p "$out/Generated"
   cp "$bindings/swift/LiveSplitCore/LiveSplitCore.swift" "$swift_out"
   cp "$bindings/swift/CLiveSplitCore/include/livesplit_core.h" "$header_out"
   echo "$source_id" >"$stamp"
   rm -rf "$bindings"
+  trap - EXIT
 }
 
 # Tells Xcode what this run read, so it skips the phase until one of them
