@@ -163,7 +163,10 @@ committed, so pull requests never conflict on `project.pbxproj`.
   `core/**`, `Cargo.lock` and `rust-toolchain.toml`, so Xcode skips it when
   nothing on the Rust side changed.
 - The version is embedded at build time from the release pipeline (section
-  15), as `CFBundleShortVersionString`. There are no version-bump commits.
+  15): `LSOVersion` in `Info.plist` holds the full version, such as
+  `0.4.0-rc.2`, which the app shows, and `CFBundleShortVersionString` holds
+  `0.4.0`, since bundle versions must be numbers. There are no version-bump
+  commits.
 
 ## 5. Timer and rendering
 

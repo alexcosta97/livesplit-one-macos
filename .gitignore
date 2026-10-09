@@ -9,6 +9,12 @@ DerivedData/
 build/
 xcuserdata/
 
+# Written by `xcodegen generate` from project.yml
+/App/Info.plist
+
+# Release artifacts (scripts/build-app.sh)
+/dist/
+
 # Swift bindings generated from livesplit-core by scripts/build-core.sh
 # (bind_gen). The hand-written wrapper in LiveSplitCore/ is committed.
 /LiveSplitCore/Sources/LiveSplitCoreGenerated/

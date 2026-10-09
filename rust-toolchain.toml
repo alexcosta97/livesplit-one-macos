@@ -1,0 +1,5 @@
+[toolchain]
+channel = "stable"
+components = ["rustfmt", "clippy"]
+# Both Mac architectures, for the universal release build (spec §4.2).
+targets = ["aarch64-apple-darwin", "x86_64-apple-darwin"]

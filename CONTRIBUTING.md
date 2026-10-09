@@ -25,28 +25,26 @@ into the `LiveSplitCore/` Swift package. The Xcode project is generated from
 `project.yml` with [XcodeGen](https://github.com/yonaskolb/XcodeGen) and is not
 committed.
 
-1. Install Rust with [rustup](https://rustup.rs/). The toolchain version comes
-   from `rust-toolchain.toml`, which rustup picks up on its own.
-2. Install Xcode. `swift format` ships with Xcode 16 and later.
-3. Install the pinned tools (XcodeGen, git-cliff, shellcheck and actionlint)
-   with [mise](https://mise.jdx.dev/):
-
-   ```sh
-   mise install
-   ```
-
-4. Clone the repository, build `core/` and the Swift bindings, then generate
-   the Xcode project:
+1. Install Xcode from the App Store (26.6 or newer; the version CI uses is
+   set in `.github/actions/setup/action.yml`), then run
+   `sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer`.
+2. Install [rustup](https://rustup.rs/) and [mise](https://mise.jdx.dev/),
+   then run `mise install` in the repository. Rust's version and targets come
+   from `rust-toolchain.toml`. mise installs XcodeGen, git-cliff, shellcheck
+   and actionlint.
+3. Build `core/` and generate the Xcode project:
 
    ```sh
    scripts/build-core.sh
    xcodegen generate
    ```
 
-5. Open the generated `.xcodeproj` in Xcode and build the app scheme. An Xcode
-   build phase runs `scripts/build-core.sh` again before compiling Swift, and
-   skips it when nothing on the Rust side changed.
-6. Before pushing, run the same checks CI runs. In `core/`:
+   Open the generated `LiveSplitOne.xcodeproj` in Xcode. The project is
+   generated from `project.yml` and never committed: run `xcodegen generate`
+   again after pulling changes to it. An Xcode build phase runs
+   `scripts/build-core.sh` again before compiling Swift, and skips it when
+   nothing on the Rust side changed.
+4. Before pushing, run the same checks CI runs. In `core/`:
 
    ```sh
    cargo fmt --check
@@ -58,12 +56,10 @@ committed.
 
    ```sh
    swift format lint --strict --recursive App Tests
-   xcodebuild test -scheme <app scheme> -destination 'platform=macOS'
+   xcodebuild test -scheme LiveSplitOne -destination 'platform=macOS'
    ```
 
-   `<app scheme>` is the app's scheme, defined in `project.yml`.
-
-7. If you change a shell script or a workflow, also run `shellcheck` on the
+5. If you change a shell script or a workflow, also run `shellcheck` on the
    script and `actionlint` for the workflows.
 
 ## Testing
