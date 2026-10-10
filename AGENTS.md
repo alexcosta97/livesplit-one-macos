@@ -45,6 +45,31 @@ request contains, since a pull request that tests well gets merged. If
 anything is left out of the pull request, say so plainly when handing the
 build over.
 
+Every problem found while working on an issue is fixed in that issue's pull
+request, whatever its severity and whoever found it: a review, a test, a
+check, or along the way. "Minor" is not a reason to leave something, and
+neither is the plan giving the code word for word: if the plan is wrong, fix
+it and say so in the pull request. Only three kinds of thing leave the pull
+request, and each goes to a GitHub issue:
+
+- **Deferred:** it can't be fixed yet, for example because it needs code a
+  later issue adds. Comment on the issue that will fix it, or open one.
+- **Needs investigation:** it isn't clear yet whether it's a problem, or what
+  the fix is. Open an issue with what was seen and how to reproduce it.
+- **Its own task:** it's far enough outside the issue being worked on that it
+  should be separate work. Open an issue with the matching template.
+
+The pull request description lists each of these with a link to its issue.
+Notes for later work, such as a constraint that was found or a check to
+repeat, go on the issue they concern as a comment. Anything posted outside
+this repository, such as a bug report to livesplit-core, needs the
+maintainer's agreement first.
+
+GitHub issues and pull requests are the project's record. A session may keep a
+progress file for its own use, such as a ledger of subagent work in its
+worktree, but it isn't committed, it goes when the worktree goes, and no other
+session reads it. Nothing is recorded only there.
+
 Every change users can see is documented in the same branch as the change.
 Until the wiki exists (spec §16, a backlog item), the user documentation is
 `README.md`: update the parts it affects. If a screen in a screenshot changes,
