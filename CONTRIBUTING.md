@@ -201,6 +201,14 @@ conventions above, and the type decides whether the update is released:
 - `chore(deps)`: tools pinned in `mise.toml` and development-only packages.
   No release.
 
+GitHub Actions are pinned to a full commit SHA, with the exact version as a
+comment, so a tag moved to different code can't change what CI and the release
+jobs run. When you add an action, pin it the same way, for example
+`uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1`
+(`gh api repos/actions/checkout/commits/v7.0.1 --jq .sha` gives the SHA).
+Renovate updates the SHA and the comment together. The release jobs that
+publish (`contents: write`) use no third-party action; keep it that way.
+
 Renovate's pull requests are the one exception to the linked-issue rule. They
 go through the same checks and are merged by a maintainer like any other pull
 request. The Dependency Dashboard issue lists pending updates.
