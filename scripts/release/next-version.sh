@@ -5,6 +5,11 @@
 # $GITHUB_OUTPUT when set.
 set -euo pipefail
 
+# git-cliff logs INFO and WARN lines on every run, including benign ones such as
+# "no releases found". Show only its errors, so a real failure (a bad
+# cliff.toml, say) is not hidden.
+export RUST_LOG=${RUST_LOG:-error}
+
 emit() {
   echo "$1=$2"
   if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
@@ -13,14 +18,14 @@ emit() {
 }
 
 last_full_tag=$(git describe --tags --abbrev=0 --match 'v[0-9]*.[0-9]*.[0-9]*' --exclude '*-*' 2>/dev/null || true)
-next=$(git cliff --bumped-version 2>/dev/null)
+next=$(git cliff --bumped-version)
 
 # git-cliff prints the current tag when nothing needs a release, and
 # initial_tag when there are no tags, so check both cases explicitly.
 if [[ -n "$last_full_tag" ]]; then
   [[ "$next" != "$last_full_tag" ]] && release=true || release=false
 else
-  releasing=$(git cliff --unreleased --context 2>/dev/null | jq '[.[].commits | length] | add // 0')
+  releasing=$(git cliff --unreleased --context | jq '[.[].commits | length] | add // 0')
   ((releasing > 0)) && release=true || release=false
 fi
 

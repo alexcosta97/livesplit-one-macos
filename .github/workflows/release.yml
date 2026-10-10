@@ -69,11 +69,19 @@ jobs:
           PREVIOUS_RC_TAG: ${{ needs.version.outputs.previous_rc_tag }}
         run: |
           scripts/release/notes.sh rc "$PREVIOUS_RC_TAG" > notes.md
-          if gh release view "$RC_TAG" > /dev/null 2>&1; then
-            gh release upload "$RC_TAG" dist/* --clobber
-          else
+          # gh creates a release with assets as a draft without a tag and only
+          # publishes it after the upload. A job killed mid-upload leaves that
+          # draft, pointing at an old commit, so delete a draft and start over.
+          draft=$(gh release view "$RC_TAG" --json isDraft --jq .isDraft 2> /dev/null || echo none)
+          if [[ "$draft" == true ]]; then
+            gh release delete "$RC_TAG" --yes
+            draft=none
+          fi
+          if [[ "$draft" == none ]]; then
             gh release create "$RC_TAG" dist/* --prerelease --target "$GITHUB_SHA" \
               --title "$RC_TAG" --notes-file notes.md
+          else
+            gh release upload "$RC_TAG" dist/* --clobber
           fi
 
   approve:
@@ -120,12 +128,19 @@ jobs:
           TAG: v${{ needs.version.outputs.version }}
         run: |
           scripts/release/notes.sh full > notes.md
-          if gh release view "$TAG" > /dev/null 2>&1; then
-            # A re-run after a partial failure: finish the release.
-            gh release upload "$TAG" dist/* --clobber
-            gh release edit "$TAG" --draft=false --prerelease=false --latest \
-              --notes-file notes.md
-          else
+          # See the candidate step: a killed publish leaves a tagless draft,
+          # which must not be published as it is, since that would tag an old
+          # commit. A draft has no tag, so deleting it needs no --cleanup-tag.
+          draft=$(gh release view "$TAG" --json isDraft --jq .isDraft 2> /dev/null || echo none)
+          if [[ "$draft" == true ]]; then
+            gh release delete "$TAG" --yes
+            draft=none
+          fi
+          if [[ "$draft" == none ]]; then
             gh release create "$TAG" dist/* --latest --target "$GITHUB_SHA" \
               --title "$TAG" --notes-file notes.md
+          else
+            # A re-run after a failure after the release was published.
+            gh release upload "$TAG" dist/* --clobber
+            gh release edit "$TAG" --prerelease=false --latest --notes-file notes.md
           fi

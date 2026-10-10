@@ -4,13 +4,19 @@
 #   notes.sh full                  notes for a full release
 set -euo pipefail
 
+# Show only git-cliff's errors, not its INFO and WARN lines (see next-version.sh).
+export RUST_LOG=${RUST_LOG:-error}
+
 last_full_tag=$(git describe --tags --abbrev=0 --match 'v[0-9]*.[0-9]*.[0-9]*' --exclude '*-*' 2>/dev/null || true)
 since=${last_full_tag:-the start of the project}
 
 section() { # heading, git-cliff range arguments...
   local heading=$1 body
   shift
-  body=$(git cliff "$@" --strip all 2>/dev/null)
+  body=$(git cliff "$@" --strip all)
+  # The cliff.toml body starts with a newline; drop it so one blank line
+  # follows the heading.
+  body=${body#"${body%%[![:space:]]*}"}
   printf '## %s\n\n' "$heading"
   if [[ -n "${body//[[:space:]]/}" ]]; then
     printf '%s\n\n' "$body"

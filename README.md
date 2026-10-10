@@ -16,7 +16,9 @@ It is made for two-PC setups, for example a gaming PC running the game and
 [livesplit-asr-bridge](https://github.com/alexcosta97/livesplit-asr-bridge),
 and a Mac showing the timer.
 
-> **Status: in early development.** There is no release yet. The design is in
+> **Status: in early development.** Download releases from the
+> [Releases page](https://github.com/alexcosta97/livesplit-one-macos/releases/latest).
+> The design is in
 > [the design spec](docs/superpowers/specs/2026-10-09-livesplit-one-macos-design.md),
 > and planned work is tracked in the
 > [issues](https://github.com/alexcosta97/livesplit-one-macos/issues).

@@ -206,7 +206,9 @@ request. The Dependency Dashboard issue lists pending updates.
 
 Releases are automated. There is no manual version bump and no
 `CHANGELOG.md`: the version and release notes come from the commits. The
-version is embedded in the app at build time, as `CFBundleShortVersionString`.
+version is embedded in the app at build time: `CFBundleShortVersionString`
+holds `X.Y.Z` and `LSOVersion` holds the full version, e.g. `0.4.0-rc.2` (see
+`scripts/build-app.sh`).
 
 - The version follows [Semantic Versioning](https://semver.org/) and is
   calculated from the commits since the last full release, starting at
@@ -215,6 +217,10 @@ version is embedded in the app at build time, as `CFBundleShortVersionString`.
   bumps patch. Commits of the other types alone don't produce a release.
 - Every merge to `main` that produces a version publishes a **release
   candidate** as a GitHub pre-release, tagged `vX.Y.Z-rc.N`.
+- Once any `feat`, `fix` or `perf` commit is unreleased, every merge to
+  `main` publishes a new candidate, including `docs`, `ci` and `chore` merges
+  (their "New since" notes read "No user-facing changes."), and each new
+  candidate cancels the pending approval of the previous one.
 - A maintainer promotes a release candidate by approving the pending release
   job in the `release` environment. That publishes the full release `vX.Y.Z`
   from the same commit, marked **Latest**.
@@ -226,6 +232,10 @@ version is embedded in the app at build time, as `CFBundleShortVersionString`.
   approve when no merge is pending, and if a run is cancelled after approval,
   approve the newer candidate. Never re-run an older Release run: it would
   cancel the newer candidate, and approving it would publish an older commit.
+- A leftover draft release `vX.Y.Z[-rc.N]` means a publish was killed
+  mid-upload (for example by a newer merge). It has no tag. Re-running the
+  workflow deletes the draft and publishes the release again, so don't publish
+  the draft by hand.
 - Release notes list every change since the previous full release, grouped by
   type. They are the project's changelog.
 

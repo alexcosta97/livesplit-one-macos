@@ -559,8 +559,10 @@ These follow livesplit-asr-bridge (its spec sections 13 and 14, and its
 - **Tools** (XcodeGen, git-cliff, shellcheck, actionlint) are pinned in
   `mise.toml` and used both locally and in CI. Rust comes from
   `rust-toolchain.toml`.
-- **Releases** work exactly as in livesplit-asr-bridge: the version comes from
-  the Conventional Commits with git-cliff, starting at `0.1.0`. Every merge
+- **Releases** work as in livesplit-asr-bridge, except for strict rc tag
+  matching, idempotent and draft-safe publish steps, the release script tests
+  in the required `lint` job, and one universal artifact. The version comes
+  from the Conventional Commits with git-cliff, starting at `0.1.0`. Every merge
   that produces a version publishes a release candidate `vX.Y.Z-rc.N`. Approval
   in the `release` environment promotes it to a full release marked Latest.
   The Releases page is the changelog. The build is a universal (Apple Silicon

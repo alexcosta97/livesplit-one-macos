@@ -17,6 +17,8 @@ trap cleanup EXIT
 
 # Isolate from the user's git config (signing, hooks, default branch).
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
+# next-version.sh appends to $GITHUB_OUTPUT when set; in CI that is the step's.
+unset GITHUB_OUTPUT
 
 new_repo() {
   repo=$(mktemp -d)

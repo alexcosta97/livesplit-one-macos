@@ -3,8 +3,11 @@ name: Release scripts
 # Builds and packages the app the way a release does, only when release files
 # change, so it never slows down normal CI. For the same reason it is not a
 # required check: GitHub keeps a path-filtered required check pending forever
-# on pull requests that don't match the paths. The release script tests and
-# shellcheck run in CI's required `lint` job.
+# on pull requests that don't match the paths. `package` builds the pull
+# request's head commit, not the merge commit, through build.yml, the reusable
+# workflow releases use, so it covers build.yml itself on top of CI's required
+# `build`. The release script tests and shellcheck run in CI's required `lint`
+# job.
 on:
   pull_request:
     types: [opened, reopened, synchronize]
