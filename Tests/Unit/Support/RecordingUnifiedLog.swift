@@ -1,15 +1,15 @@
 import Foundation
+import Synchronization
 
 @testable import LiveSplitOne
 
 /// A unified log that keeps what it is sent, for tests.
-final class RecordingUnifiedLog: UnifiedLogSink, @unchecked Sendable {
-    private let lock = NSLock()
-    private var sent: [LogEntry] = []
+final class RecordingUnifiedLog: UnifiedLogSink, Sendable {
+    private let sent = Mutex<[LogEntry]>([])
 
-    var entries: [LogEntry] { lock.withLock { sent } }
+    var entries: [LogEntry] { sent.withLock { $0 } }
 
     func send(_ entry: LogEntry) {
-        lock.withLock { sent.append(entry) }
+        sent.withLock { $0.append(entry) }
     }
 }

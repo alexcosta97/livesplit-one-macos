@@ -1,5 +1,6 @@
 import Foundation
 import OSLog
+import Synchronization
 import Testing
 
 @testable import LiveSplitOne
@@ -111,14 +112,13 @@ import Testing
 }
 
 /// A clock a test moves by hand.
-final class TestClock: @unchecked Sendable {
-    private let lock = NSLock()
-    private var time: Date
+final class TestClock: Sendable {
+    private let time: Mutex<Date>
 
-    init(_ time: Date) { self.time = time }
+    init(_ time: Date) { self.time = Mutex(time) }
 
     var now: Date {
-        get { lock.withLock { time } }
-        set { lock.withLock { time = newValue } }
+        get { time.withLock { $0 } }
+        set { time.withLock { $0 = newValue } }
     }
 }

@@ -1,20 +1,19 @@
 import Foundation
+import Synchronization
 
 /// Records what the app does, in the day's log file and the unified log (spec §12).
 ///
 /// Safe to call from any thread: server commands are logged from a background queue (spec
-/// §8.2). `@unchecked Sendable` because `lock` guards all mutable state; `Mutex` would need
-/// macOS 15.
-final class Log: @unchecked Sendable {
+/// §8.2). `disk`, the only mutable state, is behind a `Mutex`.
+final class Log: Sendable {
     /// The log folder.
     let directory: URL
 
     /// The app's log, in `LogFolder.current`.
     static let shared = Log(directory: LogFolder.current)
 
-    private let lock = NSLock()
     /// The log files' writer, or `nil` once writing to them failed.
-    private var disk: DiskLog?
+    private let disk: Mutex<DiskLog?>
     private let unified: any UnifiedLogSink
     private let now: @Sendable () -> Date
 
@@ -29,7 +28,7 @@ final class Log: @unchecked Sendable {
         let (disk, errors) = DiskLog.open(
             directory: directory, today: LogDay(now(), in: calendar), calendar: calendar,
             cap: cap)
-        self.disk = disk
+        self.disk = Mutex(disk)
         for error in errors {
             record(.error, error)
         }
@@ -38,23 +37,24 @@ final class Log: @unchecked Sendable {
     /// Records a line, stamped with the current time. Never fails: if the file can't be
     /// written, the line still reaches the unified log.
     func record(_ category: LogCategory, _ message: String) {
-        lock.withLock {
+        disk.withLock { disk in
             // Stamped inside the lock so lines reach the file in time order. Otherwise two
             // threads straddling midnight could write an older line after a newer one, and the
             // writer would reopen yesterday's file.
             let entry = LogEntry(time: now(), category: category, message: message)
             unified.send(entry)
-            for error in writeToDisk(entry) {
+            for error in writeToDisk(entry, to: &disk) {
                 let line = LogEntry(time: entry.time, category: .error, message: error)
                 unified.send(line)
                 // Same day as `entry`, so this write can't rotate and report more errors.
-                _ = writeToDisk(line)
+                _ = writeToDisk(line, to: &disk)
             }
         }
     }
 
-    /// Writes `entry` to the file. Returns the errors to record. Called with `lock` held.
-    private func writeToDisk(_ entry: LogEntry) -> [String] {
+    /// Writes `entry` to the file. Returns the errors to record. Called with the lock held,
+    /// with `disk` the value inside it.
+    private func writeToDisk(_ entry: LogEntry, to disk: inout DiskLog?) -> [String] {
         guard var writer = disk else { return [] }
         do {
             let errors = try writer.write(entry)
