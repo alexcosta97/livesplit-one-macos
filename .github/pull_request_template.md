@@ -30,3 +30,6 @@ Closes #
 - [ ] Changes to the design are reflected in the design spec.
 - [ ] Changes users can see are documented in `README.md`, and any
       screenshots to retake are listed.
+- [ ] Every problem found while working on this is fixed here, or linked
+      above to the issue where it was deferred, will be investigated, or is
+      its own task.
