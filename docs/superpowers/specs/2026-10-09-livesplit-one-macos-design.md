@@ -575,7 +575,8 @@ These follow livesplit-asr-bridge (its spec sections 13 and 14, and its
 - **Renovate** weekly, as in livesplit-asr-bridge: crates that ship and the
   LiveSplit crates (grouped, labelled `livesplit`) are `fix(deps)`; Swift
   packages that ship are `fix(deps)`; GitHub Actions are `ci(deps)`; mise tools
-  and development-only packages are `chore(deps)`.
+  and development-only packages, including the npm packages for commitlint,
+  are `chore(deps)`.
 - **GitHub Actions are pinned to a full commit SHA**, with the exact version
   as a comment (`uses: actions/checkout@<sha> # v7.0.1`), every action
   including GitHub's own. A tag can be moved to different code, and the
@@ -585,8 +586,10 @@ These follow livesplit-asr-bridge (its spec sections 13 and 14, and its
   action: the release notes are written in the read-only `version` job and
   passed on as an artifact. This departs from livesplit-asr-bridge, which
   pins actions by tag.
-- **Tools** (XcodeGen, git-cliff, shellcheck, actionlint) are pinned in
-  `mise.toml` and used both locally and in CI. Rust comes from
+- **Tools** (XcodeGen, git-cliff, shellcheck, actionlint, Node) are pinned in
+  `mise.toml` and used both locally and in CI. commitlint is pinned in
+  `package.json` and installed with `npm ci`, so the local check and CI's
+  `commitlint` check run the same version. Rust comes from
   `rust-toolchain.toml`.
 - **Releases** work as in livesplit-asr-bridge, except for strict rc tag
   matching, idempotent and draft-safe publish steps, the release script tests

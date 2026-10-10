@@ -24,3 +24,6 @@ xcuserdata/
 
 # macOS Finder metadata
 .DS_Store
+
+# npm packages for development tools (package.json)
+node_modules/

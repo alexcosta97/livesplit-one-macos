@@ -143,10 +143,23 @@ jobs:
           path: dist/*.zip
           if-no-files-found: error
 
+  # Checks every commit in the pull request with the commitlint pinned in
+  # package.json, the same one CONTRIBUTING.md runs locally.
   commitlint:
     name: commitlint
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: wagoid/commitlint-github-action@b948419dd99f3fd78a6548d48f94e3df7f6bf3ed # v6.2.1
+        with:
+          # The whole history, so the base commit is there to compare with.
+          fetch-depth: 0
+      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+        with:
+          install_args: node
+      - run: npm ci --no-audit --no-fund
+      - name: Lint the pull request's commits
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: npx commitlint --from "$BASE" --to "$HEAD" --verbose
