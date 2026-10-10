@@ -24,7 +24,7 @@ mod tests {
     use super::*;
     use crate::sink::{
         ResetDecision,
-        tests::{Recorder, timer},
+        tests::{Recorder, timer, wait},
     };
     use std::sync::Arc;
 
@@ -129,7 +129,7 @@ mod tests {
         fn report(&self, _: livesplit_core::event::Result) {}
         fn decide_reset(&self) -> ResetDecision {
             self.0.lock().unwrap().take().unwrap().send(()).unwrap();
-            self.1.lock().unwrap().recv().unwrap();
+            wait(&self.1.lock().unwrap(), "the go-ahead to answer");
             ResetDecision::Save
         }
     }
@@ -152,7 +152,7 @@ mod tests {
             let sink = sink.clone();
             std::thread::spawn(move || handle_command(&*sink, r#"{"command":"reset"}"#))
         };
-        asked_rx.recv().unwrap();
+        wait(&asked_rx, "the reset question");
         assert_eq!(
             handle_command(&*sink, r#"{"command":"split"}"#),
             r#"{"error":{"code":"Busy"}}"#

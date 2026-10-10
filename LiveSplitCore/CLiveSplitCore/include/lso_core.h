@@ -17,10 +17,12 @@ extern "C" {
 /// the thread it runs on, for example from `report`: that would abort the app.
 /// Dispatch to another thread or queue asynchronously instead.
 ///
-/// `report` for a decided reset runs while the sink still treats the question
-/// as open, so a command another thread sends during that callback (including
-/// one the callback waits on synchronously) gets Busy. Return promptly and
-/// don't wait on other commands.
+/// A reset that doesn't say whether to keep the attempt's times first waits
+/// for the commands already running to finish, including their `report`;
+/// commands that arrive from then until its own result has been reported get
+/// Busy without waiting, whether or not it has to ask. So `report` must return
+/// promptly and not wait on other commands: waiting on such a reset would
+/// deadlock, and a command sent during that reset's own `report` gets Busy.
 typedef struct LsoHost {
     void *context;
     /// Each command's result: an event number (0 or more), or `-1 - error`.

@@ -21,10 +21,12 @@ use crate::{
 /// thread they run on (that would abort the app: `block_on` panics when nested
 /// inside an `extern "C"` function). Dispatch asynchronously instead.
 ///
-/// `report` for a decided reset runs while the sink still treats the question
-/// as open, so a command another thread sends during that callback (including
-/// one the callback waits on synchronously) gets Busy. Return promptly and
-/// don't wait on other commands.
+/// A reset that doesn't say whether to keep the attempt's times first waits
+/// for the commands already running to finish, including their `report`;
+/// commands that arrive from then until its own result has been reported get
+/// Busy without waiting, whether or not it has to ask. So `report` must return
+/// promptly and not wait on other commands: waiting on such a reset would
+/// deadlock, and a command sent during that reset's own `report` gets Busy.
 #[repr(C)]
 pub struct LsoHost {
     pub context: *mut c_void,
@@ -73,6 +75,12 @@ impl Host for LsoHost {
 
 /// The sink as Swift sees it.
 pub type LsoCommandSink = EventSink<LsoHost>;
+
+// Swift's `EventSink` is `@unchecked Sendable` on the strength of this.
+const _: () = {
+    const fn assert_send_sync<T: Send + Sync>() {}
+    assert_send_sync::<LsoCommandSink>();
+};
 
 thread_local! {
     static OUTPUT: RefCell<CString> = RefCell::new(CString::default());
