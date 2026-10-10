@@ -4,7 +4,7 @@ name: LiveSplitOne
 options:
   bundleIdPrefix: dev.alexcosta
   deploymentTarget:
-    macOS: "14.0"
+    macOS: "15.0"
   createIntermediateGroups: true
   # The generated Swift bindings must exist before the project lists them.
   preGenCommand: scripts/build-core.sh --bindings-only

@@ -23,14 +23,14 @@
 
 - The app is named **LiveSplit One for macOS** in the pages; `livesplit-one-macos` only for files, folders and the repository. It is always described as unofficial and a version of LiveSplit One, not of the original Windows LiveSplit (spec §3).
 - Voice: plain and direct, short sentences, the words the app shows, no marketing superlatives (spec §16.2).
-- Menu items, buttons and notices in bold, spelled exactly as the app shows them. Check each one against `App/` with `grep -rn '"<name>' App/` before writing it. Names from macOS (System Settings, Finder, Console.app) are checked against macOS 14 and the current macOS.
+- Menu items, buttons and notices in bold, spelled exactly as the app shows them. Check each one against `App/` with `grep -rn '"<name>' App/` before writing it. Names from macOS (System Settings, Finder, Console.app) are checked against macOS 15 and the current macOS.
 - Each fact lives on one page; other pages link to it.
 - Page links use page names: `[Troubleshooting](Troubleshooting)`. Images: `images/<subject>.png` or `.svg`.
 - There is no full release yet, so pages describe `main` and Upcoming Changes has no entries (spec §16.3).
 - Screenshots don't exist yet. Where one belongs, write `<!-- screenshot: <ID> <file> -->` (IDs from spec §16.4) followed by a one-sentence description of the screen. #41 replaces them.
 - Pages describe only what `main` does. A page or sentence for a feature that isn't merged yet waits for that feature's issue.
 - Folders: settings `~/Library/Application Support/livesplit-one-macos/` (`app.toml`, `app.toml.bad`); logs `~/Library/Logs/livesplit-one-macos/`, files `livesplit-one-macos-YYYY-MM-DD.log`.
-- Release asset: `livesplit-one-macos-<version>-macos-universal.zip` (`scripts/build-app.sh`), containing `LiveSplit One.app`. Download link: `https://github.com/alexcosta97/livesplit-one-macos/releases/latest`. Requirements: macOS 14 (Sonoma) or newer, Apple Silicon or Intel.
+- Release asset: `livesplit-one-macos-<version>-macos-universal.zip` (`scripts/build-app.sh`), containing `LiveSplit One.app`. Download link: `https://github.com/alexcosta97/livesplit-one-macos/releases/latest`. Requirements: macOS 15 (Sequoia) or newer, Apple Silicon or Intel.
 - Workflows: only first-party actions (`actions/checkout@v7`) in a job with a write token, as #36 recommends.
 - Commits: Conventional Commits, signed, ending with `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
 
@@ -355,7 +355,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 `docs/wiki/Installing.md`:
 
 ```markdown
-LiveSplit One for macOS runs on macOS 14 (Sonoma) or newer, on Apple Silicon and Intel Macs. One download works on both.
+LiveSplit One for macOS runs on macOS 15 (Sequoia) or newer, on Apple Silicon and Intel Macs. One download works on both.
 
 ## Downloading
 

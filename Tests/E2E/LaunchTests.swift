@@ -4,8 +4,8 @@ import XCTest
 final class LaunchTests: XCTestCase {
     @MainActor
     func testLaunchShowsTheTimerWindow() {
-        let app = XCUIApplication()
-        app.launch()
-        XCTAssertTrue(app.windows["timer-window"].waitForExistence(timeout: 10))
+        let e2e = E2EApp()
+        e2e.launch()
+        XCTAssertTrue(e2e.timerWindow.waitForExistence(timeout: 10))
     }
 }

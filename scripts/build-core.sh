@@ -15,7 +15,7 @@ set -euo pipefail
 
 # Xcode's build phases don't see the login shell's PATH.
 export PATH="$HOME/.cargo/bin:/opt/homebrew/opt/rustup/bin:/usr/local/opt/rustup/bin:$PATH"
-export MACOSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET:-14.0}"
+export MACOSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET:-15.0}"
 
 root=$(cd "$(dirname "$0")/.." && pwd)
 manifest="$root/core/Cargo.toml"

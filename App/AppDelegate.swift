@@ -17,6 +17,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        let system = ProcessInfo.processInfo.operatingSystemVersion
+        Log.shared.record(
+            .app,
+            "LiveSplit One for macOS \(AppVersion.current) started on macOS "
+                + "\(system.majorVersion).\(system.minorVersion).\(system.patchVersion)")
         let window = Self.makeWindow()
         window.makeKeyAndOrderFront(nil)
         self.window = window
@@ -24,6 +29,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         true
+    }
+
+    /// Open Log Folder (spec §7, §12.2). The menu items that send it come with #13.
+    @objc func openLogFolder(_ sender: Any?) {
+        let folder = Log.shared.directory
+        guard !LogFolderOpener.system.open(folder) else { return }
+        let alert = LogFolderAlert.make(folder: folder)
+        if let window {
+            alert.beginSheetModal(for: window)
+        } else {
+            alert.runModal()
+        }
     }
 
     /// The empty timer window.
