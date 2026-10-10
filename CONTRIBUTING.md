@@ -55,12 +55,16 @@ and is not committed.
    cargo clippy --all-targets --locked --manifest-path core/Cargo.toml -- -D warnings
    cargo test --locked --manifest-path core/Cargo.toml
    swift format lint --strict --recursive App Tests LiveSplitCore/Wrapper scripts
+   mise x -- actionlint
+   mise x -- shellcheck scripts/*.sh
    xcodegen generate
    xcodebuild test -project LiveSplitOne.xcodeproj -scheme LiveSplitOne -destination 'platform=macOS'
+   scripts/build-app.sh 0.0.0-dev
    ```
 
-5. If you change a shell script or a workflow, also run `shellcheck` on the
-   script and `actionlint` for the workflows.
+   `actionlint` also runs shellcheck on the workflows' `run:` steps.
+   `scripts/build-app.sh` makes the universal release build CI's `build`
+   check makes, into `dist/`.
 
 ## Testing
 

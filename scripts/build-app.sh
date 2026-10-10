@@ -5,6 +5,10 @@
 set -euo pipefail
 
 version=${1:?usage: build-app.sh <version>}
+if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]]; then
+  echo "version must be X.Y.Z or X.Y.Z-suffix with no leading v, e.g. 0.4.0 or 0.4.0-rc.2; got '$version'" >&2
+  exit 1
+fi
 root=$(cd "$(dirname "$0")/.." && pwd)
 cd "$root"
 derived=build/DerivedData
@@ -14,6 +18,10 @@ zip="dist/livesplit-one-macos-$version-macos-universal.zip"
 # The full version goes in LSOVersion, which the app shows.
 short=${version%%-*}
 
+# Start from a clean build. With an earlier build's DerivedData, Xcode can
+# skip the core build phase as up to date and link whatever LiveSplitCore/lib
+# holds, such as debug or single-architecture Rust libraries.
+rm -rf "$derived"
 xcodegen generate
 xcodebuild build \
   -project LiveSplitOne.xcodeproj -scheme LiveSplitOne -configuration Release \
@@ -29,8 +37,8 @@ if [[ "$archs" != *arm64* || "$archs" != *x86_64* ]]; then
   exit 1
 fi
 plist="$app/Contents/Info.plist"
-for key in CFBundleShortVersionString:"$short" LSOVersion:"$version" \
-  CFBundleIdentifier:dev.alexcosta.livesplit-one-macos; do
+for key in CFBundleShortVersionString:"$short" CFBundleVersion:"$short" \
+  LSOVersion:"$version" CFBundleIdentifier:dev.alexcosta.livesplit-one-macos; do
   actual=$(/usr/libexec/PlistBuddy -c "Print :${key%%:*}" "$plist")
   if [[ "$actual" != "${key#*:}" ]]; then
     echo "${key%%:*} is '$actual', expected '${key#*:}'" >&2

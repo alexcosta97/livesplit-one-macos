@@ -19,6 +19,10 @@ env:
   # Line numbers only, not full debug info: much smaller caches.
   CARGO_PROFILE_DEV_DEBUG: line-tables-only
   DERIVED_DATA: build/DerivedData
+  # The XCUITest target. `test` skips it and `e2e` runs only it; both first
+  # check the test build contains it, so a renamed target fails instead of
+  # `test` running the E2E suite or `e2e` passing with no tests.
+  E2E_TARGET: LiveSplitOneE2ETests
 
 jobs:
   # Builds core/ and the app with its tests once, saves the Rust cache, and
@@ -67,6 +71,9 @@ jobs:
       - run: cargo fmt --check --manifest-path core/Cargo.toml
       - run: cargo clippy --all-targets --locked --manifest-path core/Cargo.toml -- -D warnings
       - run: swift format lint --strict --recursive App Tests LiveSplitCore/Wrapper scripts
+      # actionlint also runs shellcheck on the workflows' `run:` blocks.
+      - run: actionlint
+      - run: shellcheck scripts/*.sh
 
   test:
     name: test
@@ -81,11 +88,26 @@ jobs:
         with:
           name: test-build
       - run: mkdir -p "$DERIVED_DATA" && tar -C "$DERIVED_DATA" -xf test-build.tar
+      - name: Check the test build has the E2E target
+        run: |
+          shopt -s nullglob
+          runs=("$DERIVED_DATA"/Build/Products/*.xctestrun)
+          if (( ${#runs[@]} != 1 )); then
+            echo "::error::Expected one .xctestrun, found ${#runs[@]}"
+            exit 1
+          fi
+          # Targets appear as <key>BlueprintName</key><string>NAME</string>,
+          # the name -only-testing and -skip-testing match.
+          if ! grep -A1 '<key>BlueprintName</key>' "${runs[0]}" |
+            grep -q "<string>$E2E_TARGET</string>"; then
+            echo "::error::${runs[0]} has no test target named $E2E_TARGET"
+            exit 1
+          fi
+          echo "XCTESTRUN=${runs[0]}" >> "$GITHUB_ENV"
       - name: Unit, headless UI and integration tests
         run: >-
-          xcodebuild test-without-building
-          -xctestrun "$(ls "$DERIVED_DATA"/Build/Products/*.xctestrun)"
-          -destination 'platform=macOS' -skip-testing:LiveSplitOneE2ETests
+          xcodebuild test-without-building -xctestrun "$XCTESTRUN"
+          -destination 'platform=macOS' -skip-testing:"$E2E_TARGET"
 
   e2e:
     name: e2e
@@ -102,11 +124,26 @@ jobs:
         with:
           name: test-build
       - run: mkdir -p "$DERIVED_DATA" && tar -C "$DERIVED_DATA" -xf test-build.tar
+      - name: Check the test build has the E2E target
+        run: |
+          shopt -s nullglob
+          runs=("$DERIVED_DATA"/Build/Products/*.xctestrun)
+          if (( ${#runs[@]} != 1 )); then
+            echo "::error::Expected one .xctestrun, found ${#runs[@]}"
+            exit 1
+          fi
+          # Targets appear as <key>BlueprintName</key><string>NAME</string>,
+          # the name -only-testing and -skip-testing match.
+          if ! grep -A1 '<key>BlueprintName</key>' "${runs[0]}" |
+            grep -q "<string>$E2E_TARGET</string>"; then
+            echo "::error::${runs[0]} has no test target named $E2E_TARGET"
+            exit 1
+          fi
+          echo "XCTESTRUN=${runs[0]}" >> "$GITHUB_ENV"
       - name: E2E tests
         run: >-
-          xcodebuild test-without-building
-          -xctestrun "$(ls "$DERIVED_DATA"/Build/Products/*.xctestrun)"
-          -destination 'platform=macOS' -only-testing:LiveSplitOneE2ETests
+          xcodebuild test-without-building -xctestrun "$XCTESTRUN"
+          -destination 'platform=macOS' -only-testing:"$E2E_TARGET"
 
   build:
     name: build
@@ -115,7 +152,11 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v7
+      # Release universal builds have their own cache, which only main saves
+      # (the release workflow), so this job restores it but never saves.
       - uses: ./.github/actions/setup
+        with:
+          cache-key: release
       - run: scripts/build-app.sh 0.0.0-dev
       - uses: actions/upload-artifact@v7
         with:

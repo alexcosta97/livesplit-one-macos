@@ -27,3 +27,10 @@ jobs:
             ci
             style
             chore
+          # Squash merges make the title the commit on main, so it gets the
+          # check commitlint's subject-case rule makes on commits: the
+          # description doesn't start with a capital letter.
+          subjectPattern: ^(?![A-Z]).+$
+          subjectPatternError: >-
+            The description "{subject}" in "{title}" must not start with an
+            upper-case letter.
