@@ -14,10 +14,13 @@ final class E2EApp {
         filePath: "/private/tmp/lso-e2e-\(UUID().uuidString)", directoryHint: .isDirectory)
 
     var logFolder: URL { root.appending(path: "Logs", directoryHint: .isDirectory) }
+    var configFolder: URL { root.appending(path: "Config", directoryHint: .isDirectory) }
     var timerWindow: XCUIElement { app.windows["timer-window"] }
 
     func launch() {
-        app.launchArguments += ["-LSOLogDirectory", logFolder.path]
+        app.launchArguments += [
+            "-LSOLogDirectory", logFolder.path, "-LSOConfigDirectory", configFolder.path,
+        ]
         app.launch()
     }
 

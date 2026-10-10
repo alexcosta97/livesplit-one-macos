@@ -397,6 +397,7 @@ Quit
 | Connection lost | Overlay notice; automatic reconnection (section 8.3); logged |
 | The server sends an invalid command, or one the timer rejects | The error reply goes back as in LiveSplit One; logged in the Connection category; not shown as an error |
 | `app.toml` can't be read or parsed | Defaults are used, the broken file is kept as `app.toml.bad`, and an overlay notice says so |
+| `app.toml` can't be read and can't be moved aside | Defaults are used, and nothing is saved until the app restarts, so the file is never overwritten; logged as an error and an overlay notice says so |
 | The log folder can't be written | The app still runs; messages go to the unified log only (section 12.3) |
 | Open Log Folder can't open the folder | Alert naming the folder, so it can be found by hand; logged as an error |
 
@@ -416,10 +417,36 @@ folder, the same one livesplit-asr-bridge uses (`dirs::config_dir()`):
 - the window frame per layout path, and Always on Top;
 - the last Connect to Server URL.
 
-It is read at launch and written when one of these changes. It is TOML, as in
-livesplit-asr-bridge, read and written through `Codable` with
+It is read at launch and written when one of these changes, atomically, so a
+crash mid-write leaves the old file whole. Launching never creates it. It is
+TOML, as in livesplit-asr-bridge, read and written through `Codable` with
 [swift-toml](https://github.com/mattt/swift-toml) (toml++ underneath, a Swift 6
-package, maintained; TOMLKit was last released in January 2024).
+package, maintained; TOMLKit was last released in January 2024). For
+example:
+
+```toml
+# LiveSplit One for macOS settings. The app rewrites this file when a setting changes.
+
+always_on_top = true
+last_layout = "/Users/me/Layouts/Main.ls1l"
+last_server_url = "ws://192.168.1.20:16834"
+last_splits = "/Users/me/Splits/GTA San Andreas.lss"
+recent_layouts = ["/Users/me/Layouts/Main.ls1l"]
+recent_splits = ["/Users/me/Splits/GTA San Andreas.lss", "/Users/me/Splits/Any%.lss"]
+
+[[windows]]
+layout = "/Users/me/Layouts/Main.ls1l"
+x = 120
+y = 640
+width = 300
+height = 520
+```
+
+Every key is optional: a missing key takes its default (nothing opened, no
+recent files, Always on Top off) and an unknown key is ignored, so a file
+from another version still reads. A key with the wrong type makes the file
+unreadable. Recent lists are trimmed to 10 and repeats dropped. A broken file
+replaces any older `app.toml.bad`.
 
 The splits and layouts themselves stay wherever the user keeps them; the app
 only stores their paths.

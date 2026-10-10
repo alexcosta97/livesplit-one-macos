@@ -8,6 +8,9 @@ import AppKit
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private(set) var window: NSWindow?
 
+    /// The settings, read at launch (spec §11).
+    private(set) var settings: SettingsStore?
+
     static func main() {
         let app = NSApplication.shared
         let delegate = AppDelegate()
@@ -22,6 +25,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .app,
             "LiveSplit One for macOS \(AppVersion.current) started on macOS "
                 + "\(system.majorVersion).\(system.minorVersion).\(system.patchVersion)")
+        settings = SettingsStore(directory: ConfigFolder.current)
         let window = Self.makeWindow()
         window.makeKeyAndOrderFront(nil)
         self.window = window
