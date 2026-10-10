@@ -25,7 +25,8 @@ struct Options {
             switch (flag, rest.popFirst()) {
             case ("--origin", let value?): options.origin = value
             case ("--seconds", let value?):
-                guard let seconds = Double(value), seconds.isFinite, seconds > 0, seconds <= 86400
+                guard let seconds = Double(value), seconds.isFinite, seconds >= 0.1,
+                    seconds <= 86400
                 else { return nil }
                 options.seconds = seconds
             default: return nil
@@ -132,7 +133,10 @@ func receive(_ task: URLSessionWebSocketTask) {
         case .failure(let error):
             var reason = error.localizedDescription
             if task.closeCode != .invalid {
-                reason += " (the server closed it with close code \(task.closeCode.rawValue))"
+                reason +=
+                    task.closeCode == .noStatusReceived
+                    ? " (the server closed it without a close code)"
+                    : " (the server closed it with close code \(task.closeCode.rawValue))"
             }
             delegate.connectionEnded(reason, status: task.response as? HTTPURLResponse)
         }
@@ -142,7 +146,10 @@ func receive(_ task: URLSessionWebSocketTask) {
 let delegate = Delegate()
 guard let options = Options.parse(CommandLine.arguments) else {
     printError(
-        "usage: swift scripts/handshake-check.swift <ws-url> [--origin <origin>] [--seconds <n>]")
+        """
+        usage: swift scripts/handshake-check.swift <ws-url> [--origin <origin>] [--seconds <n>]
+        n is from 0.1 to 86400 seconds (default 30)
+        """)
     exit(2)
 }
 var request = URLRequest(url: options.url)
