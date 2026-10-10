@@ -571,8 +571,8 @@ These follow livesplit-asr-bridge (its spec sections 13 and 14, and its
 ## 16. Documentation
 
 - **README:** what the app is (unofficial, LiveSplit One, macOS) in the first
-  line, download from `/releases/latest`, opening an unsigned app (System
-  Settings → Privacy & Security → Open Anyway), connecting to
+  line, download from `/releases/latest`, opening an app that isn't notarised
+  (System Settings → Privacy & Security → Open Anyway), connecting to
   livesplit-asr-bridge, where settings and logs are, and building from source.
 - **CONTRIBUTING:** as section 15.
 - **Wiki** (backlog): setup, connecting, files, troubleshooting, and settings

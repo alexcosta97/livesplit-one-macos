@@ -5,12 +5,22 @@ set -euo pipefail
 
 root=$(cd "$(dirname "$0")/../.." && pwd)
 failures=0
+repos=()
+
+# Remove the temporary repositories on exit. rm -rf cannot change the exit
+# status of the script itself: an EXIT trap leaves it as it was.
+cleanup() {
+  cd /
+  ((${#repos[@]} == 0)) || rm -rf "${repos[@]}"
+}
+trap cleanup EXIT
 
 # Isolate from the user's git config (signing, hooks, default branch).
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
 
 new_repo() {
   repo=$(mktemp -d)
+  repos+=("$repo")
   cd "$repo"
   git init -q -b main
   git config user.name test
