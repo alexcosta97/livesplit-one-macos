@@ -12,7 +12,8 @@ permissions:
 
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  # Pushes to main aren't cancelled: the run that saves the Rust cache must finish.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   # Line numbers only, not full debug info: much smaller caches.
@@ -92,6 +93,11 @@ jobs:
     if: ${{ !cancelled() && github.event_name == 'pull_request' }}
     runs-on: macos-latest
     steps:
+      # Only the local actions are needed, to select the pinned Xcode.
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: .github/actions
+      - uses: ./.github/actions/select-xcode
       - uses: actions/download-artifact@v8
         with:
           name: test-build

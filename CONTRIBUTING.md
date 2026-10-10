@@ -26,7 +26,7 @@ generated from `project.yml` with [XcodeGen](https://github.com/yonaskolb/XcodeG
 and is not committed.
 
 1. Install Xcode 26.6 or newer from the App Store (the version CI uses is
-   set in `.github/actions/setup/action.yml`). Then run
+   set in `.github/actions/select-xcode/action.yml`). Then run
    `sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer`.
    Xcode includes `swift format`, which the checks use.
 2. Install [rustup](https://rustup.rs/) and [mise](https://mise.jdx.dev/),

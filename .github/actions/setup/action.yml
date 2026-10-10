@@ -1,6 +1,6 @@
-# Selects the Xcode the project builds with, installs the Rust toolchain from
-# rust-toolchain.toml and the tools pinned in mise.toml, and restores the Rust
-# cache. Every CI job shares one cache key,
+# Selects the Xcode the project builds with (../select-xcode), installs the
+# Rust toolchain from rust-toolchain.toml and the tools pinned in mise.toml, and
+# restores the Rust cache. Every CI job shares one cache key,
 # so the `setup` job compiles the dependencies once and the other jobs reuse
 # them.
 name: Setup
@@ -15,23 +15,7 @@ inputs:
 runs:
   using: composite
   steps:
-    # The runner image has several Xcodes; choose one explicitly so the image's
-    # default changing never changes the build. Raise this when an image ships
-    # a newer Xcode (the list is in actions/runner-images'
-    # images/macos/macos-26-arm64-Readme.md).
-    - name: Select Xcode
-      shell: bash
-      env:
-        XCODE_VERSION: '26.6'
-      run: |
-        app="/Applications/Xcode_${XCODE_VERSION}.app"
-        if [ ! -d "$app" ]; then
-          echo "::error::Xcode ${XCODE_VERSION} isn't on this runner. Installed:" >&2
-          ls -d /Applications/Xcode_*.app >&2
-          exit 1
-        fi
-        sudo xcode-select --switch "$app/Contents/Developer"
-        xcodebuild -version
+    - uses: ./.github/actions/select-xcode
     # rustup is preinstalled on GitHub's macOS runners. With no arguments it
     # installs the toolchain, components and targets rust-toolchain.toml names.
     - name: Install the Rust toolchain

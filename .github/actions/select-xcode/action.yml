@@ -1,0 +1,25 @@
+# Selects the Xcode the project builds and tests with. The version lives only
+# here, so every job that uses Xcode gets the same one.
+name: Select Xcode
+description: Select the pinned Xcode on the runner
+
+runs:
+  using: composite
+  steps:
+    # The runner image has several Xcodes; choose one explicitly so the image's
+    # default changing never changes the build. Raise this when an image ships
+    # a newer Xcode (the list is in actions/runner-images'
+    # images/macos/macos-26-arm64-Readme.md).
+    - name: Select Xcode
+      shell: bash
+      env:
+        XCODE_VERSION: '26.6'
+      run: |
+        app="/Applications/Xcode_${XCODE_VERSION}.app"
+        if [ ! -d "$app" ]; then
+          echo "::error::Xcode ${XCODE_VERSION} isn't on this runner. Installed:" >&2
+          ls -d /Applications/Xcode_*.app >&2
+          exit 1
+        fi
+        sudo xcode-select --switch "$app/Contents/Developer"
+        xcodebuild -version
