@@ -72,7 +72,10 @@ jobs:
       - run: swift format lint --strict --recursive App Tests LiveSplitCore/Wrapper scripts
       # actionlint also runs shellcheck on the workflows' `run:` blocks.
       - run: actionlint
-      - run: shellcheck scripts/*.sh
+      - run: shellcheck scripts/*.sh scripts/release/*.sh
+      # The release scripts are tested here so a broken one fails a required
+      # check. git-cliff comes from mise and jq from the runner.
+      - run: scripts/release/test-release-scripts.sh
 
   test:
     name: test
@@ -128,8 +131,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       # Release universal builds have their own cache. Restore-only here: the
-      # release workflow (issue #9) will save this key on main; until then
-      # this job starts cold.
+      # Release workflow's builds save this key on main, and they only run
+      # for merges that produce a release, so the cache can be cold.
       - uses: ./.github/actions/setup
         with:
           cache-key: release

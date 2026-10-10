@@ -56,7 +56,8 @@ and is not committed.
    cargo test --locked --manifest-path core/Cargo.toml
    swift format lint --strict --recursive App Tests LiveSplitCore/Wrapper scripts
    mise x -- actionlint
-   mise x -- shellcheck scripts/*.sh
+   mise x -- shellcheck scripts/*.sh scripts/release/*.sh
+   mise x -- scripts/release/test-release-scripts.sh
    xcodegen generate
    xcodebuild test -project LiveSplitOne.xcodeproj -scheme LiveSplitOne -destination 'platform=macOS'
    scripts/build-app.sh 0.0.0-dev
@@ -65,6 +66,11 @@ and is not committed.
    `actionlint` also runs shellcheck on the workflows' `run:` steps.
    `scripts/build-app.sh` makes the universal release build CI's `build`
    check makes, into `dist/`.
+
+   The release script tests need git-cliff (from `mise install`) and `jq`,
+   which macOS and the CI runners ship. The `lint` check runs them. The
+   advisory `Release scripts` workflow also builds the package on pull
+   requests that change release files.
 
 ## Testing
 
@@ -200,7 +206,9 @@ request. The Dependency Dashboard issue lists pending updates.
 
 Releases are automated. There is no manual version bump and no
 `CHANGELOG.md`: the version and release notes come from the commits. The
-version is embedded in the app at build time, as `CFBundleShortVersionString`.
+version is embedded in the app at build time: `CFBundleShortVersionString`
+holds `X.Y.Z` and `LSOVersion` holds the full version, e.g. `0.4.0-rc.2` (see
+`scripts/build-app.sh`).
 
 - The version follows [Semantic Versioning](https://semver.org/) and is
   calculated from the commits since the last full release, starting at
@@ -209,11 +217,34 @@ version is embedded in the app at build time, as `CFBundleShortVersionString`.
   bumps patch. Commits of the other types alone don't produce a release.
 - Every merge to `main` that produces a version publishes a **release
   candidate** as a GitHub pre-release, tagged `vX.Y.Z-rc.N`.
+- Once anything releasable (a `feat`, `fix`, `perf` or breaking commit) is
+  unreleased, every merge to `main` publishes a new candidate, including
+  `docs`, `ci` and `chore` merges (their "New since" notes read "No
+  user-facing changes."), and each new candidate cancels the pending approval
+  of the previous one.
 - A maintainer promotes a release candidate by approving the pending release
   job in the `release` environment. That publishes the full release `vX.Y.Z`
   from the same commit, marked **Latest**.
-- Each release contains the app as a universal (Apple Silicon and Intel),
-  unsigned `.app` in a `.zip`.
+- The release is a universal (Apple Silicon and Intel) `.app` in a `.zip`,
+  ad-hoc signed and not notarised, so users open it once with System Settings
+  → Privacy & Security → Open Anyway.
+- Only one Release run is live at a time: a newer merge cancels the older run.
+  That also cancels an approved run that is still building or publishing, so
+  approve when no merge is pending, and if a run is cancelled after approval,
+  approve the newer candidate. Never re-run an older Release run: it would
+  cancel the newer candidate, and approving it would publish an older commit.
+- A leftover draft release `vX.Y.Z[-rc.N]` means a publish was killed
+  mid-upload (for example by a newer merge). It has no tag. Don't publish it
+  by hand, and never re-run the killed run. A later Release run for the same
+  version deletes and replaces the draft by itself, since candidate numbers
+  come only from tags. If the version has moved on (after a newer `feat`, say),
+  the draft is orphaned: delete it with `gh release delete <tag> --yes`.
+- Repository settings that protect releases: the `release` environment deploys
+  only from `main`, with the maintainer as required reviewer. A tag ruleset,
+  "release tags", stops `v*` tags being moved or deleted. Creating them isn't
+  restricted: GitHub doesn't let the GitHub Actions app bypass a ruleset in a
+  personal repository, so restricting creation would block the release
+  workflow.
 - Release notes list every change since the previous full release, grouped by
   type. They are the project's changelog.
 

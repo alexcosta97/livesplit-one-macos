@@ -1,0 +1,44 @@
+name: Build
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: Version embedded in the app, e.g. 0.4.0 or 0.4.0-rc.2
+        required: true
+        type: string
+      ref:
+        description: Commit to build
+        required: true
+        type: string
+      artifact-name:
+        description: Name of the uploaded artifact
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    name: package
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
+      # Release builds use their own cache key, so they never overwrite CI's
+      # debug cache (key `ci`). Pull requests (the release-scripts `package`
+      # job) restore the cache but don't save it.
+      - uses: ./.github/actions/setup
+        with:
+          cache-key: release
+          save-cache: ${{ github.ref == 'refs/heads/main' }}
+      - run: scripts/build-app.sh "$VERSION"
+        env:
+          VERSION: ${{ inputs.version }}
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: dist/*.zip
+          if-no-files-found: error

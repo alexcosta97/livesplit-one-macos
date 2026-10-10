@@ -1,0 +1,43 @@
+name: Release scripts
+
+# Builds and packages the app the way a release does, only when release files
+# change, so it never slows down normal CI. For the same reason it is not a
+# required check: GitHub keeps a path-filtered required check pending forever
+# on pull requests that don't match the paths. `package` builds the pull
+# request's head commit, not the merge commit, through build.yml, the reusable
+# workflow releases use, so it covers build.yml itself on top of CI's required
+# `build`. Because it builds the head and not the merge commit, a break that
+# only appears once merged with main is caught by CI's required `build`, not by
+# this job. The release script tests and shellcheck run in CI's required `lint`
+# job.
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+    paths:
+      - cliff.toml
+      - mise.toml
+      - project.yml
+      - scripts/**
+      - .github/actions/setup/**
+      - .github/actions/select-xcode/**
+      - .github/workflows/build.yml
+      - .github/workflows/release.yml
+      - .github/workflows/release-scripts.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-scripts-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  # Builds and packages the app the way a release does, so packaging changes
+  # are checked before they reach a release.
+  package:
+    name: package
+    uses: ./.github/workflows/build.yml
+    with:
+      version: 0.0.0-dev
+      ref: ${{ github.event.pull_request.head.sha }}
+      artifact-name: package-test

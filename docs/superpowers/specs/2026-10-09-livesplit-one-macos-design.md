@@ -533,13 +533,19 @@ These follow livesplit-asr-bridge (its spec sections 13 and 14, and its
 - **`main` rulesets:** changes only through pull requests, the required checks
   below, all conversations resolved, signed commits, squash merging only; and a
   second ruleset letting only maintainers merge.
+- **Release settings:** the `release` environment deploys only from `main`,
+  with the maintainer as required reviewer. A tag ruleset, "release tags",
+  stops `v*` tags being moved or deleted. Creating them isn't restricted:
+  GitHub doesn't let the GitHub Actions app bypass a ruleset in a personal
+  repository, so restricting creation would block the release workflow.
 - **CI** on pull requests, on `macos-latest` runners because Xcode needs them:
   - `setup`: builds `core/` and the app with its tests once, hands the test
     build to `test` and `e2e`, and saves the Cargo cache (Xcode's DerivedData
     isn't cached: a fresh checkout invalidates it);
   - `lint`: `cargo fmt --check`, `cargo clippy --all-targets --locked -- -D
     warnings`, `swift format lint --strict`, `actionlint` (which also runs
-    shellcheck on the workflows' scripts) and `shellcheck` on `scripts/`;
+    shellcheck on the workflows' scripts), `shellcheck` on `scripts/` and the
+    release script tests;
   - `test`: `cargo test --locked`, then the unit, headless UI and integration
     tests;
   - `e2e`: the XCUITest suite;
@@ -558,18 +564,22 @@ These follow livesplit-asr-bridge (its spec sections 13 and 14, and its
 - **Tools** (XcodeGen, git-cliff, shellcheck, actionlint) are pinned in
   `mise.toml` and used both locally and in CI. Rust comes from
   `rust-toolchain.toml`.
-- **Releases** work exactly as in livesplit-asr-bridge: the version comes from
-  the Conventional Commits with git-cliff, starting at `0.1.0`. Every merge
+- **Releases** work as in livesplit-asr-bridge, except for strict rc tag
+  matching, idempotent and draft-safe publish steps, the release script tests
+  in the required `lint` job, and one universal artifact. The version comes
+  from the Conventional Commits with git-cliff, starting at `0.1.0`. Every merge
   that produces a version publishes a release candidate `vX.Y.Z-rc.N`. Approval
   in the `release` environment promotes it to a full release marked Latest.
   The Releases page is the changelog. The build is a universal (Apple Silicon
-  and Intel) unsigned `.app` in a `.zip`.
+  and Intel) ad-hoc signed, not notarised `.app` in a `.zip`. Only one Release
+  run is live at a time (a newer merge cancels the older run, even one already
+  approved), and an older run must never be re-run.
 
 ## 16. Documentation
 
 - **README:** what the app is (unofficial, LiveSplit One, macOS) in the first
-  line, download from `/releases/latest`, opening an unsigned app (System
-  Settings → Privacy & Security → Open Anyway), connecting to
+  line, download from `/releases/latest`, opening an app that isn't notarised
+  (System Settings → Privacy & Security → Open Anyway), connecting to
   livesplit-asr-bridge, where settings and logs are, and building from source.
 - **CONTRIBUTING:** as section 15.
 - **Wiki** (backlog): setup, connecting, files, troubleshooting, and settings
