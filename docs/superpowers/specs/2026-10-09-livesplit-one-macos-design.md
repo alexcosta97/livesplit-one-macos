@@ -53,6 +53,9 @@ These were tried or reviewed first (October 2026):
 - Settings and logs stored in the same places, with the same rotation, as
   livesplit-asr-bridge.
 - Unsigned builds for Apple Silicon and Intel, released through GitHub.
+- User documentation in the repository's GitHub wiki (section 16), enough
+  for someone new to install the app and use every feature above. The app
+  isn't made public without it.
 
 ### Non-goals (first version)
 
@@ -76,6 +79,8 @@ These were tried or reviewed first (October 2026):
   touched.
 - When something goes wrong, the user is told what happened and where the log
   is.
+- Someone who has never used the app gets from the download to a connected,
+  splitting timer using only the wiki.
 
 ## 3. Naming and positioning
 
@@ -411,8 +416,9 @@ folder, the same one livesplit-asr-bridge uses (`dirs::config_dir()`):
 - the last Connect to Server URL.
 
 It is read at launch and written when one of these changes. It is TOML, as in
-livesplit-asr-bridge, read and written with a Swift TOML library through
-`Codable`.
+livesplit-asr-bridge, read and written through `Codable` with
+[swift-toml](https://github.com/mattt/swift-toml) (toml++ underneath, a Swift 6
+package, maintained; TOMLKit was last released in January 2024).
 
 The splits and layouts themselves stay wherever the user keeps them; the app
 only stores their paths.
@@ -577,13 +583,108 @@ These follow livesplit-asr-bridge (its spec sections 13 and 14, and its
 
 ## 16. Documentation
 
+These follow livesplit-asr-bridge (its spec section 15), adapted to this app.
+
 - **README:** what the app is (unofficial, LiveSplit One, macOS) in the first
-  line, download from `/releases/latest`, opening an app that isn't notarised
-  (System Settings → Privacy & Security → Open Anyway), connecting to
-  livesplit-asr-bridge, where settings and logs are, and building from source.
+  line, requirements, download from `/releases/latest`, a quick start of a
+  few steps, and links to the wiki. Details (opening an app that isn't
+  notarised, connecting, where settings and logs are) live only in the wiki,
+  so each fact is written once. Building from source stays in
+  `CONTRIBUTING.md`.
 - **CONTRIBUTING:** as section 15.
-- **Wiki** (backlog): setup, connecting, files, troubleshooting, and settings
-  and log locations.
+- **Wiki:** the user documentation, in the repository's GitHub wiki
+  (sections 16.1 to 16.4). It is part of the first version (section 2): the
+  app isn't made public until someone new can learn to use it from the wiki.
+
+### 16.1 Wiki source and publishing
+
+- The wiki's pages and images are written in `docs/wiki/` in this repository
+  and changed through pull requests like any other change. The wiki is never
+  edited directly, and wiki editing is restricted to collaborators.
+- `scripts/wiki/check.sh` checks the pages on pull requests, in the `lint`
+  job: every link to another page names a page that exists, every image
+  exists, and every page is in the sidebar.
+- `.github/workflows/wiki.yml` publishes them. On every push to `main` that
+  changes `docs/wiki/`, and on manual dispatch, it checks out the wiki
+  repository (`livesplit-one-macos.wiki`) with `GITHUB_TOKEN`, mirrors
+  `docs/wiki/` into it (deleting pages that no longer exist), and commits as
+  `github-actions[bot]` with the message "Sync from <short sha>". Nothing is
+  pushed when nothing changed.
+- GitHub creates the wiki repository only once its first page exists, so the
+  first page is created by hand once, and the first sync replaces it.
+- File names follow the wiki's conventions: `Home.md`, `_Sidebar.md`,
+  `_Footer.md`, and one file per page with hyphens for spaces
+  (`Getting-Started.md` is the page "Getting Started"). Links between pages
+  use page names (`[Troubleshooting](Troubleshooting)`), and images are in
+  `docs/wiki/images/`.
+
+### 16.2 Pages
+
+In sidebar order:
+
+| Page | Kind | Contents | Written by |
+|---|---|---|---|
+| Home | Landing | What the app is (unofficial, a version of LiveSplit One), a diagram of the two-PC setup, where to start, links to every page | #25 |
+| Installing | Task | Downloading, moving the app to Applications, opening an app that isn't notarised (Open Anyway), full releases and release candidates, updating by hand (no auto-update), uninstalling, including the settings and log folders | #25 |
+| Getting Started | Tutorial | First launch through the first split: open splits and a layout, start and split with the keyboard, reset, save, then connect to livesplit-asr-bridge | #12, the first issue after which the whole tutorial works; #14 adds connecting |
+| The Timer Window | Reference | Moving and resizing, Always on Top, the window remembered per layout, overlay notices and what each one means, the keyboard shortcuts | #11, #13 |
+| The Menu | Reference | Every item in the right-click menu and the menu bar (section 7), when each is disabled, Compare Against and the timing method | #13 |
+| Splits and Layouts | Task | Opening splits in any format livesplit-core reads, opening `.lsl` and `.ls1l` layouts, recent files, saving, Save Layout As and why it writes `.ls1l`, unsaved changes, reset with new best times, what reopens at launch | #12 |
+| Editing Splits | Task | The splits editor (section 9): game details, segments, times, comparisons, Real Time and Game Time, Clear History and Clear Times, OK and Cancel | #15 |
+| Connecting to a Server | Task | Connecting to livesplit-asr-bridge, which address to use, local network access and where to allow it, the status notices, automatic reconnection, Disconnect, servers other than the bridge | #14 |
+| Settings and Logs | Reference | `app.toml` and what it holds, `app.toml.bad`, the log folder, the categories, retention and the size cap, Open Log Folder, Console.app | #25, from what #16 and #17 built; #13 adds Open Log Folder |
+| Troubleshooting | Task | By symptom (what you see, why, what to do), ending with how to report a bug with the version and the day's log file | #25 starts it; each issue adds what it finds; #41 completes it |
+| Upcoming Changes | Staging | Section 16.3 | #25 |
+
+- Button, menu item and notice names are written as the app shows them, in
+  bold. Each one is checked against `App/` before it is written.
+- Each fact lives on one page; other pages link to it.
+- The app is always named **LiveSplit One for macOS** in the pages;
+  `livesplit-one-macos` only for files and folders. The voice is plain and
+  direct: short sentences, the words the app shows, no marketing
+  superlatives.
+
+### 16.3 Upcoming changes
+
+The wiki describes the latest full release, the one `/releases/latest` points
+to. Until the first full release exists, the pages describe `main` and
+Upcoming Changes is not used.
+
+- After the first full release, a pull request that changes what users see
+  adds its documentation to the Upcoming Changes page, under a heading naming
+  the page it belongs on, instead of changing that page. Fixes to the
+  documentation of released behaviour change the page directly.
+- When a full release is promoted (section 15), the release job opens an
+  issue "Move upcoming documentation into the wiki for vX.Y.Z" if the
+  Upcoming Changes page has any entries. Its pull request moves each entry
+  into its page and empties Upcoming Changes.
+- With no entries, the page says the documentation matches the latest
+  release.
+
+### 16.4 Screenshots
+
+- PNG, of the window or sheet only: no desktop, wallpaper or shadow.
+  Captured at 2× and shown with `<img width=…>` at their logical size.
+- Every shot uses the same splits and layout, from one app version.
+- Named `<subject>.png` after what they show, so a change to a screen shows
+  which shots to retake.
+- A pull request that changes a screen that is in a screenshot says which
+  screenshots need retaking. Until a screenshot exists, its page describes
+  the screen in text and marks the place with
+  `<!-- screenshot: <ID> <file> -->`.
+
+| ID | File | Shows |
+|---|---|---|
+| S1 | `timer-window.png` | The timer window, running, with a layout |
+| S2 | `right-click-menu.png` | The right-click menu, with Control open |
+| S3 | `connect-sheet.png` | The Connect to Server sheet |
+| S4 | `overlay-notice.png` | The "Connected to `<host>`" notice, crop |
+| S5 | `splits-editor.png` | The splits editor with a custom comparison |
+| S6 | `unsaved-changes.png` | The Save / Don't Save / Cancel alert |
+| S7 | `reset-new-best.png` | The reset with new best times alert |
+| T1 | `macos-open-anyway.png` | System Settings, Privacy & Security, Open Anyway |
+| T2 | `macos-local-network-prompt.png` | macOS asking to allow local network access |
+| T3 | `macos-local-network-settings.png` | System Settings, Privacy & Security, Local Network, with the app allowed |
 
 ## 17. Backlog
 
@@ -606,20 +707,34 @@ Foundations:
 - #9 Release pipeline.
 - #10 Renovate.
 
-First version:
+First version, in the GitHub milestone **First version**, in the order
+they are done. Each has its own plan in `docs/superpowers/plans/`, written
+when it is next, against the code that exists by then (#40 plans the first
+three):
 
+- #40 Plan the first version: user documentation in the first version, this
+  order, and the plans for #17, #16 and #25.
+- #17 Logging: categories, daily files, 7-day retention, size cap, Open Log
+  Folder, unified log. First, because every later issue logs.
+- #16 `app.toml` settings storage. Logs its own failures, so after #17.
+- #25 Wiki: `docs/wiki/`, its check and publishing (section 16.1), the
+  Upcoming Changes issue, and the pages for what exists by then (Home,
+  Installing, Settings and Logs, Troubleshooting, Upcoming Changes), so each
+  issue after it documents itself in its own page (section 16.2).
 - #11 Timer window: borderless window, rendering, size hint, resizing, Always
   on Top, overlay notices.
+- #13 Right-click menu and menu bar, with keyboard shortcuts while focused.
+  The Files, Connect and Edit Splits items are added by their issues.
 - #12 Files: open and save splits, open layout, Save Layout As, recents,
   unsaved-changes and reset prompts, reopen on launch.
-- #13 Right-click menu and menu bar, with keyboard shortcuts while focused.
 - #14 Connect to Server: sheet, client, events to the server, status,
   automatic reconnection.
 - #15 Splits editor.
-- #16 `app.toml` settings storage.
-- #17 Logging: categories, daily files, 7-day retention, size cap, Open Log
-  Folder, unified log.
-- #18 E2E harness and suite (section 14.2), filled in alongside #11–#17.
+- #18 E2E harness and suite (section 14.2), filled in alongside #11–#17:
+  each issue adds its own flows from section 14.3, and #18 closes when they
+  all pass.
+- #41 Complete the wiki for the first release: screenshots (section 16.4),
+  a whole-wiki pass, Troubleshooting.
 
 Later:
 
@@ -632,7 +747,6 @@ Later:
 - #22 Code signing, notarisation and auto-update.
 - #23 Metal renderer, if needed (section 5.2).
 - #24 speedrun.com integration.
-- #25 Wiki.
 
 ## 18. License
 
