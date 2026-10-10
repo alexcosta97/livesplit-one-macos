@@ -40,7 +40,9 @@ for arg in "$@"; do
   esac
 done
 if [[ -n "${CONFIGURATION:-}" ]]; then
-  if [[ "$CONFIGURATION" == Release ]]; then release=true; else release=false; fi
+  # Only Debug builds debug Rust; any other configuration (Release, a future
+  # Profile or Beta) must not ship debug code.
+  if [[ "$CONFIGURATION" == Debug ]]; then release=false; else release=true; fi
   archs=${ARCHS:-$archs}
 fi
 profile=debug
@@ -131,6 +133,13 @@ generate_bindings() {
   trap - EXIT
 }
 
+# Escapes a path for a Makefile-style dependency file.
+make_escape() {
+  local s=${1//\$/\$\$}
+  s=${s//\#/\\#}
+  echo "${s// /\\ }"
+}
+
 # Tells Xcode what this run read, so it skips the phase until one of them
 # changes (spec §4.2): core/'s Rust sources (cargo's dependency file), its
 # manifest and lock file, the toolchain file and this script.
@@ -140,8 +149,13 @@ write_xcode_dependencies() {
   depinfo="$root/core/target/$first/$profile/liblso_core.d"
   inputs=$(cut -d: -f2- "$depinfo")
   mkdir -p "$DERIVED_FILE_DIR"
-  echo "$out/lib/liblso_core.a: $inputs $root/core/Cargo.toml $root/core/Cargo.lock" \
-    "$root/rust-toolchain.toml $root/scripts/build-core.sh" >"$DERIVED_FILE_DIR/build-core.d"
+  # cargo's list ($inputs) is already escaped; the paths added here are not.
+  local extra=() path
+  for path in "$out/lib/liblso_core.a" "$root/core/Cargo.toml" "$root/core/Cargo.lock" \
+    "$root/rust-toolchain.toml" "$root/scripts/build-core.sh"; do
+    extra+=("$(make_escape "$path")")
+  done
+  echo "${extra[0]}: $inputs ${extra[*]:1}" >"$DERIVED_FILE_DIR/build-core.d"
 }
 
 generate_bindings
