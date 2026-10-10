@@ -21,13 +21,14 @@ development environment and the conventions every change follows.
 
 The app is Swift and AppKit, built with Xcode. livesplit-core is linked
 through a Rust static library in `core/`, and its Swift bindings are generated
-into the `LiveSplitCore/` Swift package. The Xcode project is generated from
-`project.yml` with [XcodeGen](https://github.com/yonaskolb/XcodeGen) and is not
-committed.
+into the `LiveSplitCore/` Xcode static library target. The Xcode project is
+generated from `project.yml` with [XcodeGen](https://github.com/yonaskolb/XcodeGen)
+and is not committed.
 
-1. Install Xcode from the App Store (26.6 or newer; the version CI uses is
-   set in `.github/actions/setup/action.yml`), then run
+1. Install Xcode 26.6 or newer from the App Store (the version CI uses is
+   set in `.github/actions/setup/action.yml`). Then run
    `sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer`.
+   Xcode includes `swift format`, which the checks use.
 2. Install [rustup](https://rustup.rs/) and [mise](https://mise.jdx.dev/),
    then run `mise install` in the repository. Rust's version and targets come
    from `rust-toolchain.toml`. mise installs XcodeGen, git-cliff, shellcheck
@@ -39,11 +40,14 @@ committed.
    xcodegen generate
    ```
 
+   `xcodegen generate` runs `scripts/build-core.sh --bindings-only`, and
+   building in Xcode runs `scripts/build-core.sh`, which builds `core/` with
+   Cargo and regenerates livesplit-core's Swift bindings when needed. The
+   first build downloads and compiles livesplit-core and takes a few minutes.
+
    Open the generated `LiveSplitOne.xcodeproj` in Xcode. The project is
    generated from `project.yml` and never committed: run `xcodegen generate`
-   again after pulling changes to it. An Xcode build phase runs
-   `scripts/build-core.sh` again before compiling Swift, and skips it when
-   nothing on the Rust side changed.
+   again after pulling changes to it.
 4. Before pushing, run the same checks CI runs. In `core/`:
 
    ```sh
@@ -55,7 +59,7 @@ committed.
    Then, in the repository root:
 
    ```sh
-   swift format lint --strict --recursive App Tests
+   swift format lint --strict --recursive App Tests LiveSplitCore/Wrapper
    xcodebuild test -scheme LiveSplitOne -destination 'platform=macOS'
    ```
 

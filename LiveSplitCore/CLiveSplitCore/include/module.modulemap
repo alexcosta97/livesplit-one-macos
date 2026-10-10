@@ -1,0 +1,12 @@
+// Hand-written, not bind_gen's: it adds core/'s header and library, and an
+// umbrella header that includes <sys/types.h> first, because the generated
+// livesplit_core.h uses ssize_t without including it.
+module CLiveSplitCore [extern_c] {
+    header "CLiveSplitCore.h"
+    link "livesplit_core"
+    link "lso_core"
+    link framework "Carbon"
+    link framework "CoreFoundation"
+    link framework "CoreGraphics"
+    export *
+}
