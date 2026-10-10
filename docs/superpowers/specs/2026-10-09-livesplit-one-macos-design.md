@@ -398,6 +398,7 @@ Quit
 | The server sends an invalid command, or one the timer rejects | The error reply goes back as in LiveSplit One; logged in the Connection category; not shown as an error |
 | `app.toml` can't be read or parsed | Defaults are used, the broken file is kept as `app.toml.bad`, and an overlay notice says so |
 | The log folder can't be written | The app still runs; messages go to the unified log only (section 12.3) |
+| Open Log Folder can't open the folder | Alert naming the folder, so it can be found by hand; logged as an error |
 
 ## 11. Configuration and settings storage
 
