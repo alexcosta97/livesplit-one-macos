@@ -12,6 +12,15 @@ final class Log: Sendable {
     /// The app's log, in `LogFolder.current`.
     static let shared = Log(directory: LogFolder.current)
 
+    /// The calendar that names the log files and stamps their lines: Gregorian, whatever
+    /// calendar System Settings uses, because file names are `YYYY-MM-DD` in Gregorian years
+    /// (spec §12.2), in the user's time zone.
+    static func defaultCalendar(in timeZone: TimeZone = .autoupdatingCurrent) -> Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+        return calendar
+    }
+
     /// The log files' writer, or `nil` once writing to them failed.
     private let disk: Mutex<DiskLog?>
     private let unified: any UnifiedLogSink
@@ -19,7 +28,7 @@ final class Log: Sendable {
 
     init(
         directory: URL, unified: any UnifiedLogSink = SystemUnifiedLog(),
-        calendar: Calendar = .autoupdatingCurrent, cap: Int = DiskLog.dailyCap,
+        calendar: Calendar = Log.defaultCalendar(), cap: Int = DiskLog.dailyCap,
         now: @escaping @Sendable () -> Date = { Date() }
     ) {
         self.directory = directory

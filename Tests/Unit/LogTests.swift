@@ -27,6 +27,20 @@ import Testing
         #expect(unified.entries.map(\.category) == [.timer])
     }
 
+    @Test func theDefaultCalendarIsGregorianInTheUsersTimeZone() throws {
+        // Whatever calendar System Settings uses (Buddhist: year 2569), files are named in
+        // Gregorian years, which is what `LogFileName` recognises.
+        let london = try #require(TimeZone(identifier: "Europe/London"))
+        let calendar = Log.defaultCalendar(in: london)
+        #expect(calendar.identifier == .gregorian)
+        #expect(calendar.timeZone == london)
+        #expect(LogDay(TestCalendar.date(2026, 10, 10), in: calendar).text == "2026-10-10")
+        var buddhist = Calendar(identifier: .buddhist)
+        buddhist.timeZone = london
+        #expect(LogDay(TestCalendar.date(2026, 10, 10), in: buddhist).text == "2569-10-10")
+        #expect(Log.defaultCalendar().timeZone == TimeZone.autoupdatingCurrent)
+    }
+
     @Test func aFailedWriteIsReportedOnceAndStopsWritingFiles() throws {
         let folder = try TemporaryFolder()
         // A file where the log folder should be, so the folder can't be created.
@@ -51,6 +65,11 @@ import Testing
         try FileManager.default.createDirectory(at: old, withIntermediateDirectories: false)
         try "x".write(to: old.appending(path: "inside"), atomically: true, encoding: .utf8)
         try FileManager.default.setAttributes([.posixPermissions: 0o500], ofItemAtPath: old.path)
+        // Writable again when this ends, so the folder can be deleted, even if a check fails.
+        defer {
+            try? FileManager.default.setAttributes(
+                [.posixPermissions: 0o700], ofItemAtPath: old.path)
+        }
         let unified = RecordingUnifiedLog()
         _ = makeLog(folder.url, unified: unified)
         let errors = unified.entries.filter { $0.category == .error }.map(\.message)
@@ -59,9 +78,6 @@ import Testing
         #expect(
             try folder.read("livesplit-one-macos-2026-10-10.log").contains(
                 "  ERROR  Couldn't delete the old log file "))
-        // Writable again, so the folder can be deleted. `folder` is kept alive until then.
-        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: old.path)
-        withExtendedLifetime(folder) {}
     }
 
     @Test func linesFromManyThreadsAreAllWrittenWhole() async throws {
@@ -96,6 +112,12 @@ import Testing
             try folder.names() == [
                 "livesplit-one-macos-2026-10-10.log", "livesplit-one-macos-2026-10-11.log",
             ])
+        #expect(
+            try folder.read("livesplit-one-macos-2026-10-10.log")
+                == "23:59:59.254  APP  before\n")
+        #expect(
+            try folder.read("livesplit-one-macos-2026-10-11.log")
+                == "00:00:01.254  APP  after\n")
     }
 
     @Test func linesReachTheSystemUnifiedLog() throws {
@@ -103,9 +125,15 @@ import Testing
         SystemUnifiedLog().send(LogEntry(time: Date(), category: .connection, message: marker))
         let store = try OSLogStore(scope: .currentProcessIdentifier)
         let predicate = NSPredicate(format: "subsystem == %@", SystemUnifiedLog.subsystem)
-        let found = try store.getEntries(matching: predicate)
-            .compactMap { $0 as? OSLogEntryLog }
-            .first { $0.composedMessage == marker }
+        // The store can lag behind `send`, so look for up to 2 seconds.
+        var found: OSLogEntryLog?
+        let deadline = Date().addingTimeInterval(2)
+        repeat {
+            found = try store.getEntries(matching: predicate)
+                .compactMap { $0 as? OSLogEntryLog }
+                .first { $0.composedMessage == marker }
+            if found == nil { Thread.sleep(forTimeInterval: 0.1) }
+        } while found == nil && Date() < deadline
         #expect(found?.category == "Connection")
         #expect(found?.level == .notice)
     }
