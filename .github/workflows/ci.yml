@@ -1,0 +1,126 @@
+name: CI
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Line numbers only, not full debug info: much smaller caches.
+  CARGO_PROFILE_DEV_DEBUG: line-tables-only
+  DERIVED_DATA: build/DerivedData
+
+jobs:
+  # Builds core/ and the app with its tests once, saves the Rust cache, and
+  # hands the test build to `test` and `e2e`. On push to main it only builds,
+  # to save the cache new pull requests restore: GitHub lets a pull request
+  # read its base branch's caches, not other pull requests' (spec §15).
+  setup:
+    name: setup
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+        with:
+          save-cache: 'true'
+      - run: cargo clippy --all-targets --locked --manifest-path core/Cargo.toml
+      - run: cargo test --no-run --locked --manifest-path core/Cargo.toml
+      - run: xcodegen generate
+      - name: Build the app and its tests
+        run: >-
+          xcodebuild build-for-testing -project LiveSplitOne.xcodeproj
+          -scheme LiveSplitOne -destination 'platform=macOS'
+          -derivedDataPath "$DERIVED_DATA"
+      # upload-artifact drops file permissions, so the build travels as a tar.
+      - name: Pack the test build
+        if: github.event_name == 'pull_request'
+        run: tar -C "$DERIVED_DATA" -cf test-build.tar Build/Products
+      - if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-build
+          path: test-build.tar
+          retention-days: 1
+          if-no-files-found: error
+
+  # These jobs use `!cancelled()` so they still run when `setup` fails: a job
+  # skipped because `setup` failed reports as success and would not block the
+  # merge, so they run anyway and report the real failure.
+  lint:
+    name: lint
+    needs: setup
+    if: ${{ !cancelled() && github.event_name == 'pull_request' }}
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - run: cargo fmt --check --manifest-path core/Cargo.toml
+      - run: cargo clippy --all-targets --locked --manifest-path core/Cargo.toml -- -D warnings
+      - run: swift format lint --strict --recursive App Tests LiveSplitCore/Wrapper scripts
+
+  test:
+    name: test
+    needs: setup
+    if: ${{ !cancelled() && github.event_name == 'pull_request' }}
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - run: cargo test --locked --manifest-path core/Cargo.toml
+      - uses: actions/download-artifact@v8
+        with:
+          name: test-build
+      - run: mkdir -p "$DERIVED_DATA" && tar -C "$DERIVED_DATA" -xf test-build.tar
+      - name: Unit, headless UI and integration tests
+        run: >-
+          xcodebuild test-without-building
+          -xctestrun "$(ls "$DERIVED_DATA"/Build/Products/*.xctestrun)"
+          -destination 'platform=macOS' -skip-testing:LiveSplitOneE2ETests
+
+  e2e:
+    name: e2e
+    needs: setup
+    if: ${{ !cancelled() && github.event_name == 'pull_request' }}
+    runs-on: macos-latest
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: test-build
+      - run: mkdir -p "$DERIVED_DATA" && tar -C "$DERIVED_DATA" -xf test-build.tar
+      - name: E2E tests
+        run: >-
+          xcodebuild test-without-building
+          -xctestrun "$(ls "$DERIVED_DATA"/Build/Products/*.xctestrun)"
+          -destination 'platform=macOS' -only-testing:LiveSplitOneE2ETests
+
+  build:
+    name: build
+    needs: setup
+    if: ${{ !cancelled() && github.event_name == 'pull_request' }}
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - run: scripts/build-app.sh 0.0.0-dev
+      - uses: actions/upload-artifact@v7
+        with:
+          name: app
+          path: dist/*.zip
+          if-no-files-found: error
+
+  commitlint:
+    name: commitlint
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: wagoid/commitlint-github-action@v6

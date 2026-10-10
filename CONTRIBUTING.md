@@ -48,19 +48,15 @@ and is not committed.
    Open the generated `LiveSplitOne.xcodeproj` in Xcode. The project is
    generated from `project.yml` and never committed: run `xcodegen generate`
    again after pulling changes to it.
-4. Before pushing, run the same checks CI runs. In `core/`:
+4. Before pushing, run the same checks CI runs, from the repository root:
 
    ```sh
-   cargo fmt --check
-   cargo clippy --all-targets --locked -- -D warnings
-   cargo test --locked
-   ```
-
-   Then, in the repository root:
-
-   ```sh
-   swift format lint --strict --recursive App Tests LiveSplitCore/Wrapper
-   xcodebuild test -scheme LiveSplitOne -destination 'platform=macOS'
+   cargo fmt --check --manifest-path core/Cargo.toml
+   cargo clippy --all-targets --locked --manifest-path core/Cargo.toml -- -D warnings
+   cargo test --locked --manifest-path core/Cargo.toml
+   swift format lint --strict --recursive App Tests LiveSplitCore/Wrapper scripts
+   xcodegen generate
+   xcodebuild test -project LiveSplitOne.xcodeproj -scheme LiveSplitOne -destination 'platform=macOS'
    ```
 
 5. If you change a shell script or a workflow, also run `shellcheck` on the

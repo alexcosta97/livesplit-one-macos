@@ -20,11 +20,9 @@ Closes #
 - [ ] The pull request links the issue it resolves.
 - [ ] The title follows Conventional Commits.
 - [ ] Every commit is signed and follows Conventional Commits.
-- [ ] In `core/`, `cargo fmt --check`,
-      `cargo clippy --all-targets --locked -- -D warnings` and
-      `cargo test --locked` pass locally.
-- [ ] `swift format lint --strict --recursive App Tests LiveSplitCore/Wrapper`
-      and `xcodebuild test` for the app scheme pass locally.
+- [ ] The Rust checks (`cargo fmt --check`, `cargo clippy … -D warnings`,
+      `cargo test --locked`), `swift format lint --strict` and
+      `xcodebuild test` pass locally (see CONTRIBUTING.md).
 - [ ] Tests are added at each level the change needs: unit, headless UI,
       integration, and E2E for user flows (spec §14).
 - [ ] Changes to the design are reflected in the design spec.
