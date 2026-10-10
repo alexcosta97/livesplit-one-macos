@@ -1,0 +1,101 @@
+import Foundation
+
+/// Reads `app.toml` at launch and writes it when a setting changes (spec §11, §10).
+@MainActor
+final class SettingsStore {
+    static let fileName = "app.toml"
+    static let badFileName = "app.toml.bad"
+    /// The first line of the file, so someone opening it knows what it is.
+    static let header =
+        "# LiveSplit One for macOS settings. The app rewrites this file when a setting changes.\n\n"
+
+    /// What reading the file at launch found.
+    enum LoadOutcome: Equatable {
+        /// No file yet: the defaults.
+        case missing
+        case loaded
+        /// The file couldn't be read or parsed. It was kept as `app.toml.bad`, and the defaults
+        /// are used.
+        case recovered(reason: String)
+        /// The file couldn't be read or parsed, nor moved aside. The defaults are used, and
+        /// nothing is saved this session, so the file isn't overwritten.
+        case unrecoverable(reason: String)
+    }
+
+    let directory: URL
+    var file: URL { directory.appending(path: Self.fileName) }
+    private(set) var settings: Settings
+    let loadOutcome: LoadOutcome
+
+    private let log: Log
+
+    init(directory: URL, log: Log = .shared) {
+        self.directory = directory
+        self.log = log
+        (settings, loadOutcome) = Self.load(from: directory, log: log)
+    }
+
+    /// Changes the settings and saves them, if `change` changed anything.
+    func update(_ change: (inout Settings) -> Void) {
+        var changed = settings
+        change(&changed)
+        guard changed != settings else { return }
+        settings = changed
+        save()
+    }
+
+    private func save() {
+        // Never write over a file that couldn't be read or moved aside.
+        if case .unrecoverable = loadOutcome { return }
+        do {
+            let text = Self.header + (try settings.tomlText())
+            try FileManager.default.createDirectory(
+                at: directory, withIntermediateDirectories: true)
+            // Atomic: a crash or a full disk mid-write leaves the old file whole.
+            try Data(text.utf8).write(to: file, options: .atomic)
+            log.record(.app, "Saved the settings to \(file.path)")
+        } catch {
+            log.record(
+                .error, "Couldn't save the settings to \(file.path): \(Settings.reason(for: error))"
+            )
+        }
+    }
+
+    /// Reads the settings in `directory`, moving a broken file aside.
+    private static func load(from directory: URL, log: Log) -> (Settings, LoadOutcome) {
+        let file = directory.appending(path: fileName)
+        let bad = directory.appending(path: badFileName)
+        guard FileManager.default.fileExists(atPath: file.path) else {
+            log.record(.app, "No settings file yet at \(file.path), so the defaults are used")
+            return (Settings(), .missing)
+        }
+
+        let reason: String
+        do {
+            let settings = try Settings.decode(Data(contentsOf: file))
+            log.record(.app, "Read the settings from \(file.path)")
+            return (settings, .loaded)
+        } catch {
+            reason = Settings.reason(for: error)
+        }
+
+        do {
+            if FileManager.default.fileExists(atPath: bad.path) {
+                try FileManager.default.removeItem(at: bad)
+            }
+            try FileManager.default.moveItem(at: file, to: bad)
+            log.record(
+                .error,
+                "Couldn't read the settings in \(file.path), so the defaults are used and the "
+                    + "file is kept as \(badFileName): \(reason)")
+            return (Settings(), .recovered(reason: reason))
+        } catch {
+            log.record(
+                .error,
+                "Couldn't read the settings in \(file.path) (\(reason)), nor keep it as "
+                    + "\(badFileName) (\(error.localizedDescription)), so the defaults are "
+                    + "used and changes aren't saved until the app restarts")
+            return (Settings(), .unrecoverable(reason: reason))
+        }
+    }
+}
