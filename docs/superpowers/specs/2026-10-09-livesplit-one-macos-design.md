@@ -32,7 +32,7 @@ These were tried or reviewed first (October 2026):
 | Option | Why not |
 |---|---|
 | LiveSplit One in a browser | Not native; the browser is required |
-| LiveSplit One's Tauri build | Still the web UI inside a WebView. Pop Out does nothing: WKWebView returns `null` from `window.open` before Tauri's new-window handler runs. Connecting to the bridge failed, cause not established |
+| LiveSplit One's Tauri build | Still the web UI inside a WebView. Pop Out does nothing: WKWebView returns `null` from `window.open` before Tauri's new-window handler runs. Connecting to the bridge failed. The cause is most likely the home network, not the client: a native client also got no answer from the bridge's LAN address, but connected over the PC's Tailscale address (#7) |
 | Splitter (Swift, Mac App Store) | Doesn't load LiveSplit layout files, and doesn't look or behave like LiveSplit |
 | livesplit-one-druid | Native, but built on the unmaintained Druid toolkit, and has no WebSocket client, only a TCP listener on `127.0.0.1` |
 | livesplit-one-gtk | Linux only (X11, evdev) |
@@ -314,9 +314,16 @@ Quit
   (`scripts/handshake-check.swift`) connected to the bridge on the gaming PC
   with no `Origin`, over the PC's Tailscale address, and answered its
   `getCurrentState` and `start` commands (#7). A server that needs an
-  `Origin` is not supported in the first version.
+  `Origin` is not supported in the first version. Over the PC's LAN
+  address the same client got no answer at all, most likely because the
+  home firewall drops the connection, so that is a network setting, not a
+  client one.
 - `Info.plist` contains `NSLocalNetworkUsageDescription`, so macOS asks for
   local network access the first time the app connects to another machine.
+  Until access is allowed, URLSession fails with "The Internet connection
+  appears to be offline" (`NSURLErrorNotConnectedToInternet`), as seen in
+  #7. The app says local network access is needed, and where to allow it,
+  instead of showing that message.
 
 ### 8.2 Messages
 
