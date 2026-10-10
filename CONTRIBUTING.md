@@ -56,7 +56,7 @@ and is not committed.
    cargo test --locked --manifest-path core/Cargo.toml
    swift format lint --strict --recursive App Tests LiveSplitCore/Wrapper scripts
    mise x -- actionlint
-   mise x -- shellcheck scripts/*.sh
+   mise x -- shellcheck scripts/*.sh scripts/release/*.sh
    xcodegen generate
    xcodebuild test -project LiveSplitOne.xcodeproj -scheme LiveSplitOne -destination 'platform=macOS'
    scripts/build-app.sh 0.0.0-dev
@@ -65,6 +65,11 @@ and is not committed.
    `actionlint` also runs shellcheck on the workflows' `run:` steps.
    `scripts/build-app.sh` makes the universal release build CI's `build`
    check makes, into `dist/`.
+
+   For the release scripts and workflow linting, run
+   `scripts/release/test-release-scripts.sh` and `actionlint` with the tools
+   from `mise install`. The same tests run on pull requests that change
+   release files.
 
 ## Testing
 
@@ -212,8 +217,9 @@ version is embedded in the app at build time, as `CFBundleShortVersionString`.
 - A maintainer promotes a release candidate by approving the pending release
   job in the `release` environment. That publishes the full release `vX.Y.Z`
   from the same commit, marked **Latest**.
-- Each release contains the app as a universal (Apple Silicon and Intel),
-  unsigned `.app` in a `.zip`.
+- The release is a universal (Apple Silicon and Intel) `.app` in a `.zip`,
+  ad-hoc signed and not notarised, so users open it once with System Settings
+  → Privacy & Security → Open Anyway.
 - Release notes list every change since the previous full release, grouped by
   type. They are the project's changelog.
 
