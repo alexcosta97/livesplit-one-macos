@@ -207,8 +207,11 @@ livesplit-core's C API exposes `ServerProtocol` only when built for the web
   times and the attempt has new best times, the sink asks Swift through a
   second callback and waits for the answer, as LiveSplit One's sink waits for
   its dialog. While it waits, other commands return `Busy`, as in LiveSplit
-  One. Server commands run on a background queue (section 8.2), so waiting
-  never blocks the main thread.
+  One. Before asking, a reset first waits for commands already running to
+  finish and be reported, so the question is about the timer as it is. Every
+  report must therefore return promptly, without waiting on other commands.
+  Server commands run on a background queue (section 8.2), so waiting never
+  blocks the main thread.
 - **`handle_command(json) -> json`**: runs one server protocol message against
   the sink with `futures::executor::block_on`, which completes at once for a
   local timer, and returns the reply to send back.
