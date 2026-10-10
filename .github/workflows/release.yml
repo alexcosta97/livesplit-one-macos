@@ -72,7 +72,11 @@ jobs:
           # gh creates a release with assets as a draft without a tag and only
           # publishes it after the upload. A job killed mid-upload leaves that
           # draft, pointing at an old commit, so delete a draft and start over.
-          draft=$(gh release view "$RC_TAG" --json isDraft --jq .isDraft 2> /dev/null || echo none)
+          # "release not found" means missing; any other failure fails the step.
+          if ! draft=$(gh release view "$RC_TAG" --json isDraft --jq .isDraft 2>&1); then
+            [[ "$draft" == *"release not found"* ]] || { echo "$draft" >&2; exit 1; }
+            draft=none
+          fi
           if [[ "$draft" == true ]]; then
             gh release delete "$RC_TAG" --yes
             draft=none
@@ -131,7 +135,11 @@ jobs:
           # See the candidate step: a killed publish leaves a tagless draft,
           # which must not be published as it is, since that would tag an old
           # commit. A draft has no tag, so deleting it needs no --cleanup-tag.
-          draft=$(gh release view "$TAG" --json isDraft --jq .isDraft 2> /dev/null || echo none)
+          # "release not found" means missing; any other failure fails the step.
+          if ! draft=$(gh release view "$TAG" --json isDraft --jq .isDraft 2>&1); then
+            [[ "$draft" == *"release not found"* ]] || { echo "$draft" >&2; exit 1; }
+            draft=none
+          fi
           if [[ "$draft" == true ]]; then
             gh release delete "$TAG" --yes
             draft=none

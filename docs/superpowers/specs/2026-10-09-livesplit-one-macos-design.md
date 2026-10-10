@@ -533,6 +533,11 @@ These follow livesplit-asr-bridge (its spec sections 13 and 14, and its
 - **`main` rulesets:** changes only through pull requests, the required checks
   below, all conversations resolved, signed commits, squash merging only; and a
   second ruleset letting only maintainers merge.
+- **Release settings:** the `release` environment deploys only from `main`,
+  with the maintainer as required reviewer. A tag ruleset, "release tags",
+  stops `v*` tags being moved or deleted. Creating them isn't restricted:
+  GitHub doesn't let the GitHub Actions app bypass a ruleset in a personal
+  repository, so restricting creation would block the release workflow.
 - **CI** on pull requests, on `macos-latest` runners because Xcode needs them:
   - `setup`: builds `core/` and the app with its tests once, hands the test
     build to `test` and `e2e`, and saves the Cargo cache (Xcode's DerivedData

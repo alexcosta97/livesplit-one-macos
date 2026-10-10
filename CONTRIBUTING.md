@@ -217,7 +217,8 @@ holds `X.Y.Z` and `LSOVersion` holds the full version, e.g. `0.4.0-rc.2` (see
   bumps patch. Commits of the other types alone don't produce a release.
 - Every merge to `main` that produces a version publishes a **release
   candidate** as a GitHub pre-release, tagged `vX.Y.Z-rc.N`.
-- Once any `feat`, `fix` or `perf` commit is unreleased, every merge to
+- Once anything releasable (a `feat`, `fix`, `perf` or breaking commit) is
+  unreleased, every merge to
   `main` publishes a new candidate, including `docs`, `ci` and `chore` merges
   (their "New since" notes read "No user-facing changes."), and each new
   candidate cancels the pending approval of the previous one.
@@ -233,9 +234,17 @@ holds `X.Y.Z` and `LSOVersion` holds the full version, e.g. `0.4.0-rc.2` (see
   approve the newer candidate. Never re-run an older Release run: it would
   cancel the newer candidate, and approving it would publish an older commit.
 - A leftover draft release `vX.Y.Z[-rc.N]` means a publish was killed
-  mid-upload (for example by a newer merge). It has no tag. Re-running the
-  workflow deletes the draft and publishes the release again, so don't publish
-  the draft by hand.
+  mid-upload (for example by a newer merge). It has no tag. Don't publish it
+  by hand, and never re-run the killed run. A later Release run for the same
+  version deletes and replaces the draft by itself, since candidate numbers
+  come only from tags. If the version has moved on (after a newer `feat`, say),
+  the draft is orphaned: delete it with `gh release delete <tag> --yes`.
+- Repository settings that protect releases: the `release` environment deploys
+  only from `main`, with the maintainer as required reviewer. A tag ruleset,
+  "release tags", stops `v*` tags being moved or deleted. Creating them isn't
+  restricted: GitHub doesn't let the GitHub Actions app bypass a ruleset in a
+  personal repository, so restricting creation would block the release
+  workflow.
 - Release notes list every change since the previous full release, grouped by
   type. They are the project's changelog.
 
