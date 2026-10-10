@@ -450,7 +450,8 @@ Same rules as livesplit-asr-bridge:
 - Each line is the local time to the millisecond, the category's tag and the
   message, as in livesplit-asr-bridge:
   `19:31:01.254  CONNECTION  Connected to 192.168.1.20`. The tags are
-  `ERROR`, `CONNECTION`, `TIMER` and `APP`.
+  `ERROR`, `CONNECTION`, `TIMER` and `APP`. Line breaks in a message are
+  written as `\n` (and a backslash as `\\`), so each entry is one line.
 - Files older than 7 days are deleted at launch and at each daily rotation.
 - A per-day size cap of 50 MB. Past it, only errors are written, and one line
   records that the cap was reached.

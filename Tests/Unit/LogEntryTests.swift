@@ -13,6 +13,30 @@ import Testing
                 == "19:31:01.254  CONNECTION  Connected to 192.168.1.20\n")
     }
 
+    @Test func lineBreaksInAMessageAreEscaped() {
+        let entry = LogEntry(
+            time: TestCalendar.date(2026, 10, 10), category: .connection,
+            message: "one\ntwo\r\nthree")
+        #expect(
+            entry.line(in: TestCalendar.london)
+                == "19:31:01.254  CONNECTION  one\\ntwo\\r\\nthree\n")
+    }
+
+    @Test func backslashesAreEscapedSoEscapesCantBeForged() {
+        let entry = LogEntry(
+            time: TestCalendar.date(2026, 10, 10), category: .app, message: #"a\nb"#)
+        #expect(entry.line(in: TestCalendar.london) == "19:31:01.254  APP  a\\\\nb\n")
+    }
+
+    @Test func aMessageCantForgeALine() {
+        let entry = LogEntry(
+            time: TestCalendar.date(2026, 10, 10), category: .app,
+            message: "x\n19:31:01.254  ERROR  forged")
+        let line = entry.line(in: TestCalendar.london)
+        #expect(line.filter { $0 == "\n" }.count == 1)
+        #expect(line.hasSuffix("\n"))
+    }
+
     @Test func everyCategoryHasItsTag() {
         #expect(LogCategory.allCases.map(\.tag) == ["ERROR", "CONNECTION", "TIMER", "APP"])
     }
