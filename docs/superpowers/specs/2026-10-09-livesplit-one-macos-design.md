@@ -435,18 +435,20 @@ recent_layouts = ["/Users/me/Layouts/Main.ls1l"]
 recent_splits = ["/Users/me/Splits/GTA San Andreas.lss", "/Users/me/Splits/Any%.lss"]
 
 [[windows]]
+height = 520.0
 layout = "/Users/me/Layouts/Main.ls1l"
-x = 120
-y = 640
-width = 300
-height = 520
+width = 300.0
+x = 120.0
+y = 640.0
 ```
 
 Every key is optional: a missing key takes its default (nothing opened, no
 recent files, Always on Top off) and an unknown key is ignored, so a file
 from another version still reads. A key with the wrong type makes the file
-unreadable. Recent lists are trimmed to 10 and repeats dropped. A broken file
-replaces any older `app.toml.bad`.
+unreadable. Recent lists are trimmed to 10 and repeats dropped. A window entry
+missing a key makes the file unreadable too; one with a size that isn't
+positive, or a duplicate layout, is dropped. A broken file replaces any older
+`app.toml.bad`.
 
 The splits and layouts themselves stay wherever the user keeps them; the app
 only stores their paths.
