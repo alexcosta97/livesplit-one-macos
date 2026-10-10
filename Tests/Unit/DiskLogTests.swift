@@ -92,8 +92,9 @@ import Testing
         let folder = try TemporaryFolder()
         // A file where the log folder should be.
         try folder.write("logs")
-        var (log, _) = DiskLog.open(
+        var (log, errors) = DiskLog.open(
             directory: folder.url.appending(path: "logs"), today: day(27), calendar: calendar)
+        #expect(errors.isEmpty)
         #expect(throws: DiskLogError.self) { try log.write(entry(27, .app, "x")) }
     }
 

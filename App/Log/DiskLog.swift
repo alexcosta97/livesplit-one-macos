@@ -72,6 +72,12 @@ struct DiskLog {
     /// Deletes the log files more than `retentionDays` older than `today`. Other files in the
     /// folder are left alone. Returns what couldn't be deleted.
     private func deleteOld(today: LogDay) -> [String] {
+        // A missing folder, or a file where the folder should be, has nothing to delete. The
+        // write reports the real problem.
+        var isFolder: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: directory.path, isDirectory: &isFolder),
+            isFolder.boolValue
+        else { return [] }
         let names: [String]
         do {
             names = try FileManager.default.contentsOfDirectory(atPath: directory.path)

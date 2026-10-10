@@ -34,9 +34,7 @@ import Testing
         let log = makeLog(folder.url.appending(path: "logs"), unified: unified)
         log.record(.app, "one")
         log.record(.app, "two")
-        let failures = unified.entries.filter {
-            $0.category == .error && $0.message.hasPrefix("Couldn't write the log file")
-        }
+        let failures = unified.entries.filter { $0.category == .error }
         #expect(failures.count == 1)
         #expect(
             failures.first?.message.hasPrefix(
