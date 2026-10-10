@@ -25,10 +25,10 @@ into the `LiveSplitCore/` Xcode static library target. The Xcode project is
 generated from `project.yml` with [XcodeGen](https://github.com/yonaskolb/XcodeGen)
 and is not committed.
 
-1. Install Xcode from the App Store (26.6 or newer; the version CI uses is
-   set in `.github/actions/setup/action.yml`). Xcode 16 and later ship with
-   `swift format`. Then run
+1. Install Xcode 26.6 or newer from the App Store (the version CI uses is
+   set in `.github/actions/setup/action.yml`). Then run
    `sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer`.
+   Xcode includes `swift format`, which the checks use.
 2. Install [rustup](https://rustup.rs/) and [mise](https://mise.jdx.dev/),
    then run `mise install` in the repository. Rust's version and targets come
    from `rust-toolchain.toml`. mise installs XcodeGen, git-cliff, shellcheck
