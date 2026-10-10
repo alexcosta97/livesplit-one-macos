@@ -26,7 +26,7 @@ generated from `project.yml` with [XcodeGen](https://github.com/yonaskolb/XcodeG
 and is not committed.
 
 1. Install Xcode 26.6 or newer from the App Store (the version CI uses is
-   set in `.github/actions/setup/action.yml`). Then run
+   set in `.github/actions/select-xcode/action.yml`). Then run
    `sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer`.
    Xcode includes `swift format`, which the checks use.
 2. Install [rustup](https://rustup.rs/) and [mise](https://mise.jdx.dev/),
@@ -48,23 +48,23 @@ and is not committed.
    Open the generated `LiveSplitOne.xcodeproj` in Xcode. The project is
    generated from `project.yml` and never committed: run `xcodegen generate`
    again after pulling changes to it.
-4. Before pushing, run the same checks CI runs. In `core/`:
+4. Before pushing, run the same checks CI runs, from the repository root:
 
    ```sh
-   cargo fmt --check
-   cargo clippy --all-targets --locked -- -D warnings
-   cargo test --locked
+   cargo fmt --check --manifest-path core/Cargo.toml
+   cargo clippy --all-targets --locked --manifest-path core/Cargo.toml -- -D warnings
+   cargo test --locked --manifest-path core/Cargo.toml
+   swift format lint --strict --recursive App Tests LiveSplitCore/Wrapper scripts
+   mise x -- actionlint
+   mise x -- shellcheck scripts/*.sh
+   xcodegen generate
+   xcodebuild test -project LiveSplitOne.xcodeproj -scheme LiveSplitOne -destination 'platform=macOS'
+   scripts/build-app.sh 0.0.0-dev
    ```
 
-   Then, in the repository root:
-
-   ```sh
-   swift format lint --strict --recursive App Tests LiveSplitCore/Wrapper
-   xcodebuild test -scheme LiveSplitOne -destination 'platform=macOS'
-   ```
-
-5. If you change a shell script or a workflow, also run `shellcheck` on the
-   script and `actionlint` for the workflows.
+   `actionlint` also runs shellcheck on the workflows' `run:` steps.
+   `scripts/build-app.sh` makes the universal release build CI's `build`
+   check makes, into `dist/`.
 
 ## Testing
 

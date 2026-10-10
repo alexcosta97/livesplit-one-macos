@@ -534,10 +534,12 @@ These follow livesplit-asr-bridge (its spec sections 13 and 14, and its
   below, all conversations resolved, signed commits, squash merging only; and a
   second ruleset letting only maintainers merge.
 - **CI** on pull requests, on `macos-latest` runners because Xcode needs them:
-  - `setup`: builds `core/` and the app once and saves the Cargo and Xcode
-    caches;
+  - `setup`: builds `core/` and the app with its tests once, hands the test
+    build to `test` and `e2e`, and saves the Cargo cache (Xcode's DerivedData
+    isn't cached: a fresh checkout invalidates it);
   - `lint`: `cargo fmt --check`, `cargo clippy --all-targets --locked -- -D
-    warnings`, `swift format lint --strict`;
+    warnings`, `swift format lint --strict`, `actionlint` (which also runs
+    shellcheck on the workflows' scripts) and `shellcheck` on `scripts/`;
   - `test`: `cargo test --locked`, then the unit, headless UI and integration
     tests;
   - `e2e`: the XCUITest suite;
@@ -545,8 +547,10 @@ These follow livesplit-asr-bridge (its spec sections 13 and 14, and its
   - `commitlint` and `pr-title`: Conventional Commits on the title and every
     commit.
 
-  On merge to `main` CI only builds, to warm the caches. Tests are not
-  repeated, since a pull request can't merge without them.
+  On merge to `main` CI only runs `setup`, to save the Cargo cache that pull
+  requests restore (a pull request can read its base branch's caches, not
+  other pull requests'). Tests are not repeated, since a pull request can't
+  merge without them.
 - **Renovate** weekly, as in livesplit-asr-bridge: crates that ship and the
   LiveSplit crates (grouped, labelled `livesplit`) are `fix(deps)`; Swift
   packages that ship are `fix(deps)`; GitHub Actions are `ci(deps)`; mise tools
