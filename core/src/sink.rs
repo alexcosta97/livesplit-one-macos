@@ -75,7 +75,8 @@ impl<H: Host> EventSink<H> {
     }
 
     /// Runs a command against the shared timer and reports the result, or
-    /// reports Busy without waiting if a reset is asking or about to ask.
+    /// reports Busy without waiting while a reset that doesn't say whether to
+    /// keep the attempt's times is running.
     fn apply(&self, command: impl FnOnce(&SharedTimer) -> Result) -> Result {
         let running = match self.gate.try_read() {
             Ok(guard) => Some(guard),
@@ -100,7 +101,9 @@ impl<H: Host> EventSink<H> {
     /// host when the attempt has new best times, then applies the answer and
     /// reports the result. It first waits for the commands already running to
     /// finish and be reported, then holds the gate until the reset has been
-    /// applied and reported, so no other command can slip in between.
+    /// applied and reported, so no other command can slip in between. Every
+    /// such reset makes other commands Busy until it has reported, whether or
+    /// not it asks.
     fn reset_asking(&self) -> Result {
         if self.deciding.swap(true, Ordering::AcqRel) {
             self.host.report(Err(Error::Busy));
@@ -272,6 +275,13 @@ pub(crate) mod tests {
         }
     }
 
+    /// Waits on a channel, failing instead of hanging if a change breaks the
+    /// path that should send. A safety net, not for ordering.
+    pub(crate) fn wait<T>(rx: &mpsc::Receiver<T>, what: &str) -> T {
+        rx.recv_timeout(std::time::Duration::from_secs(10))
+            .unwrap_or_else(|_| panic!("timed out after 10 s waiting for {what}"))
+    }
+
     fn sink(segments: &[&str]) -> (EventSink<Arc<Recorder>>, Arc<Recorder>) {
         let recorder = Arc::new(Recorder::default());
         (EventSink::new(timer(segments), recorder.clone()), recorder)
@@ -393,7 +403,7 @@ pub(crate) mod tests {
         fn report(&self, _: Result) {}
         fn decide_reset(&self) -> ResetDecision {
             self.asked.send(()).unwrap();
-            self.answer.lock().unwrap().recv().unwrap()
+            wait(&self.answer.lock().unwrap(), "the answer")
         }
     }
 
@@ -416,7 +426,7 @@ pub(crate) mod tests {
             let sink = sink.clone();
             std::thread::spawn(move || run(sink.reset(None)))
         };
-        asked_rx.recv().unwrap();
+        wait(&asked_rx, "the reset question");
 
         assert_eq!(run(sink.split()), Err(Error::Busy));
         assert_eq!(run(sink.reset(None)), Err(Error::Busy));
@@ -516,13 +526,6 @@ pub(crate) mod tests {
         while_waiting: Mutex<Vec<Result>>,
     }
 
-    /// Waits on a channel, failing instead of hanging if a change breaks the
-    /// path that should send. A safety net, not for ordering.
-    fn wait(rx: &mpsc::Receiver<()>, what: &str) {
-        rx.recv_timeout(std::time::Duration::from_secs(10))
-            .unwrap_or_else(|_| panic!("timed out after 10 s waiting for {what}"));
-    }
-
     impl Host for InFlight {
         fn report(&self, result: Result) {
             if result == Ok(Event::Splitted) && std::mem::take(&mut *self.armed.lock().unwrap()) {
@@ -577,7 +580,8 @@ pub(crate) mod tests {
             std::thread::spawn(move || run(sink.split()))
         };
         wait(&in_report_rx, "the split to be reported");
-        // ...when a reset that needs a decision arrives.
+        // ...when a reset that doesn't say whether to keep the attempt's times
+        // arrives.
         let resetting = {
             let sink = sink.clone();
             std::thread::spawn(move || run(sink.reset(None)))
