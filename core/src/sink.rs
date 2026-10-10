@@ -5,7 +5,7 @@ use std::{
     future::{Future, ready},
     pin::pin,
     sync::{
-        RwLockReadGuard,
+        PoisonError, RwLock, RwLockReadGuard, TryLockError,
         atomic::{AtomicBool, Ordering},
     },
     task::{Context, Poll, Waker},
@@ -30,12 +30,18 @@ pub enum ResetDecision {
 
 /// The app side of the sink: told about every result, and asked about resets.
 pub trait Host: Send + Sync + 'static {
-    /// Called after every command with the event it caused or its error.
+    /// Called after every command with the event it caused or its error. A
+    /// reset about to ask may be waiting for it, so it must return promptly
+    /// and not wait on other commands.
     fn report(&self, result: Result);
     /// Called when a reset doesn't say whether to keep the attempt's times and
     /// the attempt has new best times. Blocks the calling thread until the
     /// user answers. The timer is not locked while it waits.
     fn decide_reset(&self) -> ResetDecision;
+    /// Called by a reset that is about to ask, just before it waits for the
+    /// commands already running to finish. A seam for the tests.
+    #[cfg(test)]
+    fn waiting_for_commands(&self) {}
 }
 
 /// Wraps the shared timer, applies every command to it and reports the result
@@ -43,7 +49,16 @@ pub trait Host: Send + Sync + 'static {
 pub struct EventSink<H: Host> {
     timer: SharedTimer,
     host: H,
+    /// Set from the moment a reset starts to ask until its result has been
+    /// reported. Commands arriving meanwhile get Busy.
     deciding: AtomicBool,
+    /// Held shared by each running command until its result has been
+    /// reported, and exclusively by a reset that asks, from before it reads
+    /// whether the attempt has new best times until its result has been
+    /// reported. So a reset waits for the commands already running, and none
+    /// runs while it asks. Unrelated to the timer's own lock, which is not
+    /// held while the host decides.
+    gate: RwLock<()>,
 }
 
 impl<H: Host> EventSink<H> {
@@ -53,25 +68,37 @@ impl<H: Host> EventSink<H> {
             timer,
             host,
             deciding: AtomicBool::new(false),
+            gate: RwLock::new(()),
         }
     }
 
-    /// Runs a command against the shared timer, unless a reset decision is
-    /// pending, and reports the result.
+    /// Runs a command against the shared timer and reports the result, or
+    /// reports Busy without waiting if a reset is asking or about to ask.
     fn apply(&self, command: impl FnOnce(&SharedTimer) -> Result) -> Result {
-        let result = if self.deciding.load(Ordering::Acquire) {
-            Err(Error::Busy)
-        } else {
-            command(&self.timer)
+        let running = match self.gate.try_read() {
+            Ok(guard) => Some(guard),
+            // Only a reset whose host panicked poisons the gate, and that
+            // reset is over.
+            Err(TryLockError::Poisoned(poisoned)) => Some(poisoned.into_inner()),
+            Err(TryLockError::WouldBlock) => None,
+        }
+        // Checked while holding the gate: a reset that sets the flag after
+        // this waits for the command to finish.
+        .filter(|_| !self.deciding.load(Ordering::Acquire));
+        let result = match running {
+            Some(_) => command(&self.timer),
+            None => Err(Error::Busy),
         };
         self.host.report(result);
+        drop(running);
         result
     }
 
     /// Resets without being told whether to keep the attempt's times: asks the
     /// host when the attempt has new best times, then applies the answer and
-    /// reports the result. `deciding` stays set from the question until the
-    /// reset has been applied, so no other command can slip in between.
+    /// reports the result. It first waits for the commands already running to
+    /// finish and be reported, then holds the gate until the reset has been
+    /// applied and reported, so no other command can slip in between.
     fn reset_asking(&self) -> Result {
         if self.deciding.swap(true, Ordering::AcqRel) {
             self.host.report(Err(Error::Busy));
@@ -85,6 +112,10 @@ impl<H: Host> EventSink<H> {
             }
         }
         let _clear = Clear(&self.deciding);
+        #[cfg(test)]
+        self.host.waiting_for_commands();
+        // Waits for the commands already running. Dropped before `_clear`.
+        let _asking = self.gate.write().unwrap_or_else(PoisonError::into_inner);
 
         let has_new_best_times = self
             .timer
@@ -465,5 +496,126 @@ pub(crate) mod tests {
         );
         assert_eq!(sink.get_timer().run().attempt_history().len(), 1);
         *sink.host.sink.lock().unwrap() = None; // Breaks the reference cycle.
+    }
+
+    /// A host whose report of the next split waits until a reset question is
+    /// waiting for it, or until the question is asked, and which records the
+    /// order things happen in.
+    struct InFlight {
+        sink: Mutex<Option<Arc<EventSink<InFlight>>>>,
+        armed: Mutex<bool>,
+        in_report: Mutex<mpsc::Sender<()>>,
+        release_tx: Mutex<mpsc::Sender<()>>,
+        release_rx: Mutex<mpsc::Receiver<()>>,
+        log: Mutex<Vec<&'static str>>,
+        while_waiting: Mutex<Vec<Result>>,
+    }
+
+    impl Host for InFlight {
+        fn report(&self, result: Result) {
+            if result == Ok(Event::Splitted) && std::mem::take(&mut *self.armed.lock().unwrap()) {
+                self.in_report.lock().unwrap().send(()).unwrap();
+                self.release_rx.lock().unwrap().recv().unwrap();
+                self.log.lock().unwrap().push("split reported");
+            }
+        }
+        fn decide_reset(&self) -> ResetDecision {
+            self.log.lock().unwrap().push("asked");
+            // Lets a split still being reported finish, if the question
+            // didn't wait for it.
+            self.release_tx.lock().unwrap().send(()).unwrap();
+            ResetDecision::Save
+        }
+        fn waiting_for_commands(&self) {
+            // A command arriving now gets Busy without waiting.
+            let sink = self.sink.lock().unwrap().clone().unwrap();
+            let other = std::thread::spawn(move || run(sink.split()))
+                .join()
+                .unwrap();
+            self.while_waiting.lock().unwrap().push(other);
+            self.release_tx.lock().unwrap().send(()).unwrap();
+        }
+    }
+
+    #[test]
+    fn a_reset_question_waits_for_commands_already_running() {
+        let (in_report_tx, in_report_rx) = mpsc::channel();
+        let (release_tx, release_rx) = mpsc::channel();
+        let sink = Arc::new(EventSink::new(
+            timer(&["One", "Two", "Three"]),
+            InFlight {
+                sink: Mutex::new(None),
+                armed: Mutex::new(false),
+                in_report: Mutex::new(in_report_tx),
+                release_tx: Mutex::new(release_tx),
+                release_rx: Mutex::new(release_rx),
+                log: Mutex::default(),
+                while_waiting: Mutex::default(),
+            },
+        ));
+        *sink.host.sink.lock().unwrap() = Some(sink.clone());
+        run(sink.start()).unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(2));
+        run(sink.split()).unwrap();
+        *sink.host.armed.lock().unwrap() = true;
+
+        // A split passes the check and is still being reported...
+        let splitting = {
+            let sink = sink.clone();
+            std::thread::spawn(move || run(sink.split()))
+        };
+        in_report_rx.recv().unwrap();
+        // ...when a reset that needs a decision arrives.
+        let resetting = {
+            let sink = sink.clone();
+            std::thread::spawn(move || run(sink.reset(None)))
+        };
+
+        assert_eq!(resetting.join().unwrap(), Ok(Event::Reset));
+        assert_eq!(splitting.join().unwrap(), Ok(Event::Splitted));
+        assert_eq!(*sink.host.log.lock().unwrap(), ["split reported", "asked"]);
+        assert_eq!(*sink.host.while_waiting.lock().unwrap(), [Err(Error::Busy)]);
+        *sink.host.sink.lock().unwrap() = None; // Breaks the reference cycle.
+    }
+
+    /// A host whose first reset question panics.
+    #[derive(Default)]
+    struct Panicking {
+        asked: Mutex<u32>,
+    }
+
+    impl Host for Panicking {
+        fn report(&self, _: Result) {}
+        fn decide_reset(&self) -> ResetDecision {
+            let mut asked = self.asked.lock().unwrap();
+            *asked += 1;
+            if *asked == 1 {
+                drop(asked);
+                panic!("the host panicked");
+            }
+            ResetDecision::Save
+        }
+    }
+
+    #[test]
+    fn the_sink_still_works_after_the_host_panics_during_a_question() {
+        let sink = Arc::new(EventSink::new(
+            timer(&["One", "Two", "Three"]),
+            Panicking::default(),
+        ));
+        run(sink.start()).unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(2));
+        run(sink.split()).unwrap();
+
+        let panicked = {
+            let sink = sink.clone();
+            std::thread::spawn(move || run(sink.reset(None)))
+        };
+        assert!(panicked.join().is_err());
+        assert!(sink.gate.is_poisoned());
+
+        assert_eq!(run(sink.split()), Ok(Event::Splitted));
+        assert_eq!(run(sink.reset(None)), Ok(Event::Reset));
+        assert_eq!(*sink.host.asked.lock().unwrap(), 2);
     }
 }

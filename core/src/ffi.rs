@@ -21,10 +21,12 @@ use crate::{
 /// thread they run on (that would abort the app: `block_on` panics when nested
 /// inside an `extern "C"` function). Dispatch asynchronously instead.
 ///
-/// `report` for a decided reset runs while the sink still treats the question
-/// as open, so a command another thread sends during that callback (including
-/// one the callback waits on synchronously) gets Busy. Return promptly and
-/// don't wait on other commands.
+/// A reset that needs a decision waits for the commands already running to
+/// finish, including their `report`, before it asks; commands that arrive from
+/// then until its own result has been reported get Busy without waiting. So
+/// `report` must return promptly and not wait on other commands: waiting on a
+/// reset would deadlock, and a command sent during the report of a decided
+/// reset gets Busy.
 #[repr(C)]
 pub struct LsoHost {
     pub context: *mut c_void,
