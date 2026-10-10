@@ -72,24 +72,30 @@ public enum ResetDecision: UInt8, Sendable {
 ///
 /// `@unchecked Sendable` is sound because the only stored property is an
 /// immutable pointer, and core's sink is thread-safe: `LsoHost` is `Send +
-/// Sync` and `EventSink<LsoHost>` is `Sync`, so commands may run from any
-/// thread.
+/// Sync` and `EventSink<LsoHost>` is `Send + Sync` (checked at compile time in
+/// `core/src/ffi.rs`), so commands may run from any thread.
 public final class EventSink: @unchecked Sendable {
-    /// Called with every command's result, on the thread that ran the command.
+    /// Called with every command's result, including `Busy` rejections, on the
+    /// thread that ran the command, which may be any thread.
     ///
     /// Never call into any `EventSink` from here, on the thread this runs on:
     /// it would abort the app. Dispatch to another queue asynchronously
-    /// instead. For a decided reset this runs while the reset question still
-    /// counts as open, so other commands get `Busy`: return promptly and don't
-    /// wait on other commands.
+    /// instead. Always return promptly and never wait on another command: a
+    /// reset that doesn't say whether to keep the attempt's times waits for
+    /// this call to return, so waiting on such a reset would deadlock. From that
+    /// reset's start until its own result is reported, other commands get
+    /// `Busy`, including any sent while its own `report` runs.
     public typealias Report = @Sendable (CommandResult) -> Void
-    /// Called when a reset needs a decision, on the thread that ran the
-    /// command, which waits for the answer.
+    /// Called when a reset doesn't say whether to keep the attempt's times and
+    /// the attempt has new best times, on the thread that ran the command,
+    /// which waits for the answer.
     ///
     /// Never call into any `EventSink` from here, on the thread this runs on:
-    /// it would abort the app. The reset question counts as open until the
-    /// result is reported, so other commands get `Busy` meanwhile: don't wait
-    /// on other commands.
+    /// it would abort the app. Other commands get `Busy` until the reset's
+    /// result is reported, so don't wait on other commands. This blocks the
+    /// command's thread, so commands that can reset must not run on the main
+    /// thread: show the question on the main thread and block here for the
+    /// answer (spec §8.2: server commands run on a background queue).
     public typealias DecideReset = @Sendable () -> ResetDecision
 
     private final class Callbacks {
