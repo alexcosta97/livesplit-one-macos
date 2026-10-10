@@ -636,4 +636,92 @@ pub(crate) mod tests {
         assert_eq!(run(sink.reset(None)), Ok(Event::Reset));
         assert_eq!(*sink.host.asked.lock().unwrap(), 2);
     }
+
+    /// A host whose report of the next pause waits until a reset is waiting
+    /// for it, or until a reset has been reported, which records the order
+    /// things happen in, and which fails if it is asked about a reset.
+    struct NotAsking {
+        sink: Mutex<Option<Arc<EventSink<NotAsking>>>>,
+        armed: Mutex<bool>,
+        in_report: Mutex<mpsc::Sender<()>>,
+        release_tx: Mutex<mpsc::Sender<()>>,
+        release_rx: Mutex<mpsc::Receiver<()>>,
+        log: Mutex<Vec<&'static str>>,
+        while_resetting: Mutex<Vec<Result>>,
+    }
+
+    impl Host for NotAsking {
+        fn report(&self, result: Result) {
+            if result == Ok(Event::Paused) && std::mem::take(&mut *self.armed.lock().unwrap()) {
+                self.in_report.lock().unwrap().send(()).unwrap();
+                wait(&self.release_rx.lock().unwrap(), "the pause to be released");
+                self.log.lock().unwrap().push("pause reported");
+            } else if result == Ok(Event::Reset) {
+                self.log.lock().unwrap().push("reset reported");
+                // The reset still holds the gate: a command arriving now gets
+                // Busy.
+                let sink = self.sink.lock().unwrap().clone().unwrap();
+                let other = std::thread::spawn(move || run(sink.split()))
+                    .join()
+                    .unwrap();
+                self.while_resetting.lock().unwrap().push(other);
+                // Lets a pause still being reported finish, if the reset
+                // didn't wait for it.
+                self.release_tx.lock().unwrap().send(()).unwrap();
+            }
+        }
+        fn decide_reset(&self) -> ResetDecision {
+            panic!("asked about a reset without new best times");
+        }
+        fn waiting_for_commands(&self) {
+            self.release_tx.lock().unwrap().send(()).unwrap();
+        }
+    }
+
+    #[test]
+    fn a_reset_that_does_not_ask_still_waits_for_commands_and_makes_others_busy() {
+        let (in_report_tx, in_report_rx) = mpsc::channel();
+        let (release_tx, release_rx) = mpsc::channel();
+        let sink = Arc::new(EventSink::new(
+            timer(&["One", "Two"]),
+            NotAsking {
+                sink: Mutex::new(None),
+                armed: Mutex::new(false),
+                in_report: Mutex::new(in_report_tx),
+                release_tx: Mutex::new(release_tx),
+                release_rx: Mutex::new(release_rx),
+                log: Mutex::default(),
+                while_resetting: Mutex::default(),
+            },
+        ));
+        *sink.host.sink.lock().unwrap() = Some(sink.clone());
+        run(sink.start()).unwrap();
+        assert!(!sink.get_timer().current_attempt_has_new_best_times());
+        *sink.host.armed.lock().unwrap() = true;
+
+        // A pause passes the check and is still being reported...
+        let pausing = {
+            let sink = sink.clone();
+            std::thread::spawn(move || run(sink.pause()))
+        };
+        wait(&in_report_rx, "the pause to be reported");
+        // ...when a reset that doesn't say whether to keep the attempt's times
+        // arrives. There are no new best times, so it doesn't ask.
+        let resetting = {
+            let sink = sink.clone();
+            std::thread::spawn(move || run(sink.reset(None)))
+        };
+
+        assert_eq!(resetting.join().unwrap(), Ok(Event::Reset));
+        assert_eq!(pausing.join().unwrap(), Ok(Event::Paused));
+        assert_eq!(
+            *sink.host.log.lock().unwrap(),
+            ["pause reported", "reset reported"]
+        );
+        assert_eq!(
+            *sink.host.while_resetting.lock().unwrap(),
+            [Err(Error::Busy)]
+        );
+        *sink.host.sink.lock().unwrap() = None; // Breaks the reference cycle.
+    }
 }
