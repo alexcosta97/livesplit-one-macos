@@ -1,9 +1,10 @@
 name: Release scripts
 
-# Only runs when release files change, so it never slows down or blocks normal
-# CI. For the same reason it is not a required check: GitHub keeps a
-# path-filtered required check pending forever on pull requests that don't
-# match the paths.
+# Builds and packages the app the way a release does, only when release files
+# change, so it never slows down normal CI. For the same reason it is not a
+# required check: GitHub keeps a path-filtered required check pending forever
+# on pull requests that don't match the paths. The release script tests and
+# shellcheck run in CI's required `lint` job.
 on:
   pull_request:
     types: [opened, reopened, synchronize]
@@ -21,19 +22,11 @@ on:
 permissions:
   contents: read
 
-jobs:
-  release-scripts:
-    name: release-scripts
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      # XcodeGen in mise.toml is macOS-only, and not needed here.
-      - uses: jdx/mise-action@v4
-        with:
-          install_args: git-cliff shellcheck
-      - run: shellcheck scripts/*.sh scripts/release/*.sh
-      - run: scripts/release/test-release-scripts.sh
+concurrency:
+  group: release-scripts-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 
+jobs:
   # Builds and packages the app the way a release does, so packaging changes
   # are checked before they reach a release.
   package:

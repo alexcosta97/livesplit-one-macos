@@ -27,13 +27,16 @@ fi
 version="" rc_version="" rc_tag="" previous_rc_tag=""
 if [[ "$release" == true ]]; then
   version=${next#v}
-  existing=$(git tag --points-at HEAD --list "v${version}-rc.*" | sort -V | tail -n1)
-  last_rc=$(git tag --list "v${version}-rc.*" | sed -E 's/.*-rc\.([0-9]+)$/\1/' | sort -n | tail -n1)
+  # Only tags of the form vX.Y.Z-rc.N count as candidates.
+  rc_pattern="^v${version//./\\.}-rc\\.[0-9]+$"
+  existing=$(git tag --points-at HEAD --list "v${version}-rc.*" | grep -E "$rc_pattern" | sort -V | tail -n1 || true)
+  numbers=$(git tag --list "v${version}-rc.*" | grep -E "$rc_pattern" | sed -E 's/.*-rc\.([0-9]+)$/\1/' | sort -n || true)
+  last_rc=$(tail -n1 <<<"$numbers")
   if [[ -n "$existing" ]]; then
     # A re-run for a commit that already has a candidate reuses it.
     rc_tag=$existing
     number=${existing##*-rc.}
-    previous=$(git tag --list "v${version}-rc.*" | sed -E 's/.*-rc\.([0-9]+)$/\1/' | sort -n | awk -v n="$number" '$1 < n' | tail -n1)
+    previous=$(awk -v n="$number" '$1 < n' <<<"$numbers" | tail -n1)
   else
     number=$((${last_rc:-0} + 1))
     rc_tag="v${version}-rc.${number}"

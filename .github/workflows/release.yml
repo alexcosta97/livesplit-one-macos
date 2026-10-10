@@ -82,7 +82,10 @@ jobs:
     runs-on: ubuntu-latest
     environment: release
     steps:
-      - run: echo "Promoting ${{ needs.version.outputs.rc_tag }} to v${{ needs.version.outputs.version }}"
+      - env:
+          RC_TAG: ${{ needs.version.outputs.rc_tag }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: echo "Promoting $RC_TAG to v$VERSION"
 
   build-final:
     name: build release
@@ -117,5 +120,12 @@ jobs:
           TAG: v${{ needs.version.outputs.version }}
         run: |
           scripts/release/notes.sh full > notes.md
-          gh release create "$TAG" dist/* --latest --target "$GITHUB_SHA" \
-            --title "$TAG" --notes-file notes.md
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            # A re-run after a partial failure: finish the release.
+            gh release upload "$TAG" dist/* --clobber
+            gh release edit "$TAG" --draft=false --prerelease=false --latest \
+              --notes-file notes.md
+          else
+            gh release create "$TAG" dist/* --latest --target "$GITHUB_SHA" \
+              --title "$TAG" --notes-file notes.md
+          fi

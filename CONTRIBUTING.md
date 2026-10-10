@@ -57,6 +57,7 @@ and is not committed.
    swift format lint --strict --recursive App Tests LiveSplitCore/Wrapper scripts
    mise x -- actionlint
    mise x -- shellcheck scripts/*.sh scripts/release/*.sh
+   mise x -- scripts/release/test-release-scripts.sh
    xcodegen generate
    xcodebuild test -project LiveSplitOne.xcodeproj -scheme LiveSplitOne -destination 'platform=macOS'
    scripts/build-app.sh 0.0.0-dev
@@ -66,10 +67,10 @@ and is not committed.
    `scripts/build-app.sh` makes the universal release build CI's `build`
    check makes, into `dist/`.
 
-   For the release scripts and workflow linting, run
-   `scripts/release/test-release-scripts.sh` and `actionlint` with the tools
-   from `mise install`. The same tests run on pull requests that change
-   release files.
+   The release script tests need git-cliff (from `mise install`) and `jq`,
+   which macOS and the CI runners ship. The `lint` check runs them. The
+   advisory `Release scripts` workflow also builds the package on pull
+   requests that change release files.
 
 ## Testing
 
@@ -220,6 +221,11 @@ version is embedded in the app at build time, as `CFBundleShortVersionString`.
 - The release is a universal (Apple Silicon and Intel) `.app` in a `.zip`,
   ad-hoc signed and not notarised, so users open it once with System Settings
   → Privacy & Security → Open Anyway.
+- Only one Release run is live at a time: a newer merge cancels the older run.
+  That also cancels an approved run that is still building or publishing, so
+  approve when no merge is pending, and if a run is cancelled after approval,
+  approve the newer candidate. Never re-run an older Release run: it would
+  cancel the newer candidate, and approving it would publish an older commit.
 - Release notes list every change since the previous full release, grouped by
   type. They are the project's changelog.
 

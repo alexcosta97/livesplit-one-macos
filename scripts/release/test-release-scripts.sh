@@ -94,6 +94,73 @@ tag v1.0.0
 commit "refactor!: drop old config"
 expect "breaking refactor from 1.0.0 bumps major" version 2.0.0
 
+# A footer marks a breaking change too.
+new_repo
+commit "feat: add window"
+tag v1.0.0
+git commit -q --allow-empty -m "fix: rename settings" -m "BREAKING CHANGE: settings are renamed"
+expect "BREAKING CHANGE footer from 1.0.0 bumps major" version 2.0.0
+
+# perf commits bump patch.
+new_repo
+commit "feat: add window"
+tag v0.1.0
+commit "perf: speed up start"
+expect "perf bumps patch" version 0.1.1
+
+# Tags that are not release candidates are ignored.
+new_repo
+commit "feat: add window"
+tag v0.1.0-rc.x
+expect "malformed candidate tag at HEAD is ignored" rc_tag v0.1.0-rc.1
+expect "malformed candidate tag gives no previous candidate" previous_rc_tag ""
+
+# Candidate numbers compare as numbers, not text.
+new_repo
+commit "feat: add window"
+for n in 1 2 3 4 5 6 7 8 9 10; do tag "v0.1.0-rc.$n"; done
+commit "fix: correct title"
+expect "rc.10 is followed by rc.11" rc_tag v0.1.0-rc.11
+expect "previous candidate of rc.11 is rc.10" previous_rc_tag v0.1.0-rc.10
+
+# A re-run on an older candidate's commit finds the candidate before it.
+new_repo
+commit "feat: add window"
+tag v0.1.0-rc.1
+commit "fix: correct title"
+tag v0.1.0-rc.2
+commit "fix: handle reconnects"
+tag v0.1.0-rc.3
+git checkout -q v0.1.0-rc.2
+expect "re-run on rc.2 reuses rc.2" rc_tag v0.1.0-rc.2
+expect "re-run on rc.2 finds rc.1 before it" previous_rc_tag v0.1.0-rc.1
+
+# A merge with nothing user-facing lands between a candidate and its approval.
+new_repo
+commit "feat: add window"
+tag v0.1.0-rc.1
+commit "docs: explain setup"
+expect_notes "docs-only merge after rc.1: nothing new" "No user-facing changes." rc v0.1.0-rc.1
+expect_notes "docs-only merge after rc.1: heading names rc.1" "## New since v0.1.0-rc.1" rc v0.1.0-rc.1
+
+# A commit holding both a candidate and the full release is not released again.
+new_repo
+commit "feat: add window"
+tag v0.1.0-rc.1
+tag v0.1.0
+expect "re-run on a released commit: no release" release false
+
+# Usage error.
+new_repo
+status=0
+"$root/scripts/release/notes.sh" >/dev/null 2>&1 || status=$?
+if [[ "$status" == 2 ]]; then
+  echo "ok   - notes.sh without an argument exits 2"
+else
+  echo "FAIL - notes.sh without an argument: exit status is $status, expected 2"
+  failures=$((failures + 1))
+fi
+
 if ((failures > 0)); then
   echo "$failures test(s) failed"
   exit 1

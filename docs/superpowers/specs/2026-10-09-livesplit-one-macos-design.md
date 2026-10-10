@@ -539,7 +539,8 @@ These follow livesplit-asr-bridge (its spec sections 13 and 14, and its
     isn't cached: a fresh checkout invalidates it);
   - `lint`: `cargo fmt --check`, `cargo clippy --all-targets --locked -- -D
     warnings`, `swift format lint --strict`, `actionlint` (which also runs
-    shellcheck on the workflows' scripts) and `shellcheck` on `scripts/`;
+    shellcheck on the workflows' scripts), `shellcheck` on `scripts/` and the
+    release script tests;
   - `test`: `cargo test --locked`, then the unit, headless UI and integration
     tests;
   - `e2e`: the XCUITest suite;
@@ -563,7 +564,9 @@ These follow livesplit-asr-bridge (its spec sections 13 and 14, and its
   that produces a version publishes a release candidate `vX.Y.Z-rc.N`. Approval
   in the `release` environment promotes it to a full release marked Latest.
   The Releases page is the changelog. The build is a universal (Apple Silicon
-  and Intel) unsigned `.app` in a `.zip`.
+  and Intel) ad-hoc signed, not notarised `.app` in a `.zip`. Only one Release
+  run is live at a time (a newer merge cancels the older run, even one already
+  approved), and an older run must never be re-run.
 
 ## 16. Documentation
 
