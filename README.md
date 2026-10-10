@@ -91,6 +91,11 @@ position for each layout, Always on Top and the last server address. Your
 splits and layouts stay wherever you keep them; the app only stores their
 paths.
 
+The file is created the first time a setting changes. If it can't be read,
+for example after editing it by hand, the app starts with the default
+settings and keeps the old file next to it as `app.toml.bad`, so nothing is
+lost.
+
 Logs are written to:
 
 ```
