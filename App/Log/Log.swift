@@ -9,6 +9,9 @@ final class Log: @unchecked Sendable {
     /// The log folder.
     let directory: URL
 
+    /// The app's log, in `LogFolder.current`.
+    static let shared = Log(directory: LogFolder.current)
+
     private let lock = NSLock()
     /// The log files' writer, or `nil` once writing to them failed.
     private var disk: DiskLog?

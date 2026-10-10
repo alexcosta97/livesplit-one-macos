@@ -17,6 +17,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        let system = ProcessInfo.processInfo.operatingSystemVersion
+        Log.shared.record(
+            .app,
+            "LiveSplit One for macOS \(AppVersion.current) started on macOS "
+                + "\(system.majorVersion).\(system.minorVersion).\(system.patchVersion)")
         let window = Self.makeWindow()
         window.makeKeyAndOrderFront(nil)
         self.window = window

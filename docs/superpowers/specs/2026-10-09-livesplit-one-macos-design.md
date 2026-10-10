@@ -446,6 +446,10 @@ Same rules as livesplit-asr-bridge:
 - Every category is written to disk.
 - One file per day, named `livesplit-one-macos-YYYY-MM-DD.log`, in
   `~/Library/Logs/livesplit-one-macos/`.
+- Each line is the local time to the millisecond, the category's tag and the
+  message, as in livesplit-asr-bridge:
+  `19:31:01.254  CONNECTION  Connected to 192.168.1.20`. The tags are
+  `ERROR`, `CONNECTION`, `TIMER` and `APP`.
 - Files older than 7 days are deleted at launch and at each daily rotation.
 - A per-day size cap of 50 MB. Past it, only errors are written, and one line
   records that the cap was reached.
@@ -492,8 +496,11 @@ under 10 % E2E.
 
 ### 14.2 E2E harness
 
-- Launches the real app with a temporary config and log folder, set by launch
-  arguments that only test builds accept.
+- Launches the real app with a temporary config and log folder, set by the
+  launch arguments `-LSOConfigDirectory <path>` and `-LSOLogDirectory <path>`.
+  Only Debug builds, which tests use, read them; Release builds don't contain
+  them. When the app hosts the unit and headless UI tests, it uses a
+  temporary folder too, so test runs never touch the developer's own files.
 - **File dialogs:** the app opens `NSOpenPanel` and `NSSavePanel` through a
   `FilePicker` protocol. E2E runs switch to a scripted picker that answers with
   a file or a cancel, as a user would. The types and starting folder the app
