@@ -41,7 +41,7 @@ and a Mac showing the timer.
 
 ## Requirements
 
-- macOS 14 (Sonoma) or newer, on an Apple Silicon or Intel Mac.
+- macOS 15 (Sequoia) or newer, on an Apple Silicon or Intel Mac.
 
 ## Download
 

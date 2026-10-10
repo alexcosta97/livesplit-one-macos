@@ -93,7 +93,7 @@ These were tried or reviewed first (October 2026):
   version of LiveSplit One, not of the original Windows LiveSplit.
 - The app icon lives in `assets/brand/icons/` as `icon.icns`, referenced by
   `CFBundleIconFile`. It is not the official LiveSplit icon.
-- Target: macOS 14 (Sonoma) or newer.
+- Target: macOS 15 (Sequoia) or newer.
 
 ## 4. Architecture
 
