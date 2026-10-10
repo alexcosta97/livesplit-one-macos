@@ -3,6 +3,9 @@ import Foundation
 /// Why a line couldn't be written to the log file.
 struct DiskLogError: Error, Equatable {
     let message: String
+    /// What couldn't be deleted in the rotation this write started, which the throw would
+    /// otherwise lose.
+    var deletionErrors: [String] = []
 }
 
 /// The log files: one per day, kept for 7 days, with a per-day size cap (spec §12.2). A port of
@@ -55,7 +58,17 @@ struct DiskLog {
             }
         }
         guard let file else { return errors }
+        do {
+            try append(entry, to: file)
+        } catch {
+            var error = error
+            error.deletionErrors = errors
+            throw error
+        }
+        return errors
+    }
 
+    private func append(_ entry: LogEntry, to file: DayFile) throws(DiskLogError) {
         if file.size >= cap && entry.category != .error {
             if !file.capped {
                 var marker = entry
@@ -64,10 +77,9 @@ struct DiskLog {
                 try file.append(marker.line(in: calendar))
                 file.capped = true
             }
-            return errors
+            return
         }
         try file.append(entry.line(in: calendar))
-        return errors
     }
 
     /// Deletes the log files more than `retentionDays` older than `today`. Other files in the

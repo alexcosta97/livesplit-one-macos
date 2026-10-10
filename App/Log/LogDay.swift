@@ -1,6 +1,6 @@
 import Foundation
 
-/// A day in the user's calendar, which names a log file.
+/// A Gregorian day in the user's time zone, which names a log file.
 struct LogDay: Hashable, Comparable, Sendable {
     let year: Int
     let month: Int

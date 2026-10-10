@@ -72,6 +72,10 @@ final class Log: Sendable {
         } catch {
             // Sent to the unified log only: writing it to the file would fail too.
             disk = nil
+            // Reported even though the write failed: nothing else will.
+            for message in error.deletionErrors {
+                unified.send(LogEntry(time: entry.time, category: .error, message: message))
+            }
             unified.send(
                 LogEntry(
                     time: entry.time, category: .error,

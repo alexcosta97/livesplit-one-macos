@@ -69,6 +69,8 @@ import Testing
         defer {
             try? FileManager.default.setAttributes(
                 [.posixPermissions: 0o700], ofItemAtPath: old.path)
+            // `folder` deletes everything when it goes, so it must outlive the line above.
+            withExtendedLifetime(folder) {}
         }
         let unified = RecordingUnifiedLog()
         _ = makeLog(folder.url, unified: unified)
