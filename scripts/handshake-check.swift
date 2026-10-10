@@ -55,6 +55,14 @@ func reply(to command: String) -> String {
     return #"{"success":null}"#
 }
 
+/// How the server closed the connection. URLSession reports a close with no
+/// code as 1005 (`noStatusReceived`), a code a server never sends.
+func describe(closeCode: URLSessionWebSocketTask.CloseCode) -> String {
+    closeCode == .noStatusReceived
+        ? "the server closed it without a close code"
+        : "the server closed it with close code \(closeCode.rawValue)"
+}
+
 final class Delegate: NSObject, URLSessionWebSocketDelegate, Sendable {
     private struct State {
         var opened = false
@@ -77,7 +85,7 @@ final class Delegate: NSObject, URLSessionWebSocketDelegate, Sendable {
         _ session: URLSession, webSocketTask: URLSessionWebSocketTask,
         didCloseWith closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?
     ) {
-        connectionEnded("the server closed it (close code \(closeCode.rawValue))")
+        connectionEnded(describe(closeCode: closeCode))
     }
 
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?)
@@ -133,10 +141,7 @@ func receive(_ task: URLSessionWebSocketTask) {
         case .failure(let error):
             var reason = error.localizedDescription
             if task.closeCode != .invalid {
-                reason +=
-                    task.closeCode == .noStatusReceived
-                    ? " (the server closed it without a close code)"
-                    : " (the server closed it with close code \(task.closeCode.rawValue))"
+                reason += " (\(describe(closeCode: task.closeCode)))"
             }
             delegate.connectionEnded(reason, status: task.response as? HTTPURLResponse)
         }
