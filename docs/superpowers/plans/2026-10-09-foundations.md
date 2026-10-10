@@ -2069,9 +2069,9 @@ Expected: `xcodegen generate` regenerates the bindings through `preGenCommand`, 
 build() { xcodebuild build -project LiveSplitOne.xcodeproj -scheme LiveSplitOne \
   -destination 'platform=macOS' -derivedDataPath build/DerivedData; }
 build > /dev/null
-build | grep -c 'PhaseScriptExecution Build.core.and.bindings'
+build | grep -c 'PhaseScriptExecution Build.*core.*and.*bindings'
 touch core/src/lib.rs
-build | grep -c 'PhaseScriptExecution Build.core.and.bindings'
+build | grep -c 'PhaseScriptExecution Build.*core.*and.*bindings'
 ```
 
 Expected: `0` (skipped), then `1` (ran again after a Rust source changed). Then `rm -rf build`.
@@ -2080,7 +2080,7 @@ Expected: `0` (skipped), then `1` (ran again after a Rust source changed). Then 
 
 ```bash
 scripts/build-core.sh --release --universal
-lipo -archs LiveSplitCore/lib/liblivesplit_core.a LiveSplitCore/lib/liblso_core.a
+for lib in LiveSplitCore/lib/*.a; do lipo -archs "$lib"; done
 ```
 
 Expected: `x86_64 arm64` for each. The first run adds the `x86_64-apple-darwin` target through `rust-toolchain.toml`.

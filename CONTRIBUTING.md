@@ -26,7 +26,8 @@ generated from `project.yml` with [XcodeGen](https://github.com/yonaskolb/XcodeG
 and is not committed.
 
 1. Install Xcode from the App Store (26.6 or newer; the version CI uses is
-   set in `.github/actions/setup/action.yml`), then run
+   set in `.github/actions/setup/action.yml`). Xcode 16 and later ship with
+   `swift format`. Then run
    `sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer`.
 2. Install [rustup](https://rustup.rs/) and [mise](https://mise.jdx.dev/),
    then run `mise install` in the repository. Rust's version and targets come
