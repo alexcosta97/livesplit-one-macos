@@ -1,6 +1,6 @@
-# Selects the Xcode the project builds with (../select-xcode), installs the
-# Rust toolchain from rust-toolchain.toml and the tools pinned in mise.toml, and
-# restores the Rust cache. Every CI job shares one cache key,
+# Selects the Xcode the project builds with (.github/actions/select-xcode),
+# installs the Rust toolchain from rust-toolchain.toml and the tools pinned in
+# mise.toml, and restores the Rust cache. Every CI job shares one cache key,
 # so the `setup` job compiles the dependencies once and the other jobs reuse
 # them.
 name: Setup
