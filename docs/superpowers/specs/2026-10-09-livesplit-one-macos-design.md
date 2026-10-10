@@ -308,9 +308,13 @@ Quit
   prefilled with the last URL used, and Connect and Cancel buttons. A URL
   without a scheme gets `ws://`. A URL that isn't `ws://` or `wss://` is
   rejected in the sheet with a reason.
-- The client is `URLSessionWebSocketTask`. It sets no `Origin` header unless
-  the server needs one; #7 checks livesplit-asr-bridge's handshake against a
-  native client before the rest of the client (#14) is built.
+- The client is `URLSessionWebSocketTask`, and sends no `Origin` header:
+  `URLSessionWebSocketTask` adds none, and livesplit-asr-bridge doesn't check
+  it (it accepts with tungstenite's `accept_async`). A native client
+  (`scripts/handshake-check.swift`) connected to the bridge on the gaming PC
+  with no `Origin`, over the PC's Tailscale address, and answered its
+  `getCurrentState` and `start` commands (#7). A server that needs an
+  `Origin` is not supported in the first version.
 - `Info.plist` contains `NSLocalNetworkUsageDescription`, so macOS asks for
   local network access the first time the app connects to another machine.
 
