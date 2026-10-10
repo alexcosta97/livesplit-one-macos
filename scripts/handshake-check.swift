@@ -2,7 +2,9 @@
 // URLSessionWebSocketTask, the client the app will use (spec §8.1), answers
 // its commands and prints everything, to check the handshake (issue #7).
 //
-//   swift scripts/handshake-check.swift <url> [--origin <origin>] [--seconds <n>]
+//   swift scripts/handshake-check.swift <ws-url> [--origin <origin>] [--seconds <n>]
+//
+// ws:// is assumed when <ws-url> has no scheme.
 //
 // Exit codes: 0 the connection stayed up for the whole --seconds, 1 the
 // handshake failed, 2 usage error, 3 the connection ended after the handshake
@@ -105,12 +107,12 @@ final class Delegate: NSObject, URLSessionWebSocketDelegate, Sendable {
         guard first else { return }
         if opened {
             print("connection ended after the handshake: \(reason)")
-            print("the handshake itself succeeded; the connection was lost afterwards")
+            print("the handshake itself succeeded; the connection ended afterwards")
             exit(3)
         }
-        printError("handshake failed: \(reason)")
+        print("handshake failed: \(reason)")
         if let status {
-            printError("HTTP status \(status.statusCode)")
+            print("HTTP status \(status.statusCode)")
         }
         exit(1)
     }
@@ -153,6 +155,7 @@ guard let options = Options.parse(CommandLine.arguments) else {
     printError(
         """
         usage: swift scripts/handshake-check.swift <ws-url> [--origin <origin>] [--seconds <n>]
+        ws:// is assumed when <ws-url> has no scheme
         n is from 0.1 to 86400 seconds (default 30)
         """)
     exit(2)
@@ -169,7 +172,7 @@ receive(task)
 DispatchQueue.main.asyncAfter(deadline: .now() + options.seconds) {
     guard let opened = delegate.finishRun() else { return }
     guard opened else {
-        printError(
+        print(
             "handshake failed: no handshake response within \(format(seconds: options.seconds)) s")
         exit(1)
     }
