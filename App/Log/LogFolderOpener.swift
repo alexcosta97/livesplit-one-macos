@@ -42,7 +42,7 @@ enum LogFolderAlert {
         let alert = NSAlert()
         alert.alertStyle = .warning
         alert.messageText = "Couldn't open the log folder"
-        alert.informativeText = "The log files are in \(folder.path)."
+        alert.informativeText = "The log files belong in \(folder.path)."
         alert.addButton(withTitle: "OK")
         return alert
     }

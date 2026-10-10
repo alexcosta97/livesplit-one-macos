@@ -11,7 +11,7 @@ import Testing
         #expect(alert.messageText == "Couldn't open the log folder")
         #expect(
             alert.informativeText
-                == "The log files are in /Users/me/Library/Logs/livesplit-one-macos.")
+                == "The log files belong in /Users/me/Library/Logs/livesplit-one-macos.")
         #expect(alert.buttons.map(\.title) == ["OK"])
     }
 }
