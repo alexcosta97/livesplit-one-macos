@@ -446,9 +446,9 @@ Every key is optional: a missing key takes its default (nothing opened, no
 recent files, Always on Top off) and an unknown key is ignored, so a file
 from another version still reads. A key with the wrong type makes the file
 unreadable. Recent lists are trimmed to 10 and repeats dropped. A window entry
-missing a key makes the file unreadable too; one with a size that isn't
-positive, or a duplicate layout, is dropped. A broken file replaces any older
-`app.toml.bad`.
+missing a key makes the file unreadable too; one with a number that isn't
+finite, a size that isn't positive, or a duplicate layout is dropped. A broken
+file replaces any older `app.toml.bad`.
 
 The splits and layouts themselves stay wherever the user keeps them; the app
 only stores their paths.
