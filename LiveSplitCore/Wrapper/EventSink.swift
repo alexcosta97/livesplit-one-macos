@@ -69,6 +69,11 @@ public enum ResetDecision: UInt8, Sendable {
 
 /// The event-reporting command sink from core/ (spec §5.3). Not the generated
 /// `CommandSink`, which wraps a plain timer and reports nothing.
+///
+/// `@unchecked Sendable` is sound because the only stored property is an
+/// immutable pointer, and core's sink is thread-safe: `LsoHost` is `Send +
+/// Sync` and `EventSink<LsoHost>` is `Sync`, so commands may run from any
+/// thread.
 public final class EventSink: @unchecked Sendable {
     /// Called with every command's result, on the thread that ran the command.
     ///
