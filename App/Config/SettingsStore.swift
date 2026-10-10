@@ -75,15 +75,26 @@ final class SettingsStore {
             let settings = try Settings.decode(Data(contentsOf: file))
             log.record(.app, "Read the settings from \(file.path)")
             return (settings, .loaded)
+        } catch let error as CocoaError where error.code == .fileReadNoSuchFile {
+            // The file went away between the check and the read.
+            log.record(.app, "No settings file yet at \(file.path), so the defaults are used")
+            return (Settings(), .missing)
         } catch {
             reason = Settings.reason(for: error)
         }
 
         do {
-            if FileManager.default.fileExists(atPath: bad.path) {
-                try FileManager.default.removeItem(at: bad)
+            // One rename replaces an older copy atomically, so a failed move never loses it.
+            guard rename(file.path, bad.path) == 0 else {
+                throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
             }
-            try FileManager.default.moveItem(at: file, to: bad)
+            // So the owner can open the copy kept for them, even if the file was mode 000.
+            if let mode = try? FileManager.default.attributesOfItem(atPath: bad.path)[
+                .posixPermissions] as? Int
+            {
+                try? FileManager.default.setAttributes(
+                    [.posixPermissions: mode | 0o600], ofItemAtPath: bad.path)
+            }
             log.record(
                 .error,
                 "Couldn't read the settings in \(file.path), so the defaults are used and the "
@@ -93,7 +104,7 @@ final class SettingsStore {
             log.record(
                 .error,
                 "Couldn't read the settings in \(file.path) (\(reason)), nor keep it as "
-                    + "\(badFileName) (\(error.localizedDescription)), so the defaults are "
+                    + "\(badFileName) (\(Settings.reason(for: error))), so the defaults are "
                     + "used and changes aren't saved until the app restarts")
             return (Settings(), .unrecoverable(reason: reason))
         }

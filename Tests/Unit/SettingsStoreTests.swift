@@ -135,7 +135,7 @@ import Testing
         }
         #expect(try configNames(folder) == ["app.toml.bad"])
         let bad = folder.url.appending(path: "Config/app.toml.bad")
-        try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: bad.path)
+        #expect(FileManager.default.isReadableFile(atPath: bad.path))
     }
 
     @Test func aFileThatCantBeMovedAsideIsNeverOverwritten() throws {
@@ -143,6 +143,10 @@ import Testing
         try writeConfig(folder, "app.toml", "broken [")
         let config = folder.url.appending(path: "Config")
         try FileManager.default.setAttributes([.posixPermissions: 0o500], ofItemAtPath: config.path)
+        defer {
+            try? FileManager.default.setAttributes(
+                [.posixPermissions: 0o700], ofItemAtPath: config.path)
+        }
         let store = makeStore(folder)
         guard case .unrecoverable = store.loadOutcome else {
             Issue.record("expected .unrecoverable, got \(store.loadOutcome)")
@@ -153,8 +157,6 @@ import Testing
         #expect(try readConfig(folder, "app.toml") == "broken [")
         #expect(errors.count == 1)
         #expect(errors.first?.contains("aren't saved until the app restarts") == true)
-        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: config.path)
-        withExtendedLifetime(folder) {}
     }
 
     @Test func aFailedSaveIsLoggedAndTheChangeStillApplies() throws {
