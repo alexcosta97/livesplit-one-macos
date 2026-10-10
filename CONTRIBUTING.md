@@ -192,8 +192,11 @@ update dependencies, configured in `renovate.json`. Their titles follow the
 conventions above, and the type decides whether the update is released:
 
 - `fix(deps)`: crates that ship in the app, including the LiveSplit crates
-  (grouped together and labelled `livesplit`) and `Cargo.lock` refreshes, and
-  Swift packages that ship in the app. These produce a release.
+  (one pull request, labelled `livesplit`, moves both to the same
+  livesplit-core revision), `core/Cargo.lock` refreshes, and the Swift
+  packages in `project.yml`. These produce a release. Renovate treats every
+  package in `project.yml` as shipping, so a package only the tests use needs
+  a rule in `renovate.json` making it `chore`.
 - `ci(deps)`: GitHub Actions. No release.
 - `chore(deps)`: tools pinned in `mise.toml` and development-only packages.
   No release.
