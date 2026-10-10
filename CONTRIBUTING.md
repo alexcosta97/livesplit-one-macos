@@ -218,10 +218,10 @@ holds `X.Y.Z` and `LSOVersion` holds the full version, e.g. `0.4.0-rc.2` (see
 - Every merge to `main` that produces a version publishes a **release
   candidate** as a GitHub pre-release, tagged `vX.Y.Z-rc.N`.
 - Once anything releasable (a `feat`, `fix`, `perf` or breaking commit) is
-  unreleased, every merge to
-  `main` publishes a new candidate, including `docs`, `ci` and `chore` merges
-  (their "New since" notes read "No user-facing changes."), and each new
-  candidate cancels the pending approval of the previous one.
+  unreleased, every merge to `main` publishes a new candidate, including
+  `docs`, `ci` and `chore` merges (their "New since" notes read "No
+  user-facing changes."), and each new candidate cancels the pending approval
+  of the previous one.
 - A maintainer promotes a release candidate by approving the pending release
   job in the `release` environment. That publishes the full release `vX.Y.Z`
   from the same commit, marked **Latest**.

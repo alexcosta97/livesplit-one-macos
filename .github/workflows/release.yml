@@ -73,8 +73,11 @@ jobs:
           # publishes it after the upload. A job killed mid-upload leaves that
           # draft, pointing at an old commit, so delete a draft and start over.
           # "release not found" means missing; any other failure fails the step.
-          if ! draft=$(gh release view "$RC_TAG" --json isDraft --jq .isDraft 2>&1); then
-            [[ "$draft" == *"release not found"* ]] || { echo "$draft" >&2; exit 1; }
+          err=$(mktemp)
+          if draft=$(gh release view "$RC_TAG" --json isDraft --jq .isDraft 2> "$err"); then
+            [[ "$draft" == true || "$draft" == false ]] || { echo "unexpected isDraft: $draft" >&2; cat "$err" >&2; exit 1; }
+          else
+            grep -q "release not found" "$err" || { cat "$err" >&2; exit 1; }
             draft=none
           fi
           if [[ "$draft" == true ]]; then
@@ -136,8 +139,11 @@ jobs:
           # which must not be published as it is, since that would tag an old
           # commit. A draft has no tag, so deleting it needs no --cleanup-tag.
           # "release not found" means missing; any other failure fails the step.
-          if ! draft=$(gh release view "$TAG" --json isDraft --jq .isDraft 2>&1); then
-            [[ "$draft" == *"release not found"* ]] || { echo "$draft" >&2; exit 1; }
+          err=$(mktemp)
+          if draft=$(gh release view "$TAG" --json isDraft --jq .isDraft 2> "$err"); then
+            [[ "$draft" == true || "$draft" == false ]] || { echo "unexpected isDraft: $draft" >&2; cat "$err" >&2; exit 1; }
+          else
+            grep -q "release not found" "$err" || { cat "$err" >&2; exit 1; }
             draft=none
           fi
           if [[ "$draft" == true ]]; then
