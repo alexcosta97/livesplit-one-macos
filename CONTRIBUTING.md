@@ -100,11 +100,16 @@ integration, under 10 % E2E.
 
 ## User documentation
 
-Until the wiki exists (spec §16, a backlog item), the user documentation is
-[`README.md`](README.md).
+The user documentation is the repository's
+[wiki](https://github.com/alexcosta97/livesplit-one-macos/wiki), written in
+`docs/wiki/` and published on merge to `main` (spec §16). Never edit the wiki
+on GitHub: the next sync overwrites it. Until `docs/wiki/` exists (#25), the
+user documentation is [`README.md`](README.md).
 
 - A pull request that changes something users can see updates the
-  documentation in the same pull request.
+  documentation in the same pull request: the wiki page it belongs on (spec
+  §16.2), or, once there is a full release, the Upcoming Changes page (spec
+  §16.3).
 - If a screen in a screenshot changes, say in the pull request which
   screenshots need retaking.
 
