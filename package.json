@@ -1,0 +1,9 @@
+{
+  "name": "livesplit-one-macos-tools",
+  "private": true,
+  "description": "Development tools only: commitlint for the commit message check. Nothing here ships in the app.",
+  "devDependencies": {
+    "@commitlint/cli": "21.2.3",
+    "@commitlint/config-conventional": "21.2.3"
+  }
+}

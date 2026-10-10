@@ -43,7 +43,20 @@
       "semanticCommitType": "chore"
     },
     {
+      "description": "npm packages in package.json, development tools such as commitlint: no release",
+      "matchManagers": ["npm"],
+      "semanticCommitType": "chore"
+    },
+    {
+      "description": "package-lock.json refreshes get their own branch, so they never join the Cargo.lock refresh, which is released",
+      "matchManagers": ["npm"],
+      "matchUpdateTypes": ["lockFileMaintenance"],
+      "branchTopic": "npm-lock-file-maintenance",
+      "commitMessageExtra": "(package-lock.json)"
+    },
+    {
       "description": "core/Cargo.lock refreshes change what ships: fix, so the update is released",
+      "matchManagers": ["cargo"],
       "matchUpdateTypes": ["lockFileMaintenance"],
       "semanticCommitType": "fix"
     },

@@ -30,9 +30,10 @@ and is not committed.
    `sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer`.
    Xcode includes `swift format`, which the checks use.
 2. Install [rustup](https://rustup.rs/) and [mise](https://mise.jdx.dev/),
-   then run `mise install` in the repository. Rust's version and targets come
-   from `rust-toolchain.toml`. mise installs XcodeGen, git-cliff, shellcheck
-   and actionlint.
+   then run `mise install` and `npm ci` in the repository. Rust's version and
+   targets come from `rust-toolchain.toml`. mise installs XcodeGen,
+   git-cliff, shellcheck, actionlint and Node, and `npm ci` installs
+   commitlint from `package.json`.
 3. Build `core/` and generate the Xcode project:
 
    ```sh
@@ -51,6 +52,8 @@ and is not committed.
 4. Before pushing, run the same checks CI runs, from the repository root:
 
    ```sh
+   git fetch origin main
+   mise x -- npx commitlint --from origin/main --to HEAD --verbose
    cargo fmt --check --manifest-path core/Cargo.toml
    cargo clippy --all-targets --locked --manifest-path core/Cargo.toml -- -D warnings
    cargo test --locked --manifest-path core/Cargo.toml
@@ -63,6 +66,9 @@ and is not committed.
    scripts/build-app.sh 0.0.0-dev
    ```
 
+   commitlint checks every commit on the branch against the Conventional
+   Commits rules in `commitlint.config.mjs`, as CI's `commitlint` check does,
+   including a 100-character limit on each line of the body.
    `actionlint` also runs shellcheck on the workflows' `run:` steps.
    `scripts/build-app.sh` makes the universal release build CI's `build`
    check makes, into `dist/`.
@@ -203,8 +209,10 @@ conventions above, and the type decides whether the update is released:
   package in `project.yml` as shipping, so a package only the tests use needs
   a rule in `renovate.json` making it `chore`.
 - `ci(deps)`: GitHub Actions. No release.
-- `chore(deps)`: tools pinned in `mise.toml` and development-only packages.
-  No release.
+- `chore(deps)`: tools pinned in `mise.toml` and development-only packages,
+  including the npm packages in `package.json` (commitlint). No release.
+  `package-lock.json` refreshes get their own pull request, so they never
+  join the `core/Cargo.lock` refresh, which is released.
 
 GitHub Actions are pinned to a full commit SHA, with the exact version as a
 comment, so a tag moved to different code can't change what CI and the release
