@@ -49,15 +49,17 @@ pub trait Host: Send + Sync + 'static {
 pub struct EventSink<H: Host> {
     timer: SharedTimer,
     host: H,
-    /// Set from the moment a reset starts to ask until its result has been
-    /// reported. Commands arriving meanwhile get Busy.
+    /// Set from the moment a reset that doesn't say whether to keep the
+    /// attempt's times starts until its result has been reported, whether or
+    /// not it asks. Commands arriving meanwhile get Busy.
     deciding: AtomicBool,
     /// Held shared by each running command until its result has been
-    /// reported, and exclusively by a reset that asks, from before it reads
-    /// whether the attempt has new best times until its result has been
-    /// reported. So a reset waits for the commands already running, and none
-    /// runs while it asks. Unrelated to the timer's own lock, which is not
-    /// held while the host decides.
+    /// reported, and exclusively by a reset that doesn't say whether to keep
+    /// the attempt's times, from before it reads whether the attempt has new
+    /// best times until its result has been reported. So such a reset waits
+    /// for the commands already running, and none runs while it asks.
+    /// Unrelated to the timer's own lock, which is not held while the host
+    /// decides.
     gate: RwLock<()>,
 }
 
@@ -500,7 +502,10 @@ pub(crate) mod tests {
 
     /// A host whose report of the next split waits until a reset question is
     /// waiting for it, or until the question is asked, and which records the
-    /// order things happen in.
+    /// order things happen in. Its probe deliberately covers the moment before
+    /// the reset takes the write lock; a command arriving while the writer is
+    /// queued gets Busy through `try_read`'s WouldBlock or the flag, which
+    /// isn't tested separately.
     struct InFlight {
         sink: Mutex<Option<Arc<EventSink<InFlight>>>>,
         armed: Mutex<bool>,
@@ -511,11 +516,18 @@ pub(crate) mod tests {
         while_waiting: Mutex<Vec<Result>>,
     }
 
+    /// Waits on a channel, failing instead of hanging if a change breaks the
+    /// path that should send. A safety net, not for ordering.
+    fn wait(rx: &mpsc::Receiver<()>, what: &str) {
+        rx.recv_timeout(std::time::Duration::from_secs(10))
+            .unwrap_or_else(|_| panic!("timed out after 10 s waiting for {what}"));
+    }
+
     impl Host for InFlight {
         fn report(&self, result: Result) {
             if result == Ok(Event::Splitted) && std::mem::take(&mut *self.armed.lock().unwrap()) {
                 self.in_report.lock().unwrap().send(()).unwrap();
-                self.release_rx.lock().unwrap().recv().unwrap();
+                wait(&self.release_rx.lock().unwrap(), "the split to be released");
                 self.log.lock().unwrap().push("split reported");
             }
         }
@@ -564,7 +576,7 @@ pub(crate) mod tests {
             let sink = sink.clone();
             std::thread::spawn(move || run(sink.split()))
         };
-        in_report_rx.recv().unwrap();
+        wait(&in_report_rx, "the split to be reported");
         // ...when a reset that needs a decision arrives.
         let resetting = {
             let sink = sink.clone();
