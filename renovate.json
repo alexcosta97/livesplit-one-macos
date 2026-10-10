@@ -1,6 +1,11 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:recommended", ":semanticCommits", "schedule:weekly"],
+  "extends": [
+    "config:recommended",
+    ":semanticCommits",
+    "schedule:weekly",
+    "helpers:pinGitHubActionDigests"
+  ],
   "semanticCommitType": "chore",
   "semanticCommitScope": "deps",
   "platformCommit": "enabled",
