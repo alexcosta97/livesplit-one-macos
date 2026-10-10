@@ -1,0 +1,38 @@
+# Finds the test build's .xctestrun and exports its path as XCTESTRUN. It fails
+# unless there is exactly one and it has the E2E test target, so a renamed
+# target fails the job instead of `test` running the E2E suite or `e2e`
+# passing with no tests.
+name: Find the xctestrun
+description: Export the test build's xctestrun as XCTESTRUN, after checking it has the E2E target
+
+inputs:
+  e2e-target:
+    description: The E2E test target, as -only-testing and -skip-testing name it
+    required: true
+  derived-data:
+    description: The DerivedData folder the test build was unpacked into
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Check the test build has the E2E target
+      shell: bash
+      env:
+        E2E_TARGET: ${{ inputs.e2e-target }}
+        DERIVED_DATA: ${{ inputs.derived-data }}
+      run: |
+        shopt -s nullglob
+        runs=("$DERIVED_DATA"/Build/Products/*.xctestrun)
+        if (( ${#runs[@]} != 1 )); then
+          echo "::error::Expected one .xctestrun, found ${#runs[@]}"
+          exit 1
+        fi
+        # Targets appear as <key>BlueprintName</key><string>NAME</string>,
+        # the name -only-testing and -skip-testing match.
+        if ! grep -A1 '<key>BlueprintName</key>' "${runs[0]}" |
+          grep -q "<string>$E2E_TARGET</string>"; then
+          echo "::error::${runs[0]} has no test target named $E2E_TARGET"
+          exit 1
+        fi
+        echo "XCTESTRUN=${runs[0]}" >> "$GITHUB_ENV"
