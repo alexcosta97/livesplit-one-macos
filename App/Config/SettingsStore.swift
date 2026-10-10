@@ -51,8 +51,9 @@ final class SettingsStore {
             let text = Self.header + (try settings.tomlText())
             try FileManager.default.createDirectory(
                 at: directory, withIntermediateDirectories: true)
-            // Atomic: a crash or a full disk mid-write leaves the old file whole.
-            try Data(text.utf8).write(to: file, options: .atomic)
+            // Atomic: a crash or a full disk mid-write leaves the old file whole. Written to the
+            // link's target, since an atomic write would replace a symlink with a regular file.
+            try Data(text.utf8).write(to: file.resolvingSymlinksInPath(), options: .atomic)
             log.record(.app, "Saved the settings to \(file.path)")
         } catch {
             log.record(
@@ -88,9 +89,11 @@ final class SettingsStore {
             guard rename(file.path, bad.path) == 0 else {
                 throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
             }
-            // So the owner can open the copy kept for them, even if the file was mode 000.
-            if let mode = try? FileManager.default.attributesOfItem(atPath: bad.path)[
-                .posixPermissions] as? Int
+            // So the owner can open the copy kept for them, even if the file was mode 000. Only
+            // for a regular file: setAttributes follows a symlink and would change its target.
+            if let attributes = try? FileManager.default.attributesOfItem(atPath: bad.path),
+                attributes[.type] as? FileAttributeType == .typeRegular,
+                let mode = attributes[.posixPermissions] as? Int
             {
                 try? FileManager.default.setAttributes(
                     [.posixPermissions: mode | 0o600], ofItemAtPath: bad.path)

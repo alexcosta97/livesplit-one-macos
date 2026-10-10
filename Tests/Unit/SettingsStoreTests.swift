@@ -144,8 +144,10 @@ import Testing
         let config = folder.url.appending(path: "Config")
         try FileManager.default.setAttributes([.posixPermissions: 0o500], ofItemAtPath: config.path)
         defer {
+            // Built from `folder`, so it stays alive until the folder is writable again.
             try? FileManager.default.setAttributes(
-                [.posixPermissions: 0o700], ofItemAtPath: config.path)
+                [.posixPermissions: 0o700],
+                ofItemAtPath: folder.url.appending(path: "Config").path)
         }
         let store = makeStore(folder)
         guard case .unrecoverable = store.loadOutcome else {
@@ -157,6 +159,42 @@ import Testing
         #expect(try readConfig(folder, "app.toml") == "broken [")
         #expect(errors.count == 1)
         #expect(errors.first?.contains("aren't saved until the app restarts") == true)
+    }
+
+    @Test func aSymlinkedBrokenFileLeavesItsTargetsPermissionsAlone() throws {
+        let folder = try TemporaryFolder()
+        let target = folder.url.appending(path: "target.toml")
+        try "broken [".write(to: target, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: target.path)
+        let config = folder.url.appending(path: "Config", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: config, withIntermediateDirectories: true)
+        try FileManager.default.createSymbolicLink(
+            at: config.appending(path: "app.toml"), withDestinationURL: target)
+        let store = makeStore(folder)
+        guard case .recovered = store.loadOutcome else {
+            Issue.record("expected .recovered, got \(store.loadOutcome)")
+            return
+        }
+        let bad = config.appending(path: "app.toml.bad").path
+        #expect((try? FileManager.default.destinationOfSymbolicLink(atPath: bad)) != nil)
+        let mode =
+            try FileManager.default.attributesOfItem(atPath: target.path)[.posixPermissions]
+            as? Int
+        #expect(mode == 0o600)
+    }
+
+    @Test func savingThroughASymlinkKeepsTheLink() throws {
+        let folder = try TemporaryFolder()
+        let target = folder.url.appending(path: "target.toml")
+        try "always_on_top = false\n".write(to: target, atomically: true, encoding: .utf8)
+        let config = folder.url.appending(path: "Config", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: config, withIntermediateDirectories: true)
+        let link = config.appending(path: "app.toml")
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: target)
+        let store = makeStore(folder)
+        store.update { $0.alwaysOnTop = true }
+        #expect((try? FileManager.default.destinationOfSymbolicLink(atPath: link.path)) != nil)
+        #expect(makeStore(folder).settings.alwaysOnTop)
     }
 
     @Test func aFailedSaveIsLoggedAndTheChangeStillApplies() throws {
