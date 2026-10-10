@@ -33,7 +33,9 @@ struct LogDay: Hashable, Comparable, Sendable {
     /// `YYYY-MM-DD`.
     var text: String { String(format: "%04d-%02d-%02d", year, month, day) }
 
-    /// Whole days from this day to `later`; negative if `later` is earlier.
+    /// Whole days from this day to `later`; negative if `later` is earlier. Returns 0 if the
+    /// calendar can't build the dates. That is deliberate: retention reads it as "not older
+    /// than the limit" and keeps the file.
     func days(until later: LogDay, in calendar: Calendar) -> Int {
         // At noon, so a 23- or 25-hour day never changes the count.
         guard let start = calendar.date(from: noon), let end = calendar.date(from: later.noon)

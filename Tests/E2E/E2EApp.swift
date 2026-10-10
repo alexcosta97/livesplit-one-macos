@@ -5,7 +5,8 @@ import XCTest
 ///
 /// The test runner is sandboxed, with read-only access to the whole disk: it can read what the
 /// app writes but can't create files. So the folders are under /private/tmp, outside the
-/// runner's container, and the app creates them.
+/// runner's container, and the app creates them. The `/private/tmp/lso-e2e-<uuid>` folders stay
+/// behind, because the sandboxed runner can't delete them; macOS clears /private/tmp on restart.
 @MainActor
 final class E2EApp {
     let app = XCUIApplication()

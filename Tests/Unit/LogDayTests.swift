@@ -28,6 +28,14 @@ import Testing
         #expect(spring.days(until: LogDay(year: 2026, month: 4, day: 2), in: calendar) == 7)
     }
 
+    @Test func aMissingMidnightDoesNotShiftTheCount() throws {
+        // Havana skips midnight on 2026-03-08: counting from midnight would give 6.
+        var havana = Calendar(identifier: .gregorian)
+        havana.timeZone = try #require(TimeZone(identifier: "America/Havana"))
+        let start = LogDay(year: 2026, month: 3, day: 8)
+        #expect(start.days(until: LogDay(year: 2026, month: 3, day: 15), in: havana) == 7)
+    }
+
     @Test func daysAreOrdered() {
         #expect(LogDay(year: 2026, month: 9, day: 30) < LogDay(year: 2026, month: 10, day: 1))
         #expect(LogDay(year: 2025, month: 12, day: 31) < LogDay(year: 2026, month: 1, day: 1))

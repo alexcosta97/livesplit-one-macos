@@ -1,23 +1,22 @@
 import Foundation
 import LiveSplitCore
+import Synchronization
 import Testing
 
 /// Collects results from whatever thread the sink reports on.
-private final class Results: @unchecked Sendable {
-    private let lock = NSLock()
-    private var values: [CommandResult] = []
+private final class Results: Sendable {
+    private let values = Mutex<[CommandResult]>([])
 
-    func append(_ value: CommandResult) { lock.withLock { values.append(value) } }
-    var all: [CommandResult] { lock.withLock { values } }
+    func append(_ value: CommandResult) { values.withLock { $0.append(value) } }
+    var all: [CommandResult] { values.withLock { $0 } }
 }
 
 /// Counts calls from whatever thread makes them.
-private final class Counter: @unchecked Sendable {
-    private let lock = NSLock()
-    private var count = 0
+private final class Counter: Sendable {
+    private let count = Mutex(0)
 
-    func increment() { lock.withLock { count += 1 } }
-    var value: Int { lock.withLock { count } }
+    func increment() { count.withLock { $0 += 1 } }
+    var value: Int { count.withLock { $0 } }
 }
 
 /// livesplit-core's timer phases, as `Timer.currentPhase()` returns them (the

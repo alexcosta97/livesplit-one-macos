@@ -33,6 +33,7 @@ import Testing
         let folder = LaunchOverrides.testHostDirectory(
             "Logs", environment: ["XCTestConfigurationFilePath": "/tmp/x.xctestconfiguration"])
         #expect(folder?.path.hasPrefix(FileManager.default.temporaryDirectory.path) == true)
+        #expect(folder?.path.hasSuffix("lso-test-host/Logs") == true)
         #expect(LaunchOverrides.testHostDirectory("Logs", environment: [:]) == nil)
     }
 

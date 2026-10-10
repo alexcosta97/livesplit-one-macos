@@ -1,6 +1,8 @@
 import os
 
 /// Where every line also goes, besides the log file (spec §12.3).
+///
+/// `Log` calls `send` with its lock held, so a sink must never call `Log`.
 protocol UnifiedLogSink: Sendable {
     func send(_ entry: LogEntry)
 }

@@ -7,11 +7,19 @@ final class LoggingTests: XCTestCase {
         let e2e = E2EApp()
         e2e.launch()
         XCTAssertTrue(e2e.timerWindow.waitForExistence(timeout: 10))
-        let text = try XCTUnwrap(e2e.logText(containing: "  APP  LiveSplit One for macOS "))
+        let text = try XCTUnwrap(
+            e2e.logText(containing: "  APP  LiveSplit One for macOS "),
+            "No launch line in the log files in \(e2e.logFolder.path)")
         let names = try FileManager.default.contentsOfDirectory(atPath: e2e.logFolder.path)
-        XCTAssertEqual(names.count, 1, "\(names)")
-        XCTAssertTrue(names[0].hasPrefix("livesplit-one-macos-"), names[0])
-        XCTAssertTrue(names[0].hasSuffix(".log"), names[0])
+        // Two if midnight passed during the test.
+        XCTAssertTrue((1...2).contains(names.count), "\(names)")
+        for name in names {
+            XCTAssertNotNil(
+                name.range(
+                    of: #"^livesplit-one-macos-\d{4}-\d{2}-\d{2}\.log$"#,
+                    options: .regularExpression),
+                name)
+        }
         XCTAssertNotNil(
             text.range(of: #"^\d\d:\d\d:\d\d\.\d{3}  APP  "#, options: .regularExpression))
     }
