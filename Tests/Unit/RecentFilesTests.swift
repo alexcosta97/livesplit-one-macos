@@ -50,4 +50,14 @@ import Testing
         changed.recentSplits = RecentFiles(["/a", "/b"])
         #expect(try changed.tomlText().contains(#"recent_splits = ["/a", "/b"]"#))
     }
+
+    @Test func aLongListWithARepeatInTheFileIsTrimmedAndDeduplicated() throws {
+        let numbers = (1...12).map { "\"/\($0)\"" }
+        let text =
+            "recent_splits = [\"/1\", \"/2\", \"/1\", "
+            + numbers.dropFirst(2).joined(separator: ", ")
+            + "]\n"
+        let settings = try Settings.decode(Data(text.utf8))
+        #expect(settings.recentSplits.paths == (1...10).map { "/\($0)" })
+    }
 }
