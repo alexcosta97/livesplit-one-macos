@@ -25,13 +25,19 @@ struct Options {
             switch (flag, rest.popFirst()) {
             case ("--origin", let value?): options.origin = value
             case ("--seconds", let value?):
-                guard let seconds = Double(value), seconds.isFinite, seconds > 0 else { return nil }
+                guard let seconds = Double(value), seconds.isFinite, seconds > 0, seconds <= 86400
+                else { return nil }
                 options.seconds = seconds
             default: return nil
             }
         }
         return options
     }
+}
+
+/// 30 as `30`, 0.5 as `0.5`.
+func format(seconds: Double) -> String {
+    seconds == seconds.rounded() ? String(Int(seconds)) : String(seconds)
 }
 
 func printError(_ text: String) {
@@ -124,7 +130,11 @@ func receive(_ task: URLSessionWebSocketTask) {
             print("received non-text message: \(other)")
             receive(task)
         case .failure(let error):
-            delegate.connectionEnded(error.localizedDescription)
+            var reason = error.localizedDescription
+            if task.closeCode != .invalid {
+                reason += " (the server closed it with close code \(task.closeCode.rawValue))"
+            }
+            delegate.connectionEnded(reason, status: task.response as? HTTPURLResponse)
         }
     }
 }
@@ -147,11 +157,12 @@ receive(task)
 DispatchQueue.main.asyncAfter(deadline: .now() + options.seconds) {
     guard let opened = delegate.finishRun() else { return }
     guard opened else {
-        printError("handshake failed: no handshake response within \(options.seconds) s")
+        printError(
+            "handshake failed: no handshake response within \(format(seconds: options.seconds)) s")
         exit(1)
     }
     task.cancel(with: .normalClosure, reason: nil)
-    print("done after \(Int(options.seconds)) s")
+    print("done after \(format(seconds: options.seconds)) s")
     exit(0)
 }
 dispatchMain()
