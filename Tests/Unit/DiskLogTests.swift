@@ -69,6 +69,18 @@ import Testing
         #expect(try !folder.names().contains(name(19)))
     }
 
+    @Test func aRotationThatCantOpenTheNewFileThrowsAndDeletesNothing() throws {
+        let folder = try TemporaryFolder()
+        try folder.write(name(19))
+        // A folder with the new day's file name can't be opened as a file.
+        try FileManager.default.createDirectory(
+            at: folder.url.appending(path: name(27)), withIntermediateDirectories: false)
+        var (log, _) = DiskLog.open(directory: folder.url, today: day(26), calendar: calendar)
+        _ = try log.write(entry(26, .app, "x"))
+        #expect(throws: DiskLogError.self) { try log.write(entry(27, .app, "x")) }
+        #expect(try folder.names().contains(name(19)))
+    }
+
     @Test func retentionCountsDaysAcrossADaylightSavingChange() throws {
         // Clocks go back in London on 2026-10-25.
         let folder = try TemporaryFolder()

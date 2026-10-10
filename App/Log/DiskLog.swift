@@ -48,10 +48,11 @@ struct DiskLog {
         if file?.day != day {
             let rotating = file != nil
             file = nil
+            // Opened first: if it throws, there are no deletion errors yet to lose.
+            file = try DayFile.open(directory: directory, day: day, cap: cap)
             if rotating {
                 errors = deleteOld(today: day)
             }
-            file = try DayFile.open(directory: directory, day: day, cap: cap)
         }
         guard let file else { return errors }
 
@@ -108,13 +109,15 @@ struct DiskLog {
 /// The open file of one day.
 private final class DayFile {
     let day: LogDay
+    private let url: URL
     private let handle: FileHandle
     private(set) var size: Int
     /// Whether the cap was reached and the line saying so written.
     var capped: Bool
 
-    private init(day: LogDay, handle: FileHandle, size: Int, capped: Bool) {
+    private init(day: LogDay, url: URL, handle: FileHandle, size: Int, capped: Bool) {
         self.day = day
+        self.url = url
         self.handle = handle
         self.size = size
         self.capped = capped
@@ -161,7 +164,7 @@ private final class DayFile {
         } catch {
             throw failure(error.localizedDescription)
         }
-        return DayFile(day: day, handle: handle, size: size, capped: capped)
+        return DayFile(day: day, url: url, handle: handle, size: size, capped: capped)
     }
 
     func append(_ line: String) throws(DiskLogError) {
@@ -170,7 +173,7 @@ private final class DayFile {
             try handle.write(contentsOf: data)
         } catch {
             throw DiskLogError(
-                message: "couldn't write the log file: \(error.localizedDescription)")
+                message: "couldn't write \(url.path): \(error.localizedDescription)")
         }
         size += data.count
     }
