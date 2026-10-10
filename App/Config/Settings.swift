@@ -76,7 +76,11 @@ struct Settings: Codable, Equatable, Sendable {
         recentLayouts =
             try container.decodeIfPresent(RecentFiles.self, forKey: .recentLayouts)
             ?? RecentFiles()
-        windows = try container.decodeIfPresent([LayoutWindow].self, forKey: .windows) ?? []
+        // A hand-edited file can hold a frame no window can use, or a layout twice: those are
+        // dropped, keeping the first of a layout. A table missing a key still throws.
+        var seen = Set<String>()
+        windows = (try container.decodeIfPresent([LayoutWindow].self, forKey: .windows) ?? [])
+            .filter { $0.frame.isUsable && seen.insert($0.layout).inserted }
         alwaysOnTop = try container.decodeIfPresent(Bool.self, forKey: .alwaysOnTop) ?? false
         lastServerURL = try container.decodeIfPresent(String.self, forKey: .lastServerURL)
     }
