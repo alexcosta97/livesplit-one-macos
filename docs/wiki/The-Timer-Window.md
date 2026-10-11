@@ -13,13 +13,13 @@ The first time, the window opens in the middle of the screen at 300 × 500 point
 
 When the layout gets taller or shorter, the window grows or shrinks with it and keeps its top-left corner where it is.
 
-If the place the window was last isn't on a screen any more, for example after unplugging a display, it opens in the middle of the main screen instead. See [Troubleshooting](Troubleshooting#the-window-is-somewhere-i-cant-see).
+If the place the window was last isn't on a screen any more, or only a sliver of it is, for example after unplugging a display, it opens in the middle of the main screen instead. If the window is larger than the screen it opens on, it shrinks to fit. See [Troubleshooting](Troubleshooting#the-window-is-somewhere-i-cant-see).
 
 While the timer isn't running, the app redraws the window only when something changes, so an idle timer uses almost no processor time.
 
 ## What it shows at first
 
-Until you open your own splits and layout, the window shows LiveSplit One's default layout and a run with one segment, **Time**.
+At first, the window shows LiveSplit One's default layout and a run with one segment, **Time**.
 
 The layout's own words, such as **Previous Segment**, are in your Mac's language when LiveSplit One has it, and in English otherwise.
 

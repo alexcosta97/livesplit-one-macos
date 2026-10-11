@@ -16,7 +16,7 @@ Quit the app, then in Finder check that you can open `app.toml` in the folder [S
 
 ## The window is somewhere I can't see
 
-The window opens where it was last. If that place isn't on a screen any more, it opens in the middle of the main screen. If it's on a screen you can't see, quit the app, move `app.toml` out of its folder (see [Settings and Logs](Settings-and-Logs#settings)), and open the app again: the window opens in the middle of the screen with the default settings.
+The window opens where it was last. If that place isn't on a screen any more, or only a sliver of it is, it opens in the middle of the main screen. If the window is larger than the screen, it shrinks to fit. If it's on a screen you can't see, quit the app, move `app.toml` out of its folder (see [Settings and Logs](Settings-and-Logs#settings)), and open the app again: the window opens in the middle of the screen with the default settings.
 
 ## Reporting a bug
 

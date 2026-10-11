@@ -254,9 +254,13 @@ Each addition gets Rust unit tests in `core/`.
 - **Size and position** are remembered per layout file in `app.toml`, and for
   the default layout, which has no file, in a key of its own (section 11). A
   layout opened for the first time keeps the window's size until the renderer's
-  size hint changes it (section 5.2). A saved frame with less than 40 × 40
-  points on any screen is ignored, and the window is centred on the main screen
-  instead, since it has no title bar to drag it back with.
+  size hint changes it (section 5.2). A saved frame is used only if one screen
+  shows at least 40 points of it in each direction (or all of it, in a
+  direction where the window is smaller than that); otherwise the window is
+  centred on the main screen instead, since it has no title bar to drag it back
+  with. A saved frame larger than the screen it is most on is shrunk to fit
+  that screen, keeping its top-left corner unless that would leave part of it
+  off the screen.
 - **Always on Top** is a menu toggle, remembered between launches.
 - **On launch** the app reopens the last splits and layout and the window
   position. If a file is missing or no longer loads, it uses livesplit-core's
@@ -456,18 +460,18 @@ last_splits = "/Users/me/Splits/GTA San Andreas.lss"
 recent_layouts = ["/Users/me/Layouts/Main.ls1l"]
 recent_splits = ["/Users/me/Splits/GTA San Andreas.lss", "/Users/me/Splits/Any%.lss"]
 
+[default_layout_window]
+height = 500.0
+width = 300.0
+x = 120.0
+y = 300.0
+
 [[windows]]
 height = 520.0
 layout = "/Users/me/Layouts/Main.ls1l"
 width = 300.0
 x = 120.0
 y = 640.0
-
-[default_layout_window]
-x = 120.0
-y = 300.0
-width = 300.0
-height = 500.0
 ```
 
 Every key is optional: a missing key takes its default (nothing opened, no

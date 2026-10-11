@@ -26,7 +26,7 @@ final class TimerContent {
 
     /// While the timer isn't running, the layout state is updated this often at least, so a
     /// missed `markChanged()` shows within `idleRefresh` plus one idle tick: an idle window
-    /// refreshes at 4 Hz (`TimerView.idleFrameRate`), so under 0.75 s. A change of phase (a
+    /// refreshes at 4 Hz (`TimerView.idleFrameRate`), so about 0.75 s. A change of phase (a
     /// split that ends the run, a pause, a reset) is shown on the next tick, whoever caused it.
     static let idleRefresh: Duration = .milliseconds(500)
 

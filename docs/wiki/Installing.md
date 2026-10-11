@@ -4,7 +4,7 @@ LiveSplit One for macOS runs on macOS 15 (Sequoia) or newer, on Apple Silicon an
 
 Get the latest version from [the latest release](https://github.com/alexcosta97/livesplit-one-macos/releases/latest). Under **Assets**, download `livesplit-one-macos-<version>-macos-universal.zip`.
 
-Releases marked **Pre-release** are release candidates for testing. The latest full release is the one the link above opens. Until the first full release, the link shows the release candidates, and these pages describe the newest one.
+Releases marked **Pre-release** are release candidates for testing. The latest full release is the one the link above opens. Until the first full release, the link shows the release candidates, and these pages describe the app as it is being built, which can be ahead of the newest one.
 
 ## Installing
 
