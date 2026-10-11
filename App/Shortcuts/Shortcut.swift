@@ -30,6 +30,11 @@ struct Shortcut: Hashable, Sendable, CustomStringConvertible {
     }
 
     init(key: Key, modifiers: Modifiers = []) {
+        if case .character(let character) = key {
+            assert(
+                Self.keyCharacter(String(character)) == character,
+                "A character key is one visible lowercase character")
+        }
         self.key = key
         self.modifiers = modifiers
     }
@@ -44,6 +49,8 @@ struct Shortcut: Hashable, Sendable, CustomStringConvertible {
         if text == "+" {
             (modifierText, keyText) = ("", "+")
         } else if text.hasSuffix("++") {
+            // "++" alone has a separator and no modifier before it.
+            guard text.count > 2 else { return nil }
             (modifierText, keyText) = (text.dropLast(2), "+")
         } else if let plus = text.lastIndex(of: "+") {
             (modifierText, keyText) = (text[..<plus], text[text.index(after: plus)...])
@@ -99,7 +106,10 @@ struct Shortcut: Hashable, Sendable, CustomStringConvertible {
         let symbols = Modifiers.ordered.filter { modifiers.contains($0.modifier) }.map(\.symbol)
         let keyText =
             switch key {
-            case .character(let character): String(character).uppercased()
+            // Capitalised as menus show letters, unless that makes more than one: ß stays ß.
+            case .character(let character):
+                String(character).uppercased().count == 1
+                    ? String(character).uppercased() : String(character)
             case .named(let named): named.symbol
             }
         return symbols.joined() + keyText

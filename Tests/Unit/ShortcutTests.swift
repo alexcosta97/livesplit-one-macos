@@ -36,7 +36,7 @@ import Testing
 
     @Test(arguments: [
         "", "Ctrl+u", "Shift+Shift+u", "uu", "Numpad10", " ", "Control+", "Control+Space+u",
-        "space", "\t", "Control+ ", "\u{F700}",
+        "space", "\t", "Control+ ", "\u{F700}", "++",
     ])
     func textThatIsntAShortcut(_ text: String) {
         #expect(Shortcut(text) == nil)
@@ -48,6 +48,14 @@ import Testing
         #expect(Shortcut("Alt+Meta+h")?.displayName == "⌥⌘H")
         #expect(Shortcut("Backspace")?.displayName == "⌫")
         #expect(Shortcut("Numpad1")?.displayName == "Keypad 1")
+    }
+
+    /// A letter shows as its capital, as menus show it, unless the capital is more than one
+    /// character: ß stays ß rather than becoming SS.
+    @Test func aLetterWhoseCapitalIsTwoLettersShowsAsItIs() {
+        #expect(Shortcut("ß")?.displayName == "ß")
+        #expect(Shortcut("Shift+ß")?.displayName == "⇧ß")
+        #expect(Shortcut("é")?.displayName == "É")
     }
 
     @Test func everyNamedKeyHasItsOwnKeyCode() {
