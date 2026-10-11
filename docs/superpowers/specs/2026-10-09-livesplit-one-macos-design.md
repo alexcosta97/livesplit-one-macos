@@ -198,10 +198,11 @@ committed, so pull requests never conflict on `project.pbxproj`.
   changed, so an idle timer uses next to no CPU. `core/` compares each frame's
   layout state, encoded as JSON, with the last frame's (section 5.3). While the
   timer is running, the app updates the layout state every frame; otherwise only
-  after something changes it (`TimerContent.markChanged()`), or every half
-  second as a backstop.
-  While the timer isn't running, the display link runs at 4 Hz, and returns to
-  the display's rate as soon as something changes.
+  after something changes it (`TimerContent.markChanged()`), when its phase
+  changes (a split that ends the run, a pause, a reset), or every half second
+  as a backstop, so a missed change shows within about 0.75 s. While the timer
+  isn't running, the display link runs at 4 Hz, and returns to the display's
+  rate as soon as something changes.
 - A new layout starts at 300 × 500 points, LiveSplit One's default. When the
   layout's height changes (another layout opens, segments are added), the
   renderer gives a size hint, and the window takes that size, keeping its
@@ -260,8 +261,7 @@ Each addition gets Rust unit tests in `core/`.
 - **On launch** the app reopens the last splits and layout and the window
   position. If a file is missing or no longer loads, it uses livesplit-core's
   default layout or an empty run (LiveSplit One's new run: one segment named
-  Time), and shows an overlay notice that names the
-  file.
+  Time), and shows an overlay notice that names the file.
 - **Overlay notices** are short messages drawn over the bottom of the timer
   for 4 seconds: connection status, a file that couldn't be reopened. They are
   not part of the layout and are never saved. When several come together, each

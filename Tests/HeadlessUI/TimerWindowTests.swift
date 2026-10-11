@@ -4,15 +4,24 @@ import Testing
 @testable import LiveSplitOne
 
 @MainActor
-@Suite struct TimerWindowTests {
+@Suite final class TimerWindowTests {
     let screen = CGRect(x: 0, y: 0, width: 1440, height: 875)
+
+    private var opened: [TimerWindowController] = []
+
+    // Ends each window's display link, so they don't pile up across tests.
+    isolated deinit {
+        for controller in opened { controller.window.contentView = nil }
+    }
 
     private func makeController(
         _ store: SettingsStore, notices: NoticeQueue = NoticeQueue(schedule: { _, _ in })
     ) -> TimerWindowController {
-        TimerWindowController(
+        let controller = TimerWindowController(
             content: TimerContent(lang: 0), settings: store, screens: [screen],
             mainScreen: screen, notices: notices)
+        opened.append(controller)
+        return controller
     }
 
     @Test func theWindowIsBorderlessResizableAndNamed() throws {
@@ -91,6 +100,10 @@ import Testing
         #expect(after.size == CGSize(width: 300, height: 600))
         #expect(after.minX == before.minX && after.maxY == before.maxY)
         #expect(store.settings.frame(forLayout: nil) == WindowPlacement.windowFrame(after))
+
+        let saved = try folder.read("app.toml")
+        controller.saveFrameIfPending()
+        #expect(try folder.read("app.toml") == saved)
     }
 
     @Test func alwaysOnTopComesFromTheSettings() throws {
@@ -119,5 +132,27 @@ import Testing
         #expect(controller.shownNotice == nil)
         controller.notices.show("Connected to pc")
         #expect(controller.shownNotice == "Connected to pc")
+    }
+
+    @Test func aDragSavesOnceAfterItStops() async throws {
+        let folder = try TemporaryFolder()
+        let store = SettingsStore(directory: folder.url)
+        let controller = makeController(store)
+        let moved = CGRect(x: 50, y: 60, width: 300, height: 500)
+
+        controller.window.setFrame(moved, display: false)
+        controller.windowDidMove(Notification(name: NSWindow.didMoveNotification))
+        controller.windowDidMove(Notification(name: NSWindow.didMoveNotification))
+        // Nothing is written while the drag goes on.
+        #expect(try folder.names().isEmpty)
+
+        try await Task.sleep(for: .milliseconds(800))
+
+        #expect(store.settings.frame(forLayout: nil) == WindowPlacement.windowFrame(moved))
+        #expect(try folder.read("app.toml").contains("[default_layout_window]"))
+        // And no second save is waiting.
+        let saved = try folder.read("app.toml")
+        controller.saveFrameIfPending()
+        #expect(try folder.read("app.toml") == saved)
     }
 }

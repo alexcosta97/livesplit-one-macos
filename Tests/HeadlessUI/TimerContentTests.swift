@@ -16,7 +16,7 @@ import Testing
         #expect(content.render(pixelWidth: 300, pixelHeight: 500).image == nil)
     }
 
-    @Test func aRunningTimerIsRenderedEachFrame() {
+    @Test func aRunningTimerDrawsWithinAFewRenders() {
         let content = TimerContent(lang: 0)
         _ = content.render(pixelWidth: 300, pixelHeight: 500)
         _ = sink(content).handleCommand(#"{"command":"start"}"#)
@@ -64,5 +64,45 @@ import Testing
         content.onChange = { calls += 1 }
         content.markChanged()
         #expect(calls == 1)
+    }
+
+    /// A change to what the layout shows, with no phase change and no `markChanged()`.
+    private func changeWithoutPhase(_ content: TimerContent) {
+        content.layout.push(TitleComponent().intoGeneric())
+    }
+
+    @Test func aChangeNobodyMarkedIsntShownBeforeTheBackstop() {
+        let content = TimerContent(lang: 0)
+        _ = content.render(pixelWidth: 300, pixelHeight: 500)
+        changeWithoutPhase(content)
+        #expect(content.render(pixelWidth: 300, pixelHeight: 500).image == nil)
+    }
+
+    @Test func theBackstopShowsAChangeNobodyMarked() async throws {
+        let content = TimerContent(lang: 0)
+        _ = content.render(pixelWidth: 300, pixelHeight: 500)
+        changeWithoutPhase(content)
+        try await Task.sleep(for: TimerContent.idleRefresh + .milliseconds(100))
+        #expect(content.render(pixelWidth: 300, pixelHeight: 500).image != nil)
+    }
+
+    @Test func aPhaseChangeDrawsWithoutMarkChanged() {
+        let content = TimerContent(lang: 0)
+        let sink = sink(content)
+        _ = sink.handleCommand(#"{"command":"start"}"#)
+        content.markChanged()
+        _ = content.render(pixelWidth: 300, pixelHeight: 500)
+        // The one segment's split ends the run: Running to Ended.
+        _ = sink.handleCommand(#"{"command":"split"}"#)
+        #expect(content.render(pixelWidth: 300, pixelHeight: 500).image != nil)
+        #expect(content.render(pixelWidth: 300, pixelHeight: 500).image == nil)
+    }
+
+    @Test func markChangedEndsIdleAtOnce() {
+        let content = TimerContent(lang: 0)
+        _ = content.render(pixelWidth: 300, pixelHeight: 500)
+        #expect(content.isIdle)
+        content.markChanged()
+        #expect(!content.isIdle)
     }
 }

@@ -16,15 +16,18 @@ final class TimerContent {
     private var needsUpdate = true
     private var lastUpdate = ContinuousClock.now
     private var lastPixelSize: (Int, Int)?
-    /// Whether the last `render` found the timer idle: not running, and nothing pending. The
-    /// window then refreshes at a low rate.
-    private(set) var isIdle = false
-    /// Called by `markChanged()`, so the window can return to its full refresh rate at once.
+    private var lastPhase: UInt8?
+    /// Whether the timer is idle: it wasn't running at the last `render`, and nothing is pending.
+    /// The window then refreshes at a low rate.
+    var isIdle: Bool { lastPhase != 1 && !needsUpdate }
+    /// Called by `markChanged()`, so the window can return to its full refresh rate at once. It
+    /// has one listener, the `TimerView` that shows this content, which owns it.
     var onChange: (() -> Void)?
 
     /// While the timer isn't running, the layout state is updated this often at least, so a
-    /// missed `markChanged()` shows within half a second. An idle window refreshes at 4 Hz
-    /// (`TimerView.idleFrameRate`), so a tick comes at least this often.
+    /// missed `markChanged()` shows within `idleRefresh` plus one idle tick: an idle window
+    /// refreshes at 4 Hz (`TimerView.idleFrameRate`), so under 0.75 s. A change of phase (a
+    /// split that ends the run, a pause, a reset) is shown on the next tick, whoever caused it.
     static let idleRefresh: Duration = .milliseconds(500)
 
     init(lang: UInt8 = TimerContent.systemLanguage) {
@@ -64,16 +67,19 @@ final class TimerContent {
     func render(pixelWidth: Int, pixelHeight: Int) -> RenderedFrame {
         let lock = timer.read()
         // 1 is Running, as `Timer.currentPhase()` returns it.
-        let running = lock.timer().currentPhase() == 1
+        let phase = lock.timer().currentPhase()
+        let running = phase == 1
         let now = ContinuousClock.now
-        let updated = running || needsUpdate || now - lastUpdate >= Self.idleRefresh
+        let updated =
+            running || needsUpdate || phase != lastPhase
+            || now - lastUpdate >= Self.idleRefresh
+        lastPhase = phase
         if updated {
             layout.updateState(state, imageCache, lock.timer(), lang)
             needsUpdate = false
             lastUpdate = now
         }
         lock.dispose()
-        isIdle = !running && !needsUpdate
         let size = (pixelWidth, pixelHeight)
         if !updated, let last = lastPixelSize, last == size { return .nothing }
         lastPixelSize = size
