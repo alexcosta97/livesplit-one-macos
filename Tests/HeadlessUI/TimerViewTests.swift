@@ -55,4 +55,24 @@ import Testing
         #expect(run.len() == 1)
         #expect(run.segment(0).name() == "Time")
     }
+
+    @Test func theFrameRateIsLowWhileIdle() {
+        #expect(TimerView.frameRate(idle: true) == TimerView.idleFrameRate)
+        #expect(TimerView.frameRate(idle: false) == .default)
+    }
+
+    @Test func theDisplayLinkFollowsIdleness() {
+        let window = NSWindow(
+            contentRect: CGRect(x: 0, y: 0, width: 300, height: 500), styleMask: [.borderless],
+            backing: .buffered, defer: false)
+        let view = makeView()
+        window.contentView = view
+        #expect(view.preferredFrameRate == .default)
+        view.drawFrame()
+        #expect(view.preferredFrameRate == TimerView.idleFrameRate)
+        view.content.markChanged()
+        #expect(view.preferredFrameRate == .default)
+        view.drawFrame()
+        #expect(view.preferredFrameRate == TimerView.idleFrameRate)
+    }
 }

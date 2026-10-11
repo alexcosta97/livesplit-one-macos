@@ -200,6 +200,8 @@ committed, so pull requests never conflict on `project.pbxproj`.
   timer is running, the app updates the layout state every frame; otherwise only
   after something changes it (`TimerContent.markChanged()`), or every half
   second as a backstop.
+  While the timer isn't running, the display link runs at 4 Hz, and returns to
+  the display's rate as soon as something changes.
 - A new layout starts at 300 × 500 points, LiveSplit One's default. When the
   layout's height changes (another layout opens, segments are added), the
   renderer gives a size hint, and the window takes that size, keeping its

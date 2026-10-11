@@ -47,4 +47,22 @@ import Testing
         _ = content.render(pixelWidth: 300, pixelHeight: 500)
         #expect(content.render(pixelWidth: 320, pixelHeight: 500).image != nil)
     }
+
+    @Test func isIdleUntilTheTimerRuns() {
+        let content = TimerContent(lang: 0)
+        _ = content.render(pixelWidth: 300, pixelHeight: 500)
+        #expect(content.isIdle)
+        _ = sink(content).handleCommand(#"{"command":"start"}"#)
+        content.markChanged()
+        _ = content.render(pixelWidth: 300, pixelHeight: 500)
+        #expect(!content.isIdle)
+    }
+
+    @Test func markChangedTellsTheListener() {
+        let content = TimerContent(lang: 0)
+        var calls = 0
+        content.onChange = { calls += 1 }
+        content.markChanged()
+        #expect(calls == 1)
+    }
 }

@@ -12,6 +12,18 @@ final class TimerView: NSView {
     private(set) var framesDrawn = 0
     private var displayLink: CADisplayLink?
 
+    /// The refresh rate while the timer is idle, so an idle timer wakes the app only a few times
+    /// a second (spec §5.2).
+    static let idleFrameRate = CAFrameRateRange(minimum: 4, maximum: 4, preferred: 4)
+
+    /// The refresh rate to ask for: low while idle, the display's own otherwise.
+    static func frameRate(idle: Bool) -> CAFrameRateRange {
+        idle ? idleFrameRate : .default
+    }
+
+    /// The display link's current preferred rate, for tests.
+    var preferredFrameRate: CAFrameRateRange? { displayLink?.preferredFrameRateRange }
+
     init(content: TimerContent) {
         self.content = content
         super.init(frame: .zero)
@@ -22,6 +34,7 @@ final class TimerView: NSView {
         setAccessibilityRole(.image)
         setAccessibilityLabel("Timer")
         setAccessibilityIdentifier("timer-layout")
+        content.onChange = { [weak self] in self?.updateFrameRate(idle: false) }
     }
 
     @available(*, unavailable)
@@ -40,6 +53,13 @@ final class TimerView: NSView {
         let link = displayLink(target: self, selector: #selector(refresh(_:)))
         link.add(to: .main, forMode: .common)
         displayLink = link
+        updateFrameRate(idle: false)
+    }
+
+    override func setFrameSize(_ newSize: NSSize) {
+        super.setFrameSize(newSize)
+        // A resize shows at the full rate.
+        content.markChanged()
     }
 
     override func viewDidChangeBackingProperties() {
@@ -65,6 +85,15 @@ final class TimerView: NSView {
                 forHint: hint, scale: window?.backingScaleFactor ?? 1)
         {
             onSizeHint?(size)
+        }
+        updateFrameRate(idle: content.isIdle)
+    }
+
+    private func updateFrameRate(idle: Bool) {
+        guard let displayLink else { return }
+        let rate = Self.frameRate(idle: idle)
+        if displayLink.preferredFrameRateRange != rate {
+            displayLink.preferredFrameRateRange = rate
         }
     }
 }

@@ -16,9 +16,15 @@ final class TimerContent {
     private var needsUpdate = true
     private var lastUpdate = ContinuousClock.now
     private var lastPixelSize: (Int, Int)?
+    /// Whether the last `render` found the timer idle: not running, and nothing pending. The
+    /// window then refreshes at a low rate.
+    private(set) var isIdle = false
+    /// Called by `markChanged()`, so the window can return to its full refresh rate at once.
+    var onChange: (() -> Void)?
 
     /// While the timer isn't running, the layout state is updated this often at least, so a
-    /// missed `markChanged()` shows within half a second.
+    /// missed `markChanged()` shows within half a second. An idle window refreshes at 4 Hz
+    /// (`TimerView.idleFrameRate`), so a tick comes at least this often.
     static let idleRefresh: Duration = .milliseconds(500)
 
     init(lang: UInt8 = TimerContent.systemLanguage) {
@@ -48,6 +54,7 @@ final class TimerContent {
     /// server, opening files, the splits editor), so the next frame shows it at once.
     func markChanged() {
         needsUpdate = true
+        onChange?()
     }
 
     /// Updates the layout's state from the timer, then renders it at the size in pixels if
@@ -66,6 +73,7 @@ final class TimerContent {
             lastUpdate = now
         }
         lock.dispose()
+        isIdle = !running && !needsUpdate
         let size = (pixelWidth, pixelHeight)
         if !updated, let last = lastPixelSize, last == size { return .nothing }
         lastPixelSize = size
