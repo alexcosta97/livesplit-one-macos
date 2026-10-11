@@ -53,10 +53,11 @@ import Testing
             })
     }
 
-    @Test func theWindowIsToldOnTheMainActor() async {
+    /// `changed` is `@MainActor`, so the compiler already makes it run there: this checks that
+    /// it is called at all.
+    @Test(.timeLimit(.minutes(1))) func theWindowIsToldOnTheMainActor() async {
         let (changes, continuation) = AsyncStream.makeStream(of: Void.self)
         let runner = makeRunner(makeTimer(segments: 1)) {
-            MainActor.assertIsolated()
             continuation.yield()
         }
         runner.run(.splitOrStart, from: .keyboard)
@@ -97,10 +98,16 @@ import Testing
         #expect(await resetWithANewBestSegment(runner, timer) == keeps)
     }
 
-    @Test func aChangedSettingAppliesToTheNextReset() async {
+    @Test(
+        arguments: [
+            (from: true, to: false, keeps: false),
+            (from: false, to: nil, keeps: true),
+            (from: nil, to: false, keeps: false),
+        ] as [(from: Bool?, to: Bool?, keeps: Bool)])
+    func aChangedSettingAppliesToTheNextReset(from: Bool?, to: Bool?, keeps: Bool) async {
         let timer = makeTimer(segments: 2)
-        let runner = makeRunner(timer, resetSavesBestTimes: true)
-        runner.setResetSavesBestTimes(false)
-        #expect(await resetWithANewBestSegment(runner, timer) == false)
+        let runner = makeRunner(timer, resetSavesBestTimes: from)
+        runner.setResetSavesBestTimes(to)
+        #expect(await resetWithANewBestSegment(runner, timer) == keeps)
     }
 }

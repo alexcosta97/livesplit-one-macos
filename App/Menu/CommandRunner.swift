@@ -38,7 +38,8 @@ final class CommandRunner: Sendable {
     }
 
     /// Runs `command` on the queue, logs it with its source and reply, tells the window, then
-    /// calls `completion` with the reply, on the queue.
+    /// calls `completion` with the reply. `completion` runs on the command queue, so it must
+    /// return quickly and must never block or wait on another command, which would wait forever.
     func run(
         _ command: TimerCommand, from source: CommandSource,
         completion: (@Sendable (String) -> Void)? = nil
