@@ -106,6 +106,23 @@ integration, under 10 % E2E.
 - Every pull request that changes the app adds tests at each level the change
   needs, including an E2E test for a new or changed user flow.
 
+### Snapshot tests
+
+The integration tests compare rendered layouts with reference images in
+`Tests/Integration/Snapshots/`. When a change is meant to change how a
+layout looks (a livesplit-core update, for example), record new references,
+look at each one, and commit them with the change:
+
+```sh
+TEST_RUNNER_LSO_RECORD_SNAPSHOTS=1 xcodebuild test -project LiveSplitOne.xcodeproj \
+  -scheme LiveSplitOne -destination 'platform=macOS' \
+  -only-testing:LiveSplitOneIntegrationTests/RenderingTests
+```
+
+Recording makes each snapshot test fail, so a run that records is never
+taken for a pass. Run the tests again without the variable to check. When a
+comparison fails, the message names a file with that run's image.
+
 ## User documentation
 
 The user documentation is the repository's
