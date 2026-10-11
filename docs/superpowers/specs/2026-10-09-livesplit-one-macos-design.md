@@ -855,6 +855,7 @@ Upcoming Changes is not used.
 | S5 | `splits-editor.png` | The splits editor with a custom comparison |
 | S6 | `unsaved-changes.png` | The Save / Don't Save / Cancel alert |
 | S7 | `reset-new-best.png` | The reset with new best times alert |
+| S8 | `settings-window.png` | The Settings window, with a command that has two shortcuts |
 | T1 | `macos-open-anyway.png` | System Settings, Privacy & Security, Open Anyway |
 | T2 | `macos-local-network-prompt.png` | macOS asking to allow local network access |
 | T3 | `macos-local-network-settings.png` | System Settings, Privacy & Security, Local Network, with the app allowed |
