@@ -24,6 +24,12 @@ settings:
     MARKETING_VERSION: "0.0.0"
     CURRENT_PROJECT_VERSION: "0"
     LSO_VERSION: 0.0.0-dev
+# Swift packages that ship in the app. Pinned exactly: the generated project
+# and its Package.resolved aren't committed. Renovate updates them.
+packages:
+  TOML:
+    url: https://github.com/mattt/swift-toml
+    exactVersion: 2.0.0
 targets:
   LiveSplitOne:
     type: application
@@ -31,6 +37,8 @@ targets:
     sources: [App]
     dependencies:
       - target: LiveSplitCore
+      # app.toml (spec §11).
+      - package: TOML
     info:
       path: App/Info.plist
       properties:

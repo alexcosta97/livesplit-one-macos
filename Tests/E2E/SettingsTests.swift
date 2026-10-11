@@ -1,0 +1,19 @@
+import XCTest
+
+/// Settings as a user sees them: the file on disk (spec §11).
+final class SettingsTests: XCTestCase {
+    @MainActor
+    func testTheFirstLaunchWritesNoSettings() throws {
+        let e2e = E2EApp()
+        e2e.launch()
+        XCTAssertTrue(e2e.timerWindow.waitForExistence(timeout: 10))
+        // Reading the settings is logged: once that line is there, the app has looked.
+        let log = e2e.logText(containing: "No settings file yet at ")
+        XCTAssertNotNil(log)
+        // The line names the file under the test's folder, so the override took effect.
+        XCTAssertTrue(log?.contains(e2e.configFolder.path) == true)
+        XCTAssertFalse(
+            FileManager.default.fileExists(
+                atPath: e2e.configFolder.appending(path: "app.toml").path))
+    }
+}

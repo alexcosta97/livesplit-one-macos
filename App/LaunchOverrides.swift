@@ -13,6 +13,14 @@ enum LaunchOverrides {
                 ?? testHostDirectory("Logs", environment: ProcessInfo.processInfo.environment)
         }
 
+        static let configDirectoryArgument = "-LSOConfigDirectory"
+
+        /// The settings folder for this run, if a test chose one.
+        static var configDirectory: URL? {
+            directory(after: configDirectoryArgument, in: ProcessInfo.processInfo.arguments)
+                ?? testHostDirectory("Config", environment: ProcessInfo.processInfo.environment)
+        }
+
         /// The absolute folder after `argument`, as in `-LSOLogDirectory /private/tmp/x`.
         static func directory(after argument: String, in arguments: [String]) -> URL? {
             guard let index = arguments.firstIndex(of: argument), index + 1 < arguments.count
@@ -31,5 +39,6 @@ enum LaunchOverrides {
         }
     #else
         static var logDirectory: URL? { nil }
+        static var configDirectory: URL? { nil }
     #endif
 }
