@@ -52,7 +52,7 @@ final class TimerWindowTests: XCTestCase {
     }
 
     @MainActor
-    func testTheWindowMovesAndOpensThereAgain() throws {
+    func testTheWindowMovesAndOpensThereAgain() {
         let e2e = E2EApp()
         e2e.launch()
         let window = e2e.timerWindow
@@ -70,7 +70,11 @@ final class TimerWindowTests: XCTestCase {
         let moved = window.frame
         XCTAssertEqual(moved.minX, before.minX + 120, accuracy: 2)
         XCTAssertEqual(moved.minY, before.minY + 80, accuracy: 2)
-        XCTAssertNotNil(e2e.settingsText(containing: "[default_layout_window]"))
+        // The frame is saved once the window stops. x is the same in XCUITest's coordinates and
+        // AppKit's (only y is flipped), and app.toml writes it as a Double, such as "x = 690.0".
+        let saved = e2e.settingsText(containing: "x = \(Double(moved.minX))")
+        XCTAssertNotNil(saved, "app.toml doesn't hold the moved frame")
+        XCTAssertTrue(saved?.contains("[default_layout_window]") == true)
 
         e2e.relaunch()
         XCTAssertTrue(window.waitForExistence(timeout: 10))

@@ -43,7 +43,8 @@ final class E2EApp {
     }
 
     /// Quits the app and launches it again with the same folders, as a user relaunching it.
-    /// `terminate()` doesn't let the app save on quit, so wait for what it must save first.
+    /// `terminate()` kills the app without letting it save on quit, so the caller must first wait
+    /// for whatever the app has to save, such as with `settingsText(containing:)`.
     func relaunch() {
         app.terminate()
         app.launch()
