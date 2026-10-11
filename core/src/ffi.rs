@@ -7,10 +7,11 @@ use std::{
     ffi::{CStr, CString, c_char, c_void},
 };
 
-use livesplit_core::{SharedTimer, event::Result};
+use livesplit_core::{SharedTimer, event::Result, layout::LayoutState, settings::ImageCache};
 
 use crate::{
     protocol,
+    render::{Rendered, Renderer},
     sink::{EventSink, Host, ResetDecision},
 };
 
@@ -134,6 +135,65 @@ pub extern "C" fn LsoServerProtocol_encode_event(event: u32) -> *const c_char {
     output(protocol::encode_event(event))
 }
 
+/// What `LsoRenderer_render` did. The hint's width and height are 0 without
+/// a hint.
+#[repr(C)]
+pub struct LsoRendered {
+    pub drew: bool,
+    pub has_size_hint: bool,
+    pub size_hint_width: f32,
+    pub size_hint_height: f32,
+}
+
+/// Creates a renderer that skips unchanged frames (spec §5.3).
+#[unsafe(no_mangle)]
+pub extern "C" fn LsoRenderer_new() -> Box<Renderer> {
+    Box::default()
+}
+
+/// Drops the renderer. `this` must be a valid renderer.
+#[unsafe(no_mangle)]
+pub extern "C" fn LsoRenderer_drop(this: Box<Renderer>) {
+    drop(this);
+}
+
+/// Renders the layout state into `data` (RGBA8, premultiplied alpha,
+/// `stride` pixels a row), unless neither the state nor the size changed
+/// since the last call. A null `data`, or a zero size, draws nothing.
+///
+/// # Safety
+/// `this`, `layout_state` and `image_cache` are valid, and `data` is null or
+/// valid for `stride * height * 4` bytes.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn LsoRenderer_render(
+    this: &mut Renderer,
+    layout_state: &LayoutState,
+    image_cache: &ImageCache,
+    data: *mut u8,
+    width: u32,
+    height: u32,
+    stride: u32,
+) -> LsoRendered {
+    let rendered = if data.is_null() {
+        Rendered {
+            drew: false,
+            size_hint: None,
+        }
+    } else {
+        let len = stride as usize * height as usize * 4;
+        // SAFETY: the caller passes `len` valid bytes.
+        let image = unsafe { std::slice::from_raw_parts_mut(data, len) };
+        this.render(layout_state, image_cache, image, [width, height], stride)
+    };
+    let [size_hint_width, size_hint_height] = rendered.size_hint.unwrap_or_default();
+    LsoRendered {
+        drew: rendered.drew,
+        has_size_hint: rendered.size_hint.is_some(),
+        size_hint_width,
+        size_hint_height,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -226,5 +286,62 @@ mod tests {
             string(LsoServerProtocol_encode_event(0)),
             r#"{"event":"Started"}"#
         );
+    }
+
+    #[test]
+    fn renders_through_the_c_functions() {
+        use livesplit_core::{Lang, Layout, settings::ImageCache};
+
+        let mut layout = Layout::default_layout(Lang::English);
+        let mut cache = ImageCache::new();
+        let state = layout.state(
+            &mut cache,
+            &timer(&["Time"]).read().unwrap().snapshot(),
+            Lang::English,
+        );
+        let mut renderer = LsoRenderer_new();
+        let mut pixels = vec![0u8; 300 * 500 * 4];
+
+        // SAFETY: valid objects, and a buffer of 300 * 500 * 4 bytes.
+        let first = unsafe {
+            LsoRenderer_render(
+                &mut renderer,
+                &state,
+                &cache,
+                pixels.as_mut_ptr(),
+                300,
+                500,
+                300,
+            )
+        };
+        // SAFETY: as above.
+        let second = unsafe {
+            LsoRenderer_render(
+                &mut renderer,
+                &state,
+                &cache,
+                pixels.as_mut_ptr(),
+                300,
+                500,
+                300,
+            )
+        };
+        // SAFETY: a null buffer is allowed and draws nothing.
+        let null = unsafe {
+            LsoRenderer_render(
+                &mut renderer,
+                &state,
+                &cache,
+                std::ptr::null_mut(),
+                300,
+                500,
+                300,
+            )
+        };
+
+        assert!(first.drew && !first.has_size_hint);
+        assert!(!second.drew);
+        assert!(!null.drew);
+        LsoRenderer_drop(renderer);
     }
 }

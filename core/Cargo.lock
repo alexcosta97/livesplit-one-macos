@@ -501,6 +501,7 @@ dependencies = [
  "futures-executor",
  "livesplit-core",
  "livesplit-core-capi",
+ "serde_json",
 ]
 
 [[package]]

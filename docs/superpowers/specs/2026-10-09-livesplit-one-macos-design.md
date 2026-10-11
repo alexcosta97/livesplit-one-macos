@@ -226,6 +226,11 @@ livesplit-core's C API exposes `ServerProtocol` only when built for the web
   local timer, and returns the reply to send back.
 - **`encode_event(event) -> json`**: encodes an event as LiveSplit One does, to
   send to the server.
+- **Rendering that skips unchanged frames.** `LsoRenderer_render` wraps
+  livesplit-core's `BorrowedRenderer`. It compares the layout state, encoded
+  as JSON, and the image's size with the last frame's, and draws only when
+  one of them changed. It also returns the renderer's size hint, which the C
+  API's `SoftwareRenderer_render` discards.
 
 Each addition gets Rust unit tests in `core/`.
 
