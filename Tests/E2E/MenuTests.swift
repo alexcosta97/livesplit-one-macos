@@ -30,15 +30,23 @@ final class MenuTests: XCTestCase {
         e2e.app.typeKey(.escape, modifierFlags: [])
     }
 
-    /// Waits until the log holds `text` `count` times.
+    /// How many times `text` is in `log`.
+    private func occurrences(of text: String, in log: String) -> Int {
+        log.components(separatedBy: text).count - 1
+    }
+
+    /// Waits until the log holds `text` `count` times, and returns the log.
     @MainActor
-    private func waitForLog(_ text: String, count: Int = 1, _ e2e: E2EApp) {
+    @discardableResult
+    private func waitForLog(_ text: String, count: Int = 1, _ e2e: E2EApp) -> String {
         let deadline = Date().addingTimeInterval(10)
+        var log = ""
         while Date() < deadline {
-            let log = e2e.logText(containing: text, timeout: 1) ?? ""
-            if log.components(separatedBy: text).count - 1 >= count { return }
+            log = e2e.logText(containing: text, timeout: 1) ?? log
+            if occurrences(of: text, in: log) >= count { return log }
         }
-        XCTFail("the log doesn't hold \"\(text)\" \(count) times")
+        XCTFail("the log doesn't hold \"\(text)\" \(count) times. The log:\n\(log)")
+        return log
     }
 
     @MainActor
@@ -105,10 +113,35 @@ final class MenuTests: XCTestCase {
         waitForLog("Start/Split from the keyboard", e2e)
     }
 
+    /// Space and `u` are Control shortcuts, and Split and Undo Split are enabled while the run
+    /// goes on, but typed in the Settings window they run nothing (spec §7.2).
+    @MainActor
+    func testControlShortcutsDontRunInTheSettingsWindow() {
+        let e2e = launched()
+        e2e.app.typeKey(" ", modifierFlags: [])
+        waitForLog("Start/Split from the keyboard", e2e)
+
+        e2e.app.typeKey(",", modifierFlags: .command)
+        let settings = e2e.app.windows["settings-window"]
+        XCTAssertTrue(settings.waitForExistence(timeout: 5))
+        e2e.app.typeKey(" ", modifierFlags: [])
+        e2e.app.typeKey("u", modifierFlags: [])
+        e2e.app.typeKey("w", modifierFlags: .command)
+        XCTAssertTrue(settings.waitForNonExistence(timeout: 5))
+
+        // Commands run in order, so once Pause from the timer window is logged, anything the
+        // Settings window had sent would be logged too.
+        e2e.app.typeKey("p", modifierFlags: [])
+        let log = waitForLog("Pause from the keyboard", e2e)
+        XCTAssertEqual(occurrences(of: "from the menu", in: log), 0, log)
+        XCTAssertEqual(occurrences(of: "Start/Split from the keyboard", in: log), 1, log)
+        XCTAssertEqual(occurrences(of: "Undo Split from", in: log), 0, log)
+    }
+
     @MainActor
     func testCompareAgainstAndTheTimingMethod() {
         let e2e = launched()
-        for choice in ["Best Segments", "Game Time"] {
+        for choice in ["Best Segments", "Game Time", "Real Time"] {
             e2e.timerWindow.rightClick()
             let compare = e2e.app.menuItems["timer-compare-against"]
             XCTAssertTrue(compare.waitForExistence(timeout: 5))
@@ -119,6 +152,7 @@ final class MenuTests: XCTestCase {
         }
         waitForLog(#"Compare Against Best Segments from the menu: {"success":null}"#, e2e)
         waitForLog(#"Game Time from the menu: {"success":null}"#, e2e)
+        waitForLog(#"Real Time from the menu: {"success":null}"#, e2e)
     }
 
     @MainActor
@@ -128,6 +162,8 @@ final class MenuTests: XCTestCase {
         let item = e2e.app.menuItems["timer-always-on-top"]
         XCTAssertTrue(item.waitForExistence(timeout: 5))
         item.click()
+        // XCUITest shows no tick on a menu item: a ticked item's `value` is "" and `isSelected`
+        // is false, as for an unticked one. So the saved setting is what is checked here.
         XCTAssertNotNil(e2e.settingsText(containing: "always_on_top = true"))
     }
 
