@@ -152,6 +152,9 @@ final class TimerMenus: NSObject, NSMenuDelegate, NSMenuItemValidation {
     /// Runs `command` if its item is enabled now. Returns whether it ran.
     @discardableResult
     func perform(_ command: ControlCommand, from source: CommandSource) -> Bool {
+        // The timer can change between this check and the command running on the queue, such
+        // as when two keys are pressed at once. That's harmless: livesplit-core rejects a
+        // command that no longer applies, and the rejection is logged.
         guard let timerCommand = readState().command(for: command) else { return false }
         runner.run(timerCommand, from: source)
         return true
@@ -209,7 +212,9 @@ final class TimerMenus: NSObject, NSMenuDelegate, NSMenuItemValidation {
 
     /// Menus show the Control shortcuts but never run them: `ShortcutKeys` does, only while the
     /// timer window is key (spec §7.2). Otherwise a plain `u` would run Undo Split while typing
-    /// in the Settings window.
+    /// in the Settings window. `ShortcutDisplayMenu` is what stops the Control menus matching
+    /// a key press, since AppKit matches items itself whatever this returns; this method is
+    /// belt and braces.
     func menuHasKeyEquivalent(
         _ menu: NSMenu, for event: NSEvent,
         target: AutoreleasingUnsafeMutablePointer<AnyObject?>,

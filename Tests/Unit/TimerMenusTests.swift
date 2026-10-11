@@ -13,12 +13,25 @@ import Testing
     var shortcuts = Shortcuts()
     let runner: CommandRunner
     let timer: SharedTimer
+    let unified = RecordingUnifiedLog()
+    let folder: TemporaryFolder
 
-    init() {
+    init() throws {
         let run = Run()
         run.pushSegment(Segment("Time"))
         timer = LiveSplitCore.Timer(run)!.intoShared()
-        runner = CommandRunner(timer: timer, resetSavesBestTimes: nil, changed: {})
+        folder = try TemporaryFolder()
+        runner = CommandRunner(
+            timer: timer, resetSavesBestTimes: nil,
+            log: Log(directory: folder.url, unified: unified), changed: {})
+    }
+
+    /// Waits until every command sent so far has run: the runner's queue is serial, so a
+    /// command sent now runs only once every earlier one has.
+    private func finishCommands() async {
+        await withCheckedContinuation { continuation in
+            runner.run(.undoAllPauses, from: .keyboard) { _ in continuation.resume() }
+        }
     }
 
     private func makeMenus() -> TimerMenus {
@@ -144,6 +157,21 @@ import Testing
                     "Sub", "Personal Best", "Best Segments", "—", "Real Time", "Game Time",
                 ])
             #expect(compare.items.map(\.state) == [.off, .on, .off, .off, .on, .off])
+            let comparisons = compare.items[0..<3]
+            #expect(comparisons.allSatisfy { $0.action == #selector(TimerMenus.setComparison(_:)) })
+            #expect(comparisons.allSatisfy { $0.target === menus })
+            #expect(
+                comparisons.map { $0.representedObject as? String } == [
+                    "Sub", "Personal Best", "Best Segments",
+                ])
+            let methods = compare.items[4...]
+            #expect(
+                methods.allSatisfy { $0.action == #selector(TimerMenus.setTimingMethod(_:)) })
+            #expect(methods.allSatisfy { $0.target === menus })
+            #expect(
+                methods.map(\.tag) == [
+                    Int(TimingMethod.realTime.rawValue), Int(TimingMethod.gameTime.rawValue),
+                ])
         }
 
         state.currentComparison = "Sub"
@@ -173,7 +201,7 @@ import Testing
         #expect(context.items[0].keyEquivalentModifierMask == [.control, .shift])
     }
 
-    @Test func menusNeverRunAShortcutThemselves() async throws {
+    @Test func menusNeverRunAShortcutThemselves() throws {
         let menus = makeMenus()
         let control = try submenu("Control", in: menus.mainMenu)
         let event = keyDown(49, " ")  // kVK_Space
@@ -182,7 +210,9 @@ import Testing
         #expect(!menus.menuHasKeyEquivalent(control, for: event, target: &target, action: &action))
     }
 
-    /// AppKit only asks `menuHasKeyEquivalent` of a menu's delegate, so every menu must have it.
+    /// The delegate fills Compare Against each time it opens (`menuNeedsUpdate`) and gives the
+    /// Control items their titles and enabled state (validation), so every such menu needs it.
+    /// What stops the menus running a key press is `ShortcutDisplayMenu`, not the delegate.
     @Test func everyMenuThatCanRunACommandHasTheDelegate() throws {
         let menus = makeMenus()
         for root in [menus.mainMenu, menus.contextMenu] {
@@ -193,22 +223,25 @@ import Testing
     }
 
     /// Plain `u` and Space are Control shortcuts. Sent to the menu bar, as while the user types in
-    /// the Settings window, they must reach no command. The runner's queue is serial, so a
-    /// command run afterwards is done only once every earlier one is.
+    /// the Settings window, they must reach no command.
     @Test func aKeyPressedInTheMenuBarRunsNoCommand() async throws {
         let menus = makeMenus()
         #expect(!menus.mainMenu.performKeyEquivalent(with: keyDown(32, "u")))  // kVK_ANSI_U
         #expect(!menus.mainMenu.performKeyEquivalent(with: keyDown(49, " ")))  // kVK_Space
         #expect(!menus.contextMenu.performKeyEquivalent(with: keyDown(49, " ")))
-        await withCheckedContinuation { continuation in
-            runner.run(.undoAllPauses, from: .keyboard) { _ in continuation.resume() }
-        }
+        await finishCommands()
         #expect(TimerMenuState.read(from: timer).phase == .notRunning)
     }
 
-    @Test func aDisabledCommandIsntRun() {
+    @Test func aDisabledCommandIsntRun() async {
         let menus = makeMenus()
         #expect(!menus.perform(.reset, from: .keyboard))
+        await finishCommands()
+        #expect(!unified.entries.contains { $0.message.hasPrefix("Reset from") })
+
         #expect(menus.perform(.startSplit, from: .keyboard))
+        await finishCommands()
+        #expect(unified.entries.contains { $0.message.hasPrefix("Start/Split from the keyboard") })
+        #expect(TimerMenuState.read(from: timer).phase == .running)
     }
 }
