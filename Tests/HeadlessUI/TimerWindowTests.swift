@@ -29,6 +29,7 @@ import Testing
         let window = makeController(SettingsStore(directory: folder.url)).window
         #expect(window.styleMask.contains(.borderless))
         #expect(window.styleMask.contains(.resizable))
+        #expect(window.styleMask.contains(.miniaturizable))
         #expect(!window.styleMask.contains(.titled))
         #expect(window.isMovableByWindowBackground)
         #expect(window.canBecomeKey && window.canBecomeMain)

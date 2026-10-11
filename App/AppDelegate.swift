@@ -16,6 +16,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// The menu bar and the right-click menu (spec §7).
     private(set) var menus: TimerMenus?
     private var settingsWindow: SettingsWindowController?
+    private var shortcutKeys: ShortcutKeys?
 
     static func main() {
         let app = NSApplication.shared
@@ -49,6 +50,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         timerWindow.timerView.menu = menus.contextMenu
         self.runner = runner
         self.menus = menus
+        let shortcutKeys = ShortcutKeys(
+            window: timerWindow.window, shortcuts: { settings.settings.shortcuts },
+            perform: { [weak menus] in menus?.perform($0, from: .keyboard) })
+        shortcutKeys.install()
+        self.shortcutKeys = shortcutKeys
         timerWindow.window.makeKeyAndOrderFront(nil)
         if let notice = LaunchNotices.settings(settings.loadOutcome) {
             timerWindow.notices.show(notice)
