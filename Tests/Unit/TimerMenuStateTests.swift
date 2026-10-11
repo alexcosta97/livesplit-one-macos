@@ -4,7 +4,8 @@ import Testing
 @testable import LiveSplitOne
 
 @Suite struct TimerMenuStateTests {
-    /// A run of three segments in `phase`, on segment `split` (-1 when not running or ended).
+    /// A run of three segments in `phase`, on segment `split`: -1 when not running, and 3, the
+    /// segment count, once ended.
     private func state(_ phase: TimerPhase, split: Int = -1) -> TimerMenuState {
         TimerMenuState(
             phase: phase, splitIndex: split, segmentCount: 3,
@@ -39,7 +40,7 @@ import Testing
     }
 
     @Test func endedCanUndoTheLastSplitAndReset() {
-        #expect(enabled(state(.ended)) == [.reset, .undoSplit, .undoAllPauses])
+        #expect(enabled(state(.ended, split: 3)) == [.reset, .undoSplit, .undoAllPauses])
     }
 
     @Test func titlesFollowThePhase() {
@@ -57,6 +58,14 @@ import Testing
         #expect(state(.notRunning).command(for: .reset) == nil)
     }
 
+    @Test func resetIsEnabledAndSentWhilePausedAndOnceEnded() {
+        for stopped in [state(.paused, split: 1), state(.ended, split: 3)] {
+            #expect(stopped.isEnabled(.reset))
+            #expect(stopped.title(for: .reset) == "Reset")
+            #expect(stopped.command(for: .reset) == .reset)
+        }
+    }
+
     @Test func readingARealTimer() throws {
         let run = Run()
         run.pushSegment(Segment("One"))
@@ -70,11 +79,18 @@ import Testing
         #expect(before.currentComparison == "Personal Best")
         #expect(before.comparisons.starts(with: ["Personal Best", "Best Segments"]))
         #expect(before.timingMethod == .realTime)
+        #expect(before.splitIndex == -1)
 
         let sink = EventSink(timer: timer, report: { _ in }, decideReset: { .cancel })
         _ = sink.handleCommand(#"{"command":"start"}"#)
         let after = TimerMenuState.read(from: timer)
         #expect(after.phase == .running)
         #expect(after.splitIndex == 0)
+
+        _ = sink.handleCommand(#"{"command":"split"}"#)
+        _ = sink.handleCommand(#"{"command":"split"}"#)
+        let ended = TimerMenuState.read(from: timer)
+        #expect(ended.phase == .ended)
+        #expect(ended.splitIndex == 2)
     }
 }

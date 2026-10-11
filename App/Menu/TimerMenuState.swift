@@ -4,8 +4,8 @@ import LiveSplitCore
 /// enabled, their titles, and Compare Against's ticks (spec §7). Reading never changes the timer.
 struct TimerMenuState: Equatable, Sendable {
     var phase: TimerPhase
-    /// The current segment's index, or -1 before a run starts and after it ends, as
-    /// livesplit-core's `currentSplitIndex()` gives it.
+    /// The current segment's index, as livesplit-core's `currentSplitIndex()` gives it: -1 with no
+    /// attempt in progress, and the segment count once the run has ended, until it is reset.
     var splitIndex: Int
     var segmentCount: Int
     /// The run's comparisons, custom ones first, as livesplit-core lists them.

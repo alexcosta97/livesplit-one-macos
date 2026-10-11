@@ -14,6 +14,14 @@ import Testing
         #expect(
             TimerCommand.setTimingMethod(.gameTime).json
                 == #"{"command":"setCurrentTimingMethod","timingMethod":"GameTime"}"#)
+        #expect(
+            TimerCommand.setTimingMethod(.realTime).json
+                == #"{"command":"setCurrentTimingMethod","timingMethod":"RealTime"}"#)
+    }
+
+    @Test func theTimingMethodsMenuTitles() {
+        #expect(TimingMethod.realTime.title == "Real Time")
+        #expect(TimingMethod.gameTime.title == "Game Time")
     }
 
     @Test func aComparisonNameIsEscaped() {
@@ -28,5 +36,6 @@ import Testing
         #expect(
             TimerCommand.setComparison("Best Segments").logName == "Compare Against Best Segments")
         #expect(TimerCommand.setTimingMethod(.gameTime).logName == "Game Time")
+        #expect(TimerCommand.setTimingMethod(.realTime).logName == "Real Time")
     }
 }
