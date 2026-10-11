@@ -55,7 +55,7 @@ import Testing
 
     @Test func centredIsInTheMiddleOfTheScreen() {
         let frame = WindowPlacement.centred(CGSize(width: 300, height: 500), on: screen)
-        #expect(frame == CGRect(x: 570, y: 187.5, width: 300, height: 500))
+        #expect(frame == CGRect(x: 570, y: 187, width: 300, height: 500))
     }
 
     @Test func resizingKeepsTheTopLeftCorner() {

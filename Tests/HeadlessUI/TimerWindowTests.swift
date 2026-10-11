@@ -5,9 +5,7 @@ import Testing
 
 @MainActor
 @Suite struct TimerWindowTests {
-    // An even height, so the centred window sits on whole points: AppKit rounds a window's frame
-    // out to whole points, which would make it 501 points tall.
-    let screen = CGRect(x: 0, y: 0, width: 1440, height: 876)
+    let screen = CGRect(x: 0, y: 0, width: 1440, height: 875)
 
     private func makeController(
         _ store: SettingsStore, notices: NoticeQueue = NoticeQueue(schedule: { _, _ in })
@@ -38,7 +36,7 @@ import Testing
     @Test func withNoSavedFrameItIsCentredAtLiveSplitOnesSize() throws {
         let folder = try TemporaryFolder()
         let window = makeController(SettingsStore(directory: folder.url)).window
-        #expect(window.frame == CGRect(x: 570, y: 188, width: 300, height: 500))
+        #expect(window.frame == CGRect(x: 570, y: 187, width: 300, height: 500))
     }
 
     @Test func aSavedFrameOnScreenIsUsed() throws {

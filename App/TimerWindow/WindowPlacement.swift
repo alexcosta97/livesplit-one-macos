@@ -30,10 +30,12 @@ enum WindowPlacement {
         return onScreen ? frame : nil
     }
 
-    /// A frame of `size` in the middle of `screen`.
+    /// A frame of `size` in the middle of `screen`. The origin is in whole points, so AppKit
+    /// doesn't round the size out.
     static func centred(_ size: CGSize, on screen: CGRect) -> CGRect {
         CGRect(
-            x: screen.midX - size.width / 2, y: screen.midY - size.height / 2,
+            x: (screen.midX - size.width / 2).rounded(.down),
+            y: (screen.midY - size.height / 2).rounded(.down),
             width: size.width, height: size.height)
     }
 

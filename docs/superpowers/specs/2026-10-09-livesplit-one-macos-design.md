@@ -196,7 +196,10 @@ committed, so pull requests never conflict on `project.pbxproj`.
   contents.
 - The renderer only draws again when the layout state changed or the size
   changed, so an idle timer uses next to no CPU. `core/` compares each frame's
-  layout state, encoded as JSON, with the last frame's (section 5.3).
+  layout state, encoded as JSON, with the last frame's (section 5.3). While the
+  timer is running, the app updates the layout state every frame; otherwise only
+  after something changes it (`TimerContent.markChanged()`), or every half
+  second as a backstop.
 - A new layout starts at 300 × 500 points, LiveSplit One's default. When the
   layout's height changes (another layout opens, segments are added), the
   renderer gives a size hint, and the window takes that size, keeping its
