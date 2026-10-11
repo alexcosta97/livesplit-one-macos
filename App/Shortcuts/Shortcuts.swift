@@ -74,8 +74,23 @@ struct Shortcuts: Codable, Equatable, Sendable {
     /// Reads the table, resolving every command in order (spec §11): an entry that isn't a
     /// shortcut, is reserved, or that an earlier command already has, is dropped into `dropped`.
     /// A list of the wrong type throws, which makes the file unreadable.
+    private struct CommandKey: CodingKey {
+        let stringValue: String
+        var intValue: Int? { nil }
+        init?(stringValue: String) { self.stringValue = stringValue }
+        init?(intValue: Int) { nil }
+    }
+
     init(from decoder: any Decoder) throws {
-        let table = try decoder.singleValueContainer().decode([String: [String]].self)
+        // Only the known commands are decoded, so an unknown key of any type is ignored.
+        let container = try decoder.container(keyedBy: CommandKey.self)
+        var table: [String: [String]] = [:]
+        for command in ControlCommand.allCases {
+            let key = CommandKey(stringValue: command.rawValue)!
+            if let listed = try container.decodeIfPresent([String].self, forKey: key) {
+                table[command.rawValue] = listed
+            }
+        }
         var seen: [Shortcut: ControlCommand] = [:]
         for command in ControlCommand.allCases {
             let listed =
@@ -108,10 +123,10 @@ struct Shortcuts: Codable, Equatable, Sendable {
     /// Writes only the commands that differ from the defaults, so a later version's new
     /// defaults reach anyone who never changed them.
     func encode(to encoder: any Encoder) throws {
-        var container = encoder.singleValueContainer()
-        try container.encode(
-            Dictionary(
-                uniqueKeysWithValues: changed.map { ($0.key.rawValue, $0.value.map(\.description)) }
-            ))
+        var container = encoder.container(keyedBy: CommandKey.self)
+        for (command, shortcuts) in changed {
+            try container.encode(
+                shortcuts.map(\.description), forKey: CommandKey(stringValue: command.rawValue)!)
+        }
     }
 }

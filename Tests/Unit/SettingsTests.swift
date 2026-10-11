@@ -172,6 +172,20 @@ import Testing
         #expect(settings.shortcuts.dropped == [#""u" for undo_split: start_split already has it"#])
     }
 
+    @Test func unknownKeysInTheShortcutsTableAreIgnored() throws {
+        let settings = try decode("[shortcuts]\nnote = \"x\"\nfoo = 1\n")
+        #expect(settings.shortcuts == Shortcuts())
+        #expect(settings.shortcuts.dropped.isEmpty)
+    }
+
+    @Test func anEmptyListSurvivesARoundTrip() throws {
+        let settings = try decode("[shortcuts]\nstart_split = []\n")
+        let again = try decode(encode(settings))
+        #expect(again.shortcuts.shortcuts(for: .startSplit) == [])
+        #expect(again == settings)
+        #expect(!again.shortcuts.isDefault)
+    }
+
     @Test func aShortcutListWithANumberMakesTheFileUnreadable() {
         #expect(throws: (any Error).self) { try decode("[shortcuts]\nreset = [1]\n") }
         #expect(throws: (any Error).self) { try decode("[shortcuts]\nreset = \"Backspace\"\n") }
