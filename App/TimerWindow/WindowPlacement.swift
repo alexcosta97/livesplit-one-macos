@@ -14,20 +14,42 @@ enum WindowPlacement {
     /// The saved frame, at least `minimumSize`, if enough of it is on one of `screens` (their
     /// visible frames); otherwise `nil`. The visible part must be at least `min(minimumVisible,
     /// frame.width)` wide and at least `min(minimumVisible, frame.height)` tall, so a small frame
-    /// must be fully visible but a normal frame needs at least 40 × 40 points.
+    /// must be fully visible but a normal frame needs at least 40 × 40 points. A frame larger
+    /// than the screen it is most on shrinks to fit it, keeping its top-left corner unless that
+    /// would leave part of it off the screen.
     static func restoredFrame(_ saved: WindowFrame?, screens: [CGRect]) -> CGRect? {
         guard let saved, saved.isUsable else { return nil }
         let frame = CGRect(
             x: saved.x, y: saved.y, width: max(saved.width, minimumSize.width),
             height: max(saved.height, minimumSize.height))
-        let onScreen = screens.contains { screen in
+        let shown = screens.filter { screen in
             let visible = screen.intersection(frame)
-            let minWidthRequired = min(minimumVisible, frame.width)
-            let minHeightRequired = min(minimumVisible, frame.height)
-            return !visible.isNull && visible.width >= minWidthRequired
-                && visible.height >= minHeightRequired
+            return !visible.isNull && visible.width >= min(minimumVisible, frame.width)
+                && visible.height >= min(minimumVisible, frame.height)
         }
-        return onScreen ? frame : nil
+        guard
+            let screen = shown.max(by: {
+                area($0.intersection(frame)) < area($1.intersection(frame))
+            })
+        else { return nil }
+        return fitted(frame, in: screen)
+    }
+
+    /// `frame`, no larger than `screen`. A frame that shrinks keeps its top-left corner, then
+    /// moves onto `screen` if part of it is still off it. A frame that fits is left as it is.
+    private static func fitted(_ frame: CGRect, in screen: CGRect) -> CGRect {
+        guard frame.width > screen.width || frame.height > screen.height else { return frame }
+        var fitted = resized(
+            frame,
+            to: CGSize(
+                width: min(frame.width, screen.width), height: min(frame.height, screen.height)))
+        fitted.origin.x = min(max(fitted.minX, screen.minX), screen.maxX - fitted.width)
+        fitted.origin.y = min(max(fitted.minY, screen.minY), screen.maxY - fitted.height)
+        return fitted
+    }
+
+    private static func area(_ rect: CGRect) -> CGFloat {
+        rect.isNull ? 0 : rect.width * rect.height
     }
 
     /// A frame of `size` in the middle of `screen`. The origin is in whole points, so AppKit

@@ -67,6 +67,15 @@ import Testing
         #expect(makeController(store).window.frame.size == CGSize(width: 300, height: 500))
     }
 
+    @Test func aSavedFrameLargerThanTheScreenShrinksToFit() throws {
+        let folder = try TemporaryFolder()
+        let store = SettingsStore(directory: folder.url)
+        store.update {
+            $0.setFrame(WindowFrame(x: 0, y: -1125, width: 3000, height: 2000), forLayout: nil)
+        }
+        #expect(makeController(store).window.frame == screen)
+    }
+
     @Test func savingTheFrameStoresItForTheDefaultLayout() throws {
         let folder = try TemporaryFolder()
         let store = SettingsStore(directory: folder.url)
