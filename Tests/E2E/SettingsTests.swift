@@ -12,6 +12,9 @@ final class SettingsTests: XCTestCase {
         XCTAssertNotNil(log)
         // The line names the file under the test's folder, so the override took effect.
         XCTAssertTrue(log?.contains(e2e.configFolder.path) == true)
+        // Longer than TimerWindowController.saveDelay, so a frame saved after the window opened
+        // would be on disk by now.
+        RunLoop.current.run(until: Date().addingTimeInterval(1))
         XCTAssertFalse(
             FileManager.default.fileExists(
                 atPath: e2e.configFolder.appending(path: "app.toml").path))

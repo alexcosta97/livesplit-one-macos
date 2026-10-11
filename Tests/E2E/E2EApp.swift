@@ -41,4 +41,26 @@ final class E2EApp {
         } while Date() < deadline
         return nil
     }
+
+    /// Quits the app and launches it again with the same folders, as a user relaunching it.
+    /// `terminate()` kills the app without letting it save on quit, so the caller must first wait
+    /// for whatever the app has to save, such as with `settingsText(containing:)`.
+    func relaunch() {
+        app.terminate()
+        app.launch()
+    }
+
+    /// The text of `app.toml` once it contains `text`, or `nil` if it doesn't within `timeout`
+    /// seconds.
+    func settingsText(containing text: String, timeout: TimeInterval = 10) -> String? {
+        let file = configFolder.appending(path: "app.toml")
+        let deadline = Date().addingTimeInterval(timeout)
+        repeat {
+            if let all = try? String(contentsOf: file, encoding: .utf8), all.contains(text) {
+                return all
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        } while Date() < deadline
+        return nil
+    }
 }

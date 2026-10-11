@@ -6,7 +6,7 @@ The app keeps its settings in one file:
 
 Your splits and layouts stay wherever you keep them; the app only stores where they are.
 
-The file is created the first time a setting changes, and rewritten each time one does. Nothing in the app changes a setting yet, so the file doesn't exist until a later version adds the first one. It is a [TOML](https://toml.io) text file, so you can read it, but quit the app before editing it: the app reads it only when it starts, and rewrites it when a setting changes.
+It holds the window's position and size for each layout. The file is created the first time a setting changes, which today is when you move or resize the window, and rewritten each time one does. The app writes it once the move or resize ends, not on every step. It is a [TOML](https://toml.io) text file, so you can read it, but quit the app before editing it: the app reads it only when it starts, and rewrites it when a setting changes.
 
 If the app can't read the file, for example after a mistake while editing it, it starts with the default settings and keeps the old file next to it as `app.toml.bad`, so nothing is lost. Each time this happens, the previous `app.toml.bad` is replaced. If the app can't keep the old file either, for example because the folder is read-only, it leaves the file as it is and doesn't save setting changes until it restarts.
 

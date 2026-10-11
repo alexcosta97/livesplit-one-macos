@@ -10,6 +10,8 @@ struct Settings: Codable, Equatable, Sendable {
     var recentLayouts = RecentFiles()
     /// The window's frame for each layout, by the layout's path (spec §6).
     var windows: [LayoutWindow] = []
+    /// The window's frame for the default layout, which has no file (spec §6).
+    var defaultLayoutFrame: WindowFrame?
     var alwaysOnTop = false
     /// The last URL used in Connect to Server (spec §8.1).
     var lastServerURL: String?
@@ -17,13 +19,19 @@ struct Settings: Codable, Equatable, Sendable {
     /// The defaults, used when there is no file.
     init() {}
 
-    /// The frame saved for the layout at `path`, if any.
-    func frame(forLayout path: String) -> WindowFrame? {
-        windows.first { $0.layout == path }?.frame
+    /// The frame saved for the layout at `path`, or for the default layout when `path` is `nil`.
+    func frame(forLayout path: String?) -> WindowFrame? {
+        guard let path else { return defaultLayoutFrame }
+        return windows.first { $0.layout == path }?.frame
     }
 
-    /// Saves `frame` for the layout at `path`, replacing any frame saved for it.
-    mutating func setFrame(_ frame: WindowFrame, forLayout path: String) {
+    /// Saves `frame` for the layout at `path`, or for the default layout when `path` is `nil`,
+    /// replacing any frame saved for it.
+    mutating func setFrame(_ frame: WindowFrame, forLayout path: String?) {
+        guard let path else {
+            defaultLayoutFrame = frame
+            return
+        }
         if let index = windows.firstIndex(where: { $0.layout == path }) {
             windows[index].frame = frame
         } else {
@@ -61,6 +69,7 @@ struct Settings: Codable, Equatable, Sendable {
         case recentSplits = "recent_splits"
         case recentLayouts = "recent_layouts"
         case windows
+        case defaultLayoutFrame = "default_layout_window"
         case alwaysOnTop = "always_on_top"
         case lastServerURL = "last_server_url"
     }
@@ -81,6 +90,9 @@ struct Settings: Codable, Equatable, Sendable {
         var seen = Set<String>()
         windows = (try container.decodeIfPresent([LayoutWindow].self, forKey: .windows) ?? [])
             .filter { $0.frame.isUsable && seen.insert($0.layout).inserted }
+        defaultLayoutFrame = try container.decodeIfPresent(
+            WindowFrame.self, forKey: .defaultLayoutFrame
+        ).flatMap { $0.isUsable ? $0 : nil }
         alwaysOnTop = try container.decodeIfPresent(Bool.self, forKey: .alwaysOnTop) ?? false
         lastServerURL = try container.decodeIfPresent(String.self, forKey: .lastServerURL)
     }
@@ -92,6 +104,7 @@ struct Settings: Codable, Equatable, Sendable {
         try container.encode(recentSplits, forKey: .recentSplits)
         try container.encode(recentLayouts, forKey: .recentLayouts)
         try container.encode(windows, forKey: .windows)
+        try container.encodeIfPresent(defaultLayoutFrame, forKey: .defaultLayoutFrame)
         try container.encode(alwaysOnTop, forKey: .alwaysOnTop)
         try container.encodeIfPresent(lastServerURL, forKey: .lastServerURL)
     }
@@ -99,7 +112,7 @@ struct Settings: Codable, Equatable, Sendable {
 
 /// A window's position and size, in screen points, as AppKit gives them (origin at the bottom
 /// left of the main screen).
-struct WindowFrame: Equatable, Sendable {
+struct WindowFrame: Codable, Equatable, Sendable {
     var x: Double
     var y: Double
     var width: Double

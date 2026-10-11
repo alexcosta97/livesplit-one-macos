@@ -195,9 +195,21 @@ committed, so pull requests never conflict on `project.pbxproj`.
   (Retina aware). The buffer becomes a `CGImage` set as the view layer's
   contents.
 - The renderer only draws again when the layout state changed or the size
-  changed, so an idle timer uses next to no CPU.
-- The renderer's size hint after a layout loads gives the window its natural
-  aspect ratio, as in LiveSplit One.
+  changed, so an idle timer uses next to no CPU. `core/` compares each frame's
+  layout state, encoded as JSON, with the last frame's (section 5.3). While the
+  timer is running, the app updates the layout state every frame; otherwise only
+  after something changes it (`TimerContent.markChanged()`), when its phase
+  changes (a split that ends the run, a pause, a reset), or every half second
+  as a backstop, so a missed change shows within about 0.75 s. While the timer
+  isn't running, the display link runs at 4 Hz, and returns to the display's
+  rate as soon as something changes.
+- A new layout starts at 300 × 500 points, LiveSplit One's default. When the
+  layout's height changes (another layout opens, segments are added), the
+  renderer gives a size hint, and the window takes that size, keeping its
+  top-left corner, as LiveSplit One does.
+- The layout's text, such as component names, is in macOS's first preferred
+  language when livesplit-core has it, as LiveSplit One follows the browser's
+  language.
 - A Metal-based renderer is backlog, if profiling shows the software renderer
   costs too much.
 
@@ -226,6 +238,11 @@ livesplit-core's C API exposes `ServerProtocol` only when built for the web
   local timer, and returns the reply to send back.
 - **`encode_event(event) -> json`**: encodes an event as LiveSplit One does, to
   send to the server.
+- **Rendering that skips unchanged frames.** `LsoRenderer_render` wraps
+  livesplit-core's `BorrowedRenderer`. It compares the layout state, encoded
+  as JSON, and the image's size with the last frame's, and draws only when
+  one of them changed. It also returns the renderer's size hint, which the C
+  API's `SoftwareRenderer_render` discards.
 
 Each addition gets Rust unit tests in `core/`.
 
@@ -234,16 +251,25 @@ Each addition gets Rust unit tests in `core/`.
 - **Borderless.** Dragging anywhere in the window moves it. The edges resize
   it freely; the renderer fits the layout to the window, as LiveSplit One does
   when its window is resized.
-- **Size and position** are remembered per layout file in `app.toml`. A layout
-  opened for the first time takes the renderer's size hint.
+- **Size and position** are remembered per layout file in `app.toml`, and for
+  the default layout, which has no file, in a key of its own (section 11). A
+  layout opened for the first time keeps the window's size until the renderer's
+  size hint changes it (section 5.2). A saved frame is used only if one screen
+  shows at least 40 points of it in each direction (or all of it, in a
+  direction where the window is smaller than that); otherwise the window is
+  centred on the main screen instead, since it has no title bar to drag it back
+  with. A saved frame larger than the screen it is most on is shrunk to fit
+  that screen, keeping its top-left corner unless that would leave part of it
+  off the screen.
 - **Always on Top** is a menu toggle, remembered between launches.
 - **On launch** the app reopens the last splits and layout and the window
   position. If a file is missing or no longer loads, it uses livesplit-core's
-  default layout or an empty run, and shows an overlay notice that names the
-  file.
+  default layout or an empty run (LiveSplit One's new run: one segment named
+  Time), and shows an overlay notice that names the file.
 - **Overlay notices** are short messages drawn over the bottom of the timer
   for 4 seconds: connection status, a file that couldn't be reopened. They are
-  not part of the layout and are never saved.
+  not part of the layout and are never saved. When several come together, each
+  shows for its 4 seconds in turn. One already shown or waiting isn't repeated.
 - **Dock and menu bar.** The app has a Dock icon and a standard menu bar with
   the same commands as the right-click menu, as macOS expects.
 - **Keyboard shortcuts** for the Control commands work while the window has
@@ -414,7 +440,7 @@ folder, the same one livesplit-asr-bridge uses (`dirs::config_dir()`):
 `app.toml` holds:
 
 - the last splits and layout paths, and the recent files lists (10 each);
-- the window frame per layout path, and Always on Top;
+- the window frame per layout path, the default layout's window frame, and Always on Top;
 - the last Connect to Server URL.
 
 It is read at launch and written when one of these changes, atomically, so a
@@ -434,6 +460,12 @@ last_splits = "/Users/me/Splits/GTA San Andreas.lss"
 recent_layouts = ["/Users/me/Layouts/Main.ls1l"]
 recent_splits = ["/Users/me/Splits/GTA San Andreas.lss", "/Users/me/Splits/Any%.lss"]
 
+[default_layout_window]
+height = 500.0
+width = 300.0
+x = 120.0
+y = 300.0
+
 [[windows]]
 height = 520.0
 layout = "/Users/me/Layouts/Main.ls1l"
@@ -447,8 +479,10 @@ recent files, Always on Top off) and an unknown key is ignored, so a file
 from another version still reads. A key with the wrong type makes the file
 unreadable. Recent lists are trimmed to 10 and repeats dropped. A window entry
 missing a key makes the file unreadable too; one with a number that isn't
-finite, a size that isn't positive, or a duplicate layout is dropped. A broken
-file replaces any older `app.toml.bad`.
+finite, a size that isn't positive, or a duplicate layout is dropped. The
+`default_layout_window` table (with keys `x`, `y`, `width`, `height`) holds
+the window's frame while the default layout is shown, which has no path. A
+broken file replaces any older `app.toml.bad`.
 
 The splits and layouts themselves stay wherever the user keeps them; the app
 only stores their paths.
@@ -522,7 +556,7 @@ under 10 % E2E.
 |---|---|---|---|
 | **Unit** | Swift Testing; `cargo test` for `core/` | One function or type: the C API additions, menu building and enabling, reconnect timing, URL validation, recents, `app.toml` reading and writing, log rotation and the size cap | Direct calls |
 | **Headless UI** | Swift Testing, views and view controllers without a window | One view: the splits editor table and buttons, the Connect sheet, each alert's buttons, overlay notices | Actions on the view; checks its accessibility tree and what it asks the app to do |
-| **Integration** | Swift Testing with the real livesplit-core and an in-process **fake server** (a Network.framework WebSocket listener) | Modules together, no user flow: server commands move the timer and events reach the server in order; open, edit and save a run; reconnection; rendering of reference layouts compared with snapshots | Module and app APIs; checks events, messages, timer state, files and pixels |
+| **Integration** | Swift Testing with the real livesplit-core and an in-process **fake server** (a Network.framework WebSocket listener) | Modules together, no user flow: server commands move the timer and events reach the server in order; open, edit and save a run; reconnection; rendering of reference layouts compared with reference images in `Tests/Integration/Snapshots/`, recorded with `TEST_RUNNER_LSO_RECORD_SNAPSHOTS=1` and checked by eye | Module and app APIs; checks events, messages, timer state, files and pixels |
 | **E2E** | XCUITest | The whole app as a user uses it | **Only** user input to the window (clicks, right-clicks, typing, keys, resizing, files the user picks) and only what the user can observe (what the window shows, what the fake server receives, files on disk) |
 
 ### 14.2 E2E harness

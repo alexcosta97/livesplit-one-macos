@@ -3,6 +3,7 @@
 #ifndef LSO_CORE_H
 #define LSO_CORE_H
 
+#include <stdbool.h>
 #include <stdint.h>
 
 #ifdef __cplusplus
@@ -43,6 +44,30 @@ void LsoCommandSink_drop(void *self);
 char const *LsoCommandSink_handle_command(void *self, char const *command);
 /// Encodes an event for the server. Valid until the next call on the thread.
 char const *LsoServerProtocol_encode_event(uint32_t event);
+
+/// What `LsoRenderer_render` did.
+typedef struct LsoRendered {
+    /// Whether the image was drawn. If not, it still holds the last frame.
+    bool drew;
+    /// Whether the layout's height changed, giving it a new natural size.
+    bool has_size_hint;
+    /// The natural size in pixels, when `has_size_hint`; otherwise 0.
+    float size_hint_width;
+    float size_hint_height;
+} LsoRendered;
+
+/// Creates a renderer that draws only when the layout state or the size changed.
+void *LsoRenderer_new(void);
+/// Drops the renderer. `self` must be a valid, non-null renderer.
+void LsoRenderer_drop(void *self);
+/// Renders a `LayoutState` into `data` (RGBA8, premultiplied alpha, `stride` pixels a row)
+/// unless neither the state nor the size changed since the last call. Pass the same buffer
+/// every time unless the size changes. `self`, `layout_state` and `image_cache` must be valid
+/// and non-null. `data` may be NULL, which draws nothing, or valid for `stride * height * 4`
+/// bytes. A zero size, a side or stride over 16384 (core's `MAX_SIDE`), or a stride narrower
+/// than the width draws nothing without reading `data`.
+LsoRendered LsoRenderer_render(void *self, void const *layout_state, void const *image_cache,
+                               uint8_t *data, uint32_t width, uint32_t height, uint32_t stride);
 
 #ifdef __cplusplus
 }

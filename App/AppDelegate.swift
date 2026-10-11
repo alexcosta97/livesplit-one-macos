@@ -1,12 +1,13 @@
 import AppKit
 
-/// Starts the app and opens its single window. No storyboards: everything is
-/// built in code (spec §4). Later issues replace the window's contents with
-/// the timer (spec §6).
+/// Starts the app and opens the timer window. No storyboards: everything is
+/// built in code (spec §4).
 @main
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    private(set) var window: NSWindow?
+    /// The timer window (spec §6).
+    private(set) var timerWindow: TimerWindowController?
+    var window: NSWindow? { timerWindow?.window }
 
     /// The settings, read at launch (spec §11).
     private(set) var settings: SettingsStore?
@@ -25,14 +26,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .app,
             "LiveSplit One for macOS \(AppVersion.current) started on macOS "
                 + "\(system.majorVersion).\(system.minorVersion).\(system.patchVersion)")
-        settings = SettingsStore(directory: ConfigFolder.current)
-        let window = Self.makeWindow()
-        window.makeKeyAndOrderFront(nil)
-        self.window = window
+        let settings = SettingsStore(directory: ConfigFolder.current)
+        self.settings = settings
+        let timerWindow = TimerWindowController.make(content: TimerContent(), settings: settings)
+        timerWindow.window.makeKeyAndOrderFront(nil)
+        if let notice = LaunchNotices.settings(settings.loadOutcome) {
+            timerWindow.notices.show(notice)
+        }
+        self.timerWindow = timerWindow
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         true
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        timerWindow?.saveFrameIfPending()
+    }
+
+    /// Always on Top (spec §6). The menu items that send it come with #13.
+    @objc func toggleAlwaysOnTop(_ sender: Any?) {
+        timerWindow?.toggleAlwaysOnTop()
     }
 
     /// Open Log Folder (spec §7, §12.2). The menu items that send it come with #13.
@@ -45,20 +59,5 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } else {
             alert.runModal()
         }
-    }
-
-    /// The empty timer window.
-    static func makeWindow() -> NSWindow {
-        let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 300, height: 120),
-            styleMask: [.titled, .closable, .resizable],
-            backing: .buffered,
-            defer: false
-        )
-        window.title = "LiveSplit One"
-        window.setAccessibilityIdentifier("timer-window")
-        window.isReleasedWhenClosed = false
-        window.center()
-        return window
     }
 }

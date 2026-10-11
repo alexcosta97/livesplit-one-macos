@@ -69,6 +69,7 @@ import Testing
         settings.setFrame(
             WindowFrame(x: 120, y: 640, width: 300, height: 520),
             forLayout: "/Users/me/Layouts/Main.ls1l")
+        settings.setFrame(WindowFrame(x: 120, y: 300, width: 300, height: 500), forLayout: nil)
         let expected = """
             # LiveSplit One for macOS settings. The app rewrites this file when a setting changes.
 
@@ -78,6 +79,12 @@ import Testing
             last_splits = "/Users/me/Splits/GTA San Andreas.lss"
             recent_layouts = ["/Users/me/Layouts/Main.ls1l"]
             recent_splits = ["/Users/me/Splits/GTA San Andreas.lss", "/Users/me/Splits/Any%.lss"]
+
+            [default_layout_window]
+            height = 500.0
+            width = 300.0
+            x = 120.0
+            y = 300.0
 
             [[windows]]
             height = 520.0
@@ -182,6 +189,18 @@ import Testing
         }
     }
 
+    @Test func aDefaultLayoutWindowMissingAKeyMakesTheFileUnreadable() {
+        #expect(throws: (any Error).self) {
+            try decode(
+                """
+                [default_layout_window]
+                x = 1
+                y = 2
+                width = 300
+                """)
+        }
+    }
+
     @Test func aNaNWindowDoesNotMakeSettingsDifferFromThemselves() throws {
         let text = "[[windows]]\nlayout = \"/a.ls1l\"\nx = nan\ny = 0\nwidth = 300\nheight = 100\n"
         let first = try decode(text)
@@ -239,5 +258,48 @@ import Testing
         #expect(!WindowFrame(x: 0, y: 0, width: 300, height: -1).isUsable)
         #expect(!WindowFrame(x: .nan, y: 0, width: 300, height: 120).isUsable)
         #expect(!WindowFrame(x: 0, y: 0, width: .infinity, height: 120).isUsable)
+    }
+
+    @Test func theDefaultLayoutsFrameIsKeptApartFromLayoutFiles() throws {
+        var settings = Settings()
+        let frame = WindowFrame(x: 10, y: 20, width: 300, height: 500)
+        settings.setFrame(frame, forLayout: nil)
+
+        #expect(settings.frame(forLayout: nil) == frame)
+        #expect(settings.windows.isEmpty)
+        let text = try settings.tomlText()
+        #expect(text.contains("[default_layout_window]"))
+        #expect(try Settings.decode(Data(text.utf8)) == settings)
+    }
+
+    @Test func aWholeNumberDefaultLayoutFrameLoads() throws {
+        let text = """
+            [default_layout_window]
+            x = 100
+            y = 200
+            width = 300
+            height = 500
+            """
+        let settings = try Settings.decode(Data(text.utf8))
+        #expect(settings.defaultLayoutFrame == WindowFrame(x: 100, y: 200, width: 300, height: 500))
+    }
+
+    @Test func anUnusableDefaultLayoutFrameIsDropped() throws {
+        let text = """
+            [default_layout_window]
+            x = 0
+            y = 0
+            width = 0
+            height = 500
+            """
+        #expect(try Settings.decode(Data(text.utf8)).defaultLayoutFrame == nil)
+    }
+
+    @Test func aLayoutPathStillKeysItsOwnFrame() {
+        var settings = Settings()
+        let frame = WindowFrame(x: 1, y: 2, width: 3, height: 4)
+        settings.setFrame(frame, forLayout: "/Users/me/Layouts/main.ls1l")
+        #expect(settings.frame(forLayout: "/Users/me/Layouts/main.ls1l") == frame)
+        #expect(settings.frame(forLayout: nil) == nil)
     }
 }

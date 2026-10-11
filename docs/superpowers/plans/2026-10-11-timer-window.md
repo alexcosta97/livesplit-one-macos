@@ -60,9 +60,14 @@ List each in the pull request description:
 
 Post each as a comment on the issue named once the pull request is open, and list it in the pull request description:
 
-- **#13:** `AppDelegate.toggleAlwaysOnTop(_:)` exists. The menu items send it, and show a tick from `settings.settings.alwaysOnTop`. `TimerWindow` can become key, so keyboard shortcuts reach it. The right-click menu goes on `TimerView` (`timerView.menu`, or `menu(for:)`).
-- **#12:** set `TimerWindowController.layoutPath` to the opened layout's `url.standardizedFileURL.path`. The frame is then saved under that path, and the saved frame for a reopened layout comes from `settings.settings.frame(forLayout: path)`. After replacing the layout or the run, call `imageCache.collect()` in `TimerContent`, so images from the old ones are freed. Show "file couldn't be reopened" notices with `notices.show(_:)`. The renderer keeps its cached height across a layout change, so the next frame returns the new layout's size hint and `TimerWindowController.fitLayout(_:)` resizes the window. That only applies to a layout opened for the first time: a layout with a saved frame keeps its frame.
-- **#14:** run server commands through an `EventSink` built on `TimerContent.timer`. Show connection notices with `TimerWindowController.notices.show(_:)`.
+- **#12:** nothing opens a layout yet. `TimerWindowController.layoutPath` is `private(set)` with no setter, and `TimerContent.layout` (with the `LayoutState` made from it) is a `let`. #12 adds a way to open one, such as `setLayout(path:)` on the controller and a replaceable layout and state in `TimerContent`, which must:
+  - call `saveFrameIfPending()` before switching `layoutPath`, so a pending save isn't written under the new layout's path;
+  - set `layoutPath` to the layout's `url.standardizedFileURL.path`, then restore the window's frame from `settings.settings.frame(forLayout: path)` through `WindowPlacement.restoredFrame`;
+  - ignore the next size hint when the layout has a saved frame. `fitLayout(_:)` applies every hint today, and the renderer keeps its cached height across a layout change, so the next frame gives the new layout's hint. Only a layout opened for the first time takes it;
+  - call `content.markChanged()` after replacing the layout or the run, so the next frame shows it, and `imageCache.collect()` in `TimerContent`, so images from the old ones are freed;
+  - show "couldn't be reopened" notices with `notices.show(_:)`.
+- **#13:** menu commands call `content.markChanged()` after running, on the main actor, so the window shows the change at once. `AppDelegate.toggleAlwaysOnTop(_:)` exists: the menu items send it, and show a tick from `settings.settings.alwaysOnTop`. `TimerWindow` can become key, so keyboard shortcuts reach it. The right-click menu goes on `TimerView` (`timerView.menu`, or `menu(for:)`).
+- **#14:** run server commands through an `EventSink` built on `TimerContent.timer`. Its `report` callback runs on any thread: hop with `DispatchQueue.main.async { content.markChanged() }`, never `sync`, since a report must return promptly (the callback rules on #11). Show connection notices with `TimerWindowController.notices.show(_:)`.
 - **#18:** `E2EApp.relaunch()` and `E2EApp.settingsText(containing:)` are added (Task 8). The first-launch flow from spec §14.3 is covered by `TimerWindowTests.testFirstLaunchShowsTheDefaultLayout`.
 
 ---
@@ -535,7 +540,7 @@ git commit -m "feat(core): render only changed frames and return the size hint"
 - Create: `LiveSplitCore/Wrapper/LayoutRenderer.swift`
 - Create: `Tests/Integration/RenderingTests.swift`
 - Create: `Tests/Integration/Support/Snapshot.swift`
-- Create: `Tests/Integration/Snapshots/default-layout.png`, `default-layout@2x.png`, `three-segments.png` (recorded in Step 5)
+- Create: `Tests/Integration/Snapshots/default-layout.png`, `default-layout-2x.png`, `three-segments.png` (recorded in Step 5)
 - Modify: `CONTRIBUTING.md` (Testing)
 - Modify: `docs/superpowers/specs/2026-10-09-livesplit-one-macos-design.md` (§14.1)
 
@@ -690,7 +695,7 @@ private final class Scene {
         let frame = LayoutRenderer().render(scene.state, scene.imageCache, width: 600, height: 1000)
         let image = try #require(frame.image)
         #expect(image.width == 600 && image.height == 1000)
-        #expect(Snapshot.mismatch(image, "default-layout@2x") == nil)
+        #expect(Snapshot.mismatch(image, "default-layout-2x") == nil)
     }
 
     @Test func aRunWithSegmentsMatchesItsSnapshot() throws {
@@ -851,7 +856,7 @@ TEST_RUNNER_LSO_RECORD_SNAPSHOTS=1 xcodebuild test -project LiveSplitOne.xcodepr
 open Tests/Integration/Snapshots/
 ```
 
-Expected: the three snapshot tests fail with "Recorded …", and `Tests/Integration/Snapshots/` holds three PNGs. Open each one and check it by eye: the default layout has a title, a splits list with the segment names, a large timer at 0.00 and a "Previous Segment" row. Text in `default-layout@2x.png` is sharp at its full size, not a blown-up `default-layout.png`. If an image looks wrong, stop and find out why before going on.
+Expected: the three snapshot tests fail with "Recorded …", and `Tests/Integration/Snapshots/` holds three PNGs. Open each one and check it by eye: the default layout has a title, a splits list with the segment names, a large timer at 0.00 and a "Previous Segment" row. Text in `default-layout-2x.png` is sharp at its full size, not a blown-up `default-layout.png`. If an image looks wrong, stop and find out why before going on.
 
 - [ ] **Step 6: Run the tests again**
 

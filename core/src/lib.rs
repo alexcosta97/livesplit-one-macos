@@ -3,4 +3,5 @@
 
 pub mod ffi;
 pub mod protocol;
+pub mod render;
 pub mod sink;
