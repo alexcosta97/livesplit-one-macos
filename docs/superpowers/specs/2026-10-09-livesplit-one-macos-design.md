@@ -272,8 +272,8 @@ Each addition gets Rust unit tests in `core/`.
   shows for its 4 seconds in turn. One already shown or waiting isn't repeated.
 - **Dock and menu bar.** The app has a Dock icon and a standard menu bar with
   the same commands as the right-click menu, as macOS expects.
-- **Keyboard shortcuts** for the Control commands work while the window has
-  focus. Global hotkeys are backlog.
+- **Keyboard shortcuts** for the Control commands work while the timer window
+  has focus. Global hotkeys are backlog. See section 7.2.
 
 ## 7. Right-click menu
 
@@ -297,13 +297,31 @@ Save Layout As…
 Connect to Server…     (Disconnect from <host> while connected or retrying)
 Always on Top
 ─────────────
+Settings…              ⌘,
 Open Log Folder
 About LiveSplit One for macOS
-Quit
+Quit                   ⌘Q
 ```
 
 - Items that can't be used are disabled, not hidden: Edit Splits while the
   timer is running, Undo Split with nothing to undo, and so on.
+- **Start/Split** reads *Start* while the timer isn't running and *Split*
+  otherwise. **Pause** reads *Resume* while the timer is paused. The Control
+  items show their first shortcut that a menu can show (section 7.2).
+- **Commands** from the menus and shortcuts run through the same event-reporting
+  command sink as server commands (section 5.1), on a background queue, since
+  a reset can wait for a decision (section 5.3). Pause and Resume send `pause`
+  and `resume`, never `togglePauseOrStart`, which would start a stopped timer.
+- **The menu bar** has the same commands, in the menus macOS apps use:
+  - *LiveSplit One*: About, Settings… (⌘,), Hide (⌘H), Hide Others (⌥⌘H),
+    Show All, Quit (⌘Q).
+  - *Control* and *Compare Against*, as in the right-click menu.
+  - *Window*: Close (⌘W, for the Settings window; the timer window has no
+    close button), Minimize (⌘M), Always on Top.
+  - *Help*: Open Log Folder.
+
+  The Files, Connect and Edit Splits items are added to both menus by their
+  issues.
 - **Compare Against** lists the run's comparisons, including custom ones, with
   a tick on the current one, and the timing method below a separator.
 - **Save Layout As…** saves LiveSplit One's `.ls1l` format, the only layout
@@ -321,15 +339,68 @@ Quit
 - **Unsaved splits:** opening other splits, Close Splits and Quit ask
   *Save / Don't Save / Cancel* when the run has unsaved changes. A finished or
   reset attempt counts as a change, as in LiveSplit.
-- **Reset with new best times:** a Reset after beating some best times asks
-  whether to update them, with *Yes / No / Don't Reset*, as LiveSplit One
-  does. A reset from the server follows the same rule: when its command says
-  whether to save the attempt, the app doesn't ask; when it doesn't, the app
-  asks, and the server gets its reply once the user answers (section 5.3).
+- **Reset with new best times:** what a Reset after beating some best times
+  does is a setting, `reset_saves_best_times` (section 11), changed in the
+  Settings window (section 7.3): *Ask*, *Update them* or *Keep the old ones*.
+  While it is *Ask* (the default), the Reset asks whether to update them, with
+  *Yes / No / Don't Reset*, as LiveSplit One does, and saves a *Yes* or *No*
+  as the setting, so it asks only once. *Don't Reset* cancels the reset and
+  isn't saved. A reset from the server follows the same rule: when its command
+  says whether to save the attempt, the app doesn't ask; when it doesn't, the
+  setting decides, and if it is *Ask* the server gets its reply once the user
+  answers (section 5.3). The question comes with #12; until then, *Ask*
+  updates the best times, livesplit-core's own default.
 - A file that fails to load shows an alert with livesplit-core's reason. The
   current splits and layout stay as they were.
 - A failed save shows an alert, and the run stays marked unsaved.
 - File dialogs go through a `FilePicker` protocol (section 14.2).
+
+### 7.2 Keyboard shortcuts
+
+- Each Control command has a list of shortcuts, any of which runs it while the
+  timer window has focus. The defaults are single keys, as in terminal apps:
+
+  | Command | Default |
+  |---|---|
+  | Start/Split | `Space` |
+  | Reset | `Backspace` (⌫) |
+  | Undo Split | `u` |
+  | Skip Split | `s` |
+  | Pause/Resume | `p` |
+  | Undo All Pauses | none |
+
+- A shortcut is a key with any of the modifiers `Shift`, `Control`, `Alt` (⌥)
+  and `Meta` (⌘): `"u"`, `"Space"`, `"Numpad1"`, `"Control+Shift+Space"`. As
+  in most Mac apps, a key is matched by the character it types with no
+  modifiers on the current keyboard layout, not by where it is: `u` is
+  whichever key types *u*, on QWERTY, AZERTY or Dvorak alike. Letters are
+  written lowercase and match either case. Keys that type nothing visible,
+  or that are also on the numeric keypad, have names: `Space`, `Backspace`,
+  `Delete`, `Enter`, `Tab`, `Escape`, `Up`, `Down`, `Left`, `Right`, `Home`,
+  `End`, `PageUp`, `PageDown`, `F1` to `F20`, and `Numpad0` to `Numpad9`,
+  `NumpadDecimal`, `NumpadAdd`, `NumpadSubtract`, `NumpadMultiply`,
+  `NumpadDivide`, `NumpadEnter`, `NumpadEqual`, `NumpadClear`. So `1` and
+  `Numpad1` are different shortcuts.
+- Caps Lock, and the function and numeric-pad flags AppKit adds by itself,
+  don't count as modifiers.
+- A shortcut runs its command only if the menu item would be enabled. One the
+  window doesn't use goes on to the menu bar, so ⌘Q and the rest still work.
+- macOS keeps some combinations for itself, such as ⌃Space for the input
+  source. The app never receives those, so they can't be recorded.
+
+### 7.3 Settings window
+
+Opened with Settings… (⌘,). One window, with two sections:
+
+- **General:** *When a reset has new best times:* Ask / Update them / Keep the
+  old ones (section 7.1).
+- **Shortcuts:** each Control command with its shortcuts, shown as they look
+  on the current keyboard. **+** records the next key press, Esc cancels
+  recording, and × removes a shortcut. A shortcut that another command uses
+  isn't added, and the row says which command has it. ⌘Q, ⌘H, ⌘M, ⌘, and ⌘W
+  can't be recorded. **Restore Defaults** puts back section 7.2's defaults.
+
+Every change is saved at once and shows in the menus.
 
 ## 8. Connect to Server
 
@@ -441,7 +512,9 @@ folder, the same one livesplit-asr-bridge uses (`dirs::config_dir()`):
 
 - the last splits and layout paths, and the recent files lists (10 each);
 - the window frame per layout path, the default layout's window frame, and Always on Top;
-- the last Connect to Server URL.
+- the last Connect to Server URL;
+- what a reset with new best times does (section 7.1);
+- the keyboard shortcuts that differ from the defaults (section 7.2).
 
 It is read at launch and written when one of these changes, atomically, so a
 crash mid-write leaves the old file whole. Launching never creates it. It is
@@ -459,6 +532,7 @@ last_server_url = "ws://192.168.1.20:16834"
 last_splits = "/Users/me/Splits/GTA San Andreas.lss"
 recent_layouts = ["/Users/me/Layouts/Main.ls1l"]
 recent_splits = ["/Users/me/Splits/GTA San Andreas.lss", "/Users/me/Splits/Any%.lss"]
+reset_saves_best_times = true
 
 [default_layout_window]
 height = 500.0
@@ -472,6 +546,10 @@ layout = "/Users/me/Layouts/Main.ls1l"
 width = 300.0
 x = 120.0
 y = 640.0
+
+[shortcuts]
+start_split = ["Space", "Numpad1"]
+undo_all_pauses = ["Control+Shift+p"]
 ```
 
 Every key is optional: a missing key takes its default (nothing opened, no
@@ -483,6 +561,15 @@ finite, a size that isn't positive, or a duplicate layout is dropped. The
 `default_layout_window` table (with keys `x`, `y`, `width`, `height`) holds
 the window's frame while the default layout is shown, which has no path. A
 broken file replaces any older `app.toml.bad`.
+
+`reset_saves_best_times` is absent while the app should ask (section 7.1).
+The `[shortcuts]` table has one list per Control command (`start_split`,
+`reset`, `undo_split`, `skip_split`, `pause`, `undo_all_pauses`), and holds
+only the commands whose shortcuts differ from the defaults, so a later
+version's new defaults reach anyone who never changed them. A command that
+isn't listed has its defaults, and `[]` means no shortcut. An entry that
+isn't a shortcut, that can't be recorded (section 7.3), or that an earlier
+command in that order already has, is dropped and logged.
 
 The splits and layouts themselves stay wherever the user keeps them; the app
 only stores their paths.
@@ -577,8 +664,10 @@ under 10 % E2E.
 
 - First launch with no settings: default layout, empty run.
 - Open splits and a layout; relaunch reopens them at the same window position.
-- Right-click → Control → Start/Split, Undo, Reset with the new-best-times
-  prompt.
+- Right-click → Control → Start/Split, Undo Split, Reset.
+- Shortcuts: `Space` splits; a shortcut changed in the Settings window runs
+  its command; ⌘Q quits.
+- Reset with new best times: the prompt, and its answer saved (#12).
 - Connect to Server with the fake server: its commands start and split the
   timer; a local split reaches it; it drops and the app reconnects.
 - Edit Splits: rename a segment and change a time, then OK; and Cancel.
@@ -711,12 +800,12 @@ In sidebar order:
 | Home | Landing | What the app is (unofficial, a version of LiveSplit One), a diagram of the two-PC setup, where to start, links to every page | #25 |
 | Installing | Task | Downloading, moving the app to Applications, opening an app that isn't notarised (Open Anyway), full releases and release candidates, updating by hand (no auto-update), uninstalling, including the settings and log folders | #25 |
 | Getting Started | Tutorial | First launch through the first split: open splits and a layout, start and split with the keyboard, reset, save, then connect to livesplit-asr-bridge | #12, the first issue after which the whole tutorial works; #14 adds connecting |
-| The Timer Window | Reference | Moving and resizing, Always on Top, the window remembered per layout, overlay notices and what each one means, the keyboard shortcuts | #11, #13 |
+| The Timer Window | Reference | Moving and resizing, Always on Top, the window remembered per layout, overlay notices and what each one means, the keyboard shortcuts and how to change them | #11, #13 |
 | The Menu | Reference | Every item in the right-click menu and the menu bar (section 7), when each is disabled, Compare Against and the timing method | #13 |
 | Splits and Layouts | Task | Opening splits in any format livesplit-core reads, opening `.lsl` and `.ls1l` layouts, recent files, saving, Save Layout As and why it writes `.ls1l`, unsaved changes, reset with new best times, what reopens at launch | #12 |
 | Editing Splits | Task | The splits editor (section 9): game details, segments, times, comparisons, Real Time and Game Time, Clear History and Clear Times, OK and Cancel | #15 |
 | Connecting to a Server | Task | Connecting to livesplit-asr-bridge, which address to use, local network access and where to allow it, the status notices, automatic reconnection, Disconnect, servers other than the bridge | #14 |
-| Settings and Logs | Reference | `app.toml` and what it holds, `app.toml.bad`, the log folder, the categories, retention and the size cap, Open Log Folder, Console.app | #25, from what #16 and #17 built; #13 adds Open Log Folder |
+| Settings and Logs | Reference | `app.toml` and what it holds, `app.toml.bad`, the log folder, the categories, retention and the size cap, Open Log Folder, Console.app | #25, from what #16 and #17 built; #13 adds Open Log Folder and the Settings window (section 7.3) |
 | Troubleshooting | Task | By symptom (what you see, why, what to do), ending with how to report a bug with the version and the day's log file | #25 starts it; each issue adds what it finds; #41 completes it |
 | Upcoming Changes | Staging | Section 16.3 | #25 |
 
@@ -766,6 +855,7 @@ Upcoming Changes is not used.
 | S5 | `splits-editor.png` | The splits editor with a custom comparison |
 | S6 | `unsaved-changes.png` | The Save / Don't Save / Cancel alert |
 | S7 | `reset-new-best.png` | The reset with new best times alert |
+| S8 | `settings-window.png` | The Settings window, with a command that has two shortcuts |
 | T1 | `macos-open-anyway.png` | System Settings, Privacy & Security, Open Anyway |
 | T2 | `macos-local-network-prompt.png` | macOS asking to allow local network access |
 | T3 | `macos-local-network-settings.png` | System Settings, Privacy & Security, Local Network, with the app allowed |
@@ -807,10 +897,12 @@ three):
   issue after it documents itself in its own page (section 16.2).
 - #11 Timer window: borderless window, rendering, size hint, resizing, Always
   on Top, overlay notices.
-- #13 Right-click menu and menu bar, with keyboard shortcuts while focused.
-  The Files, Connect and Edit Splits items are added by their issues.
+- #13 Right-click menu and menu bar, with keyboard shortcuts while focused
+  (customisable, section 7.2) and the Settings window (section 7.3). The
+  Files, Connect and Edit Splits items are added by their issues.
 - #12 Files: open and save splits, open layout, Save Layout As, recents,
-  unsaved-changes and reset prompts, reopen on launch.
+  unsaved-changes and reset prompts (the reset prompt saves its answer,
+  section 7.1), reopen on launch.
 - #14 Connect to Server: sheet, client, events to the server, status,
   automatic reconnection.
 - #15 Splits editor.
@@ -826,9 +918,11 @@ three):
 
 Later:
 
-- #19 Global hotkeys, with a hotkey settings window (livesplit-core's hotkey
-  system supports macOS, and needs Accessibility or Input Monitoring
-  permission).
+- #19 Global hotkeys, set in the Settings window (section 7.3).
+  livesplit-core's hotkey system supports macOS, and needs Accessibility or
+  Input Monitoring permission. It names keys by their position, so the
+  shortcuts' characters (section 7.2) are turned into key positions with the
+  current keyboard layout.
 - #20 Layout editor.
 - #21 Running auto splitters inside the app (livesplit-core's `auto-splitting`
   feature).
