@@ -1,5 +1,6 @@
 - [Home](Home)
 - [Installing](Installing)
+- [The Timer Window](The-Timer-Window)
 - [Settings and Logs](Settings-and-Logs)
 - [Troubleshooting](Troubleshooting)
 - [Upcoming Changes](Upcoming-Changes)
