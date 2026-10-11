@@ -68,6 +68,38 @@ import Testing
         #expect(changes == [true, false])
     }
 
+    /// The app's wiring: menus that follow the timer window show the Control shortcuts while
+    /// it is key, and none once another window is.
+    @Test func menusFollowingTheWindowShowShortcutsOnlyWhileItIsKey() throws {
+        let folder = try TemporaryFolder()
+        let controller = makeController(SettingsStore(directory: folder.url))
+        let runner = CommandRunner(
+            timer: controller.content.timer, resetSavesBestTimes: nil,
+            log: Log(directory: folder.url), changed: {})
+        let menus = TimerMenus(
+            runner: runner, readState: { TimerMenuState.read(from: controller.content.timer) },
+            shortcuts: { Shortcuts() })
+        menus.follow(controller)
+        let controls = try [menus.mainMenu, menus.contextMenu].map { root in
+            try #require(root.items.first { $0.title == "Control" }?.submenu)
+        }
+        #expect(!controller.window.isKeyWindow)
+        #expect(controls.allSatisfy { $0.items.allSatisfy(\.keyEquivalent.isEmpty) })
+
+        controller.windowDidBecomeKey(
+            Notification(name: NSWindow.didBecomeKeyNotification, object: controller.window))
+        for control in controls {
+            #expect(control.items.map(\.keyEquivalent) == [" ", "\u{8}", "u", "s", "p", ""])
+        }
+
+        controller.windowDidResignKey(
+            Notification(name: NSWindow.didResignKeyNotification, object: controller.window))
+        for control in controls {
+            #expect(control.items.allSatisfy { $0.keyEquivalent.isEmpty })
+            #expect(control.items.allSatisfy { $0.keyEquivalentModifierMask == [] })
+        }
+    }
+
     @Test func theWindowIsNotShownUntilAsked() throws {
         let folder = try TemporaryFolder()
         #expect(!makeController(SettingsStore(directory: folder.url)).window.isVisible)

@@ -55,10 +55,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             perform: { [weak menus] in menus?.perform($0, from: .keyboard) })
         shortcutKeys.install()
         self.shortcutKeys = shortcutKeys
-        // The Control items show their shortcuts only while the timer window is key (spec §7).
-        timerWindow.onKeyChange = { [weak menus] isKey in menus?.showsShortcuts = isKey }
         timerWindow.window.makeKeyAndOrderFront(nil)
-        menus.showsShortcuts = timerWindow.window.isKeyWindow
+        // After making it key, which can happen at once: `follow` reads whether it is key now.
+        menus.follow(timerWindow)
         if let notice = LaunchNotices.settings(settings.loadOutcome) {
             timerWindow.notices.show(notice)
         }

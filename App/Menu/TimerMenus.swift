@@ -46,6 +46,12 @@ final class TimerMenus: NSObject, NSMenuDelegate, NSMenuItemValidation {
         refreshShortcuts()
     }
 
+    /// Shows the shortcuts while `controller`'s window is key, from now on (spec §7).
+    func follow(_ controller: TimerWindowController) {
+        controller.onKeyChange = { [weak self] isKey in self?.showsShortcuts = isKey }
+        showsShortcuts = controller.window.isKeyWindow
+    }
+
     // MARK: Building
 
     private func item(

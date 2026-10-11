@@ -203,11 +203,19 @@ import Testing
         }
 
         menus.showsShortcuts = false
-        _ = shortcuts.add(Shortcut("Control+Shift+Space")!, to: .reset)
+        shortcuts.remove(Shortcut("Space")!, from: .startSplit)
+        _ = shortcuts.add(Shortcut("Control+Shift+Space")!, to: .startSplit)
         menus.refreshShortcuts()
         for items in try controlItems(menus) {
             #expect(items.allSatisfy { $0.keyEquivalent.isEmpty })
             #expect(items.allSatisfy { $0.keyEquivalentModifierMask == [] })
+        }
+
+        // A shortcut changed while they were hidden shows once they're shown again.
+        menus.showsShortcuts = true
+        for items in try controlItems(menus) {
+            #expect(items[0].keyEquivalent == " ")
+            #expect(items[0].keyEquivalentModifierMask == [.control, .shift])
         }
     }
 
