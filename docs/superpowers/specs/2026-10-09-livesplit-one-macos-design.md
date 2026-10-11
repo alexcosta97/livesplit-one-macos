@@ -195,9 +195,15 @@ committed, so pull requests never conflict on `project.pbxproj`.
   (Retina aware). The buffer becomes a `CGImage` set as the view layer's
   contents.
 - The renderer only draws again when the layout state changed or the size
-  changed, so an idle timer uses next to no CPU.
-- The renderer's size hint after a layout loads gives the window its natural
-  aspect ratio, as in LiveSplit One.
+  changed, so an idle timer uses next to no CPU. `core/` compares each frame's
+  layout state, encoded as JSON, with the last frame's (section 5.3).
+- A new layout starts at 300 × 500 points, LiveSplit One's default. When the
+  layout's height changes (another layout opens, segments are added), the
+  renderer gives a size hint, and the window takes that size, keeping its
+  top-left corner, as LiveSplit One does.
+- The layout's text, such as component names, is in macOS's first preferred
+  language when livesplit-core has it, as LiveSplit One follows the browser's
+  language.
 - A Metal-based renderer is backlog, if profiling shows the software renderer
   costs too much.
 
@@ -239,16 +245,22 @@ Each addition gets Rust unit tests in `core/`.
 - **Borderless.** Dragging anywhere in the window moves it. The edges resize
   it freely; the renderer fits the layout to the window, as LiveSplit One does
   when its window is resized.
-- **Size and position** are remembered per layout file in `app.toml`. A layout
-  opened for the first time takes the renderer's size hint.
+- **Size and position** are remembered per layout file in `app.toml`, and for
+  the default layout, which has no file, in a key of its own (section 11). A
+  layout opened for the first time keeps the window's size until the renderer's
+  size hint changes it (section 5.2). A saved frame with less than 40 × 40
+  points on any screen is ignored, and the window is centred on the main screen
+  instead, since it has no title bar to drag it back with.
 - **Always on Top** is a menu toggle, remembered between launches.
 - **On launch** the app reopens the last splits and layout and the window
   position. If a file is missing or no longer loads, it uses livesplit-core's
-  default layout or an empty run, and shows an overlay notice that names the
+  default layout or an empty run (LiveSplit One's new run: one segment named
+  Time), and shows an overlay notice that names the
   file.
 - **Overlay notices** are short messages drawn over the bottom of the timer
   for 4 seconds: connection status, a file that couldn't be reopened. They are
-  not part of the layout and are never saved.
+  not part of the layout and are never saved. When several come together, each
+  shows for its 4 seconds in turn. One already shown or waiting isn't repeated.
 - **Dock and menu bar.** The app has a Dock icon and a standard menu bar with
   the same commands as the right-click menu, as macOS expects.
 - **Keyboard shortcuts** for the Control commands work while the window has

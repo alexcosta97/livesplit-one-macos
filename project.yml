@@ -110,7 +110,10 @@ targets:
   LiveSplitOneHeadlessUITests:
     type: bundle.unit-test
     platform: macOS
-    sources: [Tests/HeadlessUI]
+    sources:
+      - Tests/HeadlessUI
+      # Shared with the unit tests.
+      - Tests/Unit/Support/TemporaryFolder.swift
     dependencies:
       - target: LiveSplitOne
     settings:
