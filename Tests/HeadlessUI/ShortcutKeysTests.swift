@@ -35,7 +35,7 @@ import Testing
         #expect(window.windowNumber != other.windowNumber)
     }
 
-    @Test func aShortcutRunsItsCommandAndGoesNoFurther() {
+    @Test(.onABCOrUSLayout) func aShortcutRunsItsCommandAndGoesNoFurther() {
         let keys = makeKeys()
         #expect(keys.consumes(press(kVK_Space, " ")))
         #expect(keys.consumes(press(kVK_ANSI_U, "U", flags: .capsLock)))
@@ -57,7 +57,7 @@ import Testing
         #expect(performed.isEmpty)
     }
 
-    @Test func keysThatArentShortcutsGoOn() {
+    @Test(.onABCOrUSLayout) func keysThatArentShortcutsGoOn() {
         let keys = makeKeys()
         #expect(!keys.consumes(press(kVK_ANSI_K, "k")))
         #expect(!keys.consumes(press(kVK_ANSI_Q, "q", flags: .command)))
@@ -65,7 +65,7 @@ import Testing
         #expect(performed.isEmpty)
     }
 
-    @Test func changedShortcutsApplyAtOnce() {
+    @Test(.onABCOrUSLayout) func changedShortcutsApplyAtOnce() {
         let keys = makeKeys()
         _ = shortcuts.add(Shortcut("k")!, to: .skipSplit)
         #expect(keys.consumes(press(kVK_ANSI_K, "k")))

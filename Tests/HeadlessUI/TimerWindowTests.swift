@@ -38,6 +38,21 @@ import Testing
         #expect(window.contentView?.accessibilityIdentifier() == "timer-layout")
     }
 
+    /// The Window menu's Minimize (⌘M) is enabled for the timer window, though it has no title
+    /// bar. A borderless window that isn't miniaturizable disables it.
+    @Test func minimizeIsEnabledForTheWindow() throws {
+        let folder = try TemporaryFolder()
+        let window = makeController(SettingsStore(directory: folder.url)).window
+        let minimize = NSMenuItem(
+            title: "Minimize", action: #selector(NSWindow.miniaturize(_:)), keyEquivalent: "m")
+        #expect(window.validateMenuItem(minimize))
+
+        let plain = NSWindow(
+            contentRect: CGRect(x: 0, y: 0, width: 100, height: 100),
+            styleMask: [.borderless, .resizable], backing: .buffered, defer: false)
+        #expect(!plain.validateMenuItem(minimize))
+    }
+
     @Test func theWindowIsNotShownUntilAsked() throws {
         let folder = try TemporaryFolder()
         #expect(!makeController(SettingsStore(directory: folder.url)).window.isVisible)

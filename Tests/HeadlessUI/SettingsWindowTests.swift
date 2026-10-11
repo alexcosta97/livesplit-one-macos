@@ -79,7 +79,7 @@ import Testing
         #expect(add != nil)
     }
 
-    @Test func recordingAddsTheKeyAndSavesIt() throws {
+    @Test(.onABCOrUSLayout) func recordingAddsTheKeyAndSavesIt() throws {
         let controller = makeController()
         try press("add-shortcut-start_split", in: controller)
         #expect(controller.recording == .startSplit)
@@ -97,7 +97,7 @@ import Testing
         #expect(changes == 1)
     }
 
-    @Test func aShortcutAnotherCommandHasIsRefusedAndSaid() throws {
+    @Test(.onABCOrUSLayout) func aShortcutAnotherCommandHasIsRefusedAndSaid() throws {
         let controller = makeController()
         try press("add-shortcut-reset", in: controller)
         try recorder(in: controller).keyDown(with: keyDown(kVK_ANSI_U, "u"))
@@ -109,11 +109,30 @@ import Testing
         #expect(changes == 0)
     }
 
-    @Test func theAppsOwnMenuShortcutsAreRefused() throws {
+    @Test(.onABCOrUSLayout) func theAppsOwnMenuShortcutsAreRefused() throws {
         let controller = makeController()
         try press("add-shortcut-undo_all_pauses", in: controller)
         try recorder(in: controller).keyDown(with: keyDown(kVK_ANSI_Q, "q", flags: .command))
         #expect(controller.messages[.undoAllPauses] == "⌘Q is kept for the app's menus.")
+        #expect(store.settings.shortcuts.isDefault)
+        #expect(changes == 0)
+    }
+
+    /// ⌘Q reaches a window as a key equivalent before the menus see it. The recorder takes it,
+    /// so the window refuses it rather than the app quitting.
+    @Test(.onABCOrUSLayout) func theRecorderTakesCommandQBeforeTheMenus() throws {
+        let controller = SettingsWindowController(store: store, onChange: {})
+        let window = try #require(controller.window)
+        let content = controller.content
+        try press("add-shortcut-undo_all_pauses", in: content)
+        #expect(window.firstResponder === (try recorder(in: content)))
+
+        let event = keyDown(
+            kVK_ANSI_Q, "q", flags: .command, windowNumber: window.windowNumber)
+        #expect(window.performKeyEquivalent(with: event))
+        #expect(content.recording == nil)
+        let message: NSTextField? = find("shortcut-message-undo_all_pauses", in: content.view)
+        #expect(message?.stringValue == "⌘Q is kept for the app's menus.")
         #expect(store.settings.shortcuts.isDefault)
     }
 
@@ -143,7 +162,7 @@ import Testing
         #expect(changes == 1)
     }
 
-    @Test func restoreDefaultsPutsBackEveryShortcut() throws {
+    @Test(.onABCOrUSLayout) func restoreDefaultsPutsBackEveryShortcut() throws {
         let controller = makeController()
         try press("shortcut-undo_split-0", in: controller)
         try press("add-shortcut-reset", in: controller)

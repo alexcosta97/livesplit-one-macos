@@ -58,6 +58,14 @@ import Testing
         #expect(Shortcut("é")?.displayName == "É")
     }
 
+    @Test func everyNamedKeyShowsAsItsOwnSymbol() {
+        let symbols = Shortcut.NamedKey.allCases.map(\.symbol)
+        #expect(symbols.allSatisfy { !$0.isEmpty })
+        #expect(Set(symbols).count == symbols.count)
+        #expect(Shortcut.NamedKey.f20.symbol == "F20")
+        #expect(Shortcut.NamedKey.numpad0.symbol == "Keypad 0")
+    }
+
     @Test func everyNamedKeyHasItsOwnKeyCode() {
         let codes = Shortcut.NamedKey.allCases.map(\.keyCode)
         #expect(Set(codes).count == codes.count)
