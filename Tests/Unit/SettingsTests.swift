@@ -29,6 +29,8 @@ import Testing
             forLayout: #"/Users/me/Layouts/Pokémon "Red" #2\🏁.ls1l"#)
         settings.alwaysOnTop = true
         settings.lastServerURL = "ws://192.168.1.20:16834"
+        settings.resetSavesBestTimes = false
+        _ = settings.shortcuts.add(Shortcut("Control+Shift+Space")!, to: .startSplit)
         return settings
     }
 
@@ -70,6 +72,9 @@ import Testing
             WindowFrame(x: 120, y: 640, width: 300, height: 520),
             forLayout: "/Users/me/Layouts/Main.ls1l")
         settings.setFrame(WindowFrame(x: 120, y: 300, width: 300, height: 500), forLayout: nil)
+        settings.resetSavesBestTimes = true
+        _ = settings.shortcuts.add(Shortcut("Numpad1")!, to: .startSplit)
+        _ = settings.shortcuts.add(Shortcut("Control+Shift+p")!, to: .undoAllPauses)
         let expected = """
             # LiveSplit One for macOS settings. The app rewrites this file when a setting changes.
 
@@ -79,12 +84,17 @@ import Testing
             last_splits = "/Users/me/Splits/GTA San Andreas.lss"
             recent_layouts = ["/Users/me/Layouts/Main.ls1l"]
             recent_splits = ["/Users/me/Splits/GTA San Andreas.lss", "/Users/me/Splits/Any%.lss"]
+            reset_saves_best_times = true
 
             [default_layout_window]
             height = 500.0
             width = 300.0
             x = 120.0
             y = 300.0
+
+            [shortcuts]
+            start_split = ["Space", "Numpad1"]
+            undo_all_pauses = ["Control+Shift+p"]
 
             [[windows]]
             height = 520.0
@@ -95,6 +105,77 @@ import Testing
 
             """
         #expect(SettingsStore.header + (try settings.tomlText()) == expected)
+    }
+
+    @Test func theResetSettingAndShortcutsDefaultToAskAndTheDefaultKeys() throws {
+        let settings = try decode("always_on_top = true\n")
+        #expect(settings.resetSavesBestTimes == nil)
+        #expect(settings.shortcuts == Shortcuts())
+    }
+
+    @Test func theResetSettingRoundTrips() throws {
+        for value in [true, false] {
+            var settings = Settings()
+            settings.resetSavesBestTimes = value
+            let text = try encode(settings)
+            #expect(text.contains("reset_saves_best_times = \(value)"))
+            #expect(try decode(text) == settings)
+        }
+        #expect(!(try encode(Settings())).contains("reset_saves_best_times"))
+    }
+
+    @Test func onlyChangedShortcutsAreWritten() throws {
+        var settings = Settings()
+        #expect(!(try encode(settings)).contains("[shortcuts]"))
+        _ = settings.shortcuts.add(Shortcut("Numpad1")!, to: .startSplit)
+        _ = settings.shortcuts.add(Shortcut("Control+Shift+p")!, to: .undoAllPauses)
+        let text = try encode(settings)
+        #expect(text.contains("[shortcuts]"))
+        #expect(text.contains("start_split"))
+        #expect(text.contains("\"Numpad1\""))
+        #expect(text.contains("\"Control+Shift+p\""))
+        #expect(!text.contains("undo_split"))
+        #expect(try decode(text) == settings)
+    }
+
+    @Test func anEmptyListMeansNoShortcut() throws {
+        let settings = try decode("[shortcuts]\nstart_split = []\n")
+        #expect(settings.shortcuts.shortcuts(for: .startSplit) == [])
+        #expect(settings.shortcuts.dropped.isEmpty)
+    }
+
+    @Test func badShortcutsAreDroppedAndTheRestKept() throws {
+        let settings = try decode(
+            """
+            [shortcuts]
+            start_split = ["Space", "Ctrl+u", "Meta+q", "k"]
+            reset = ["k", "Backspace"]
+            undo_split = ["U"]
+            nonsense = ["x"]
+            """)
+        let shortcuts = settings.shortcuts
+        #expect(shortcuts.shortcuts(for: .startSplit) == [Shortcut("Space")!, Shortcut("k")!])
+        #expect(shortcuts.shortcuts(for: .reset) == [Shortcut("Backspace")!])
+        #expect(shortcuts.shortcuts(for: .undoSplit) == [Shortcut("u")!])
+        #expect(
+            shortcuts.dropped == [
+                #""Ctrl+u" for start_split: it isn't a shortcut"#,
+                #""Meta+q" for start_split: the app keeps it for its menus"#,
+                #""k" for reset: start_split already has it"#,
+            ])
+    }
+
+    @Test func aDefaultThatAnEarlierCommandHasIsDropped() throws {
+        let settings = try decode("[shortcuts]\nstart_split = [\"u\"]\n")
+        #expect(settings.shortcuts.shortcuts(for: .startSplit) == [Shortcut("u")!])
+        #expect(settings.shortcuts.shortcuts(for: .undoSplit) == [])
+        #expect(settings.shortcuts.dropped == [#""u" for undo_split: start_split already has it"#])
+    }
+
+    @Test func aShortcutListWithANumberMakesTheFileUnreadable() {
+        #expect(throws: (any Error).self) { try decode("[shortcuts]\nreset = [1]\n") }
+        #expect(throws: (any Error).self) { try decode("[shortcuts]\nreset = \"Backspace\"\n") }
+        #expect(throws: (any Error).self) { try decode("reset_saves_best_times = \"yes\"\n") }
     }
 
     @Test func aHandEditedFileWithWholeNumbersReads() throws {

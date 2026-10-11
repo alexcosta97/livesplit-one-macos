@@ -540,16 +540,16 @@ width = 300.0
 x = 120.0
 y = 300.0
 
+[shortcuts]
+start_split = ["Space", "Numpad1"]
+undo_all_pauses = ["Control+Shift+p"]
+
 [[windows]]
 height = 520.0
 layout = "/Users/me/Layouts/Main.ls1l"
 width = 300.0
 x = 120.0
 y = 640.0
-
-[shortcuts]
-start_split = ["Space", "Numpad1"]
-undo_all_pauses = ["Control+Shift+p"]
 ```
 
 Every key is optional: a missing key takes its default (nothing opened, no

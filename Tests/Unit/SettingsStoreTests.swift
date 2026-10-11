@@ -33,6 +33,19 @@ import Testing
 
     var errors: [String] { unified.entries.filter { $0.category == .error }.map(\.message) }
 
+    @Test func droppedShortcutsAreLogged() throws {
+        let folder = try TemporaryFolder()
+        try writeConfig(folder, "app.toml", "[shortcuts]\nreset = [\"Ctrl+u\"]\n")
+        let store = makeStore(folder)
+        #expect(store.loadOutcome == .loaded)
+        #expect(
+            unified.entries.contains {
+                $0.category == .error
+                    && $0.message == "Ignored a shortcut in \(store.file.path): "
+                        + #""Ctrl+u" for reset: it isn't a shortcut"#
+            })
+    }
+
     @Test func withNoFileTheDefaultsAreUsedAndNothingIsWritten() throws {
         let folder = try TemporaryFolder()
         let store = makeStore(folder)
