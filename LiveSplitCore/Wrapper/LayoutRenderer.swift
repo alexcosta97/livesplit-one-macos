@@ -17,7 +17,8 @@ public struct RenderedFrame: Sendable {
 /// skips frames when nothing changed (spec §5.2, §5.3). Not thread-safe: use one thread.
 public final class LayoutRenderer {
     /// The largest width or height drawn, in pixels. Anything larger draws nothing, so a
-    /// hand-edited window frame can't ask for gigabytes.
+    /// hand-edited window frame can't ask for gigabytes. It matches `MAX_SIDE` in core's
+    /// `render.rs`, which checks it again before livesplit-core sees the size.
     public static let maximumSide = 16_384
 
     private let ptr: UnsafeMutableRawPointer

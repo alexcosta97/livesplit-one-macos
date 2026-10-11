@@ -64,7 +64,8 @@ void LsoRenderer_drop(void *self);
 /// unless neither the state nor the size changed since the last call. Pass the same buffer
 /// every time unless the size changes. `self`, `layout_state` and `image_cache` must be valid
 /// and non-null. `data` may be NULL, which draws nothing, or valid for `stride * height * 4`
-/// bytes.
+/// bytes. A zero size, a side or stride over 16384 (core's `MAX_SIDE`), or a stride narrower
+/// than the width draws nothing without reading `data`.
 LsoRendered LsoRenderer_render(void *self, void const *layout_state, void const *image_cache,
                                uint8_t *data, uint32_t width, uint32_t height, uint32_t stride);
 

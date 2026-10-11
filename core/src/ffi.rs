@@ -11,7 +11,7 @@ use livesplit_core::{SharedTimer, event::Result, layout::LayoutState, settings::
 
 use crate::{
     protocol,
-    render::{Rendered, Renderer},
+    render::{self, Rendered, Renderer},
     sink::{EventSink, Host, ResetDecision},
 };
 
@@ -159,11 +159,13 @@ pub extern "C" fn LsoRenderer_drop(this: Box<Renderer>) {
 
 /// Renders the layout state into `data` (RGBA8, premultiplied alpha,
 /// `stride` pixels a row), unless neither the state nor the size changed
-/// since the last call. A null `data`, or a zero size, draws nothing.
+/// since the last call. A null `data`, a zero size, a side or stride larger
+/// than `MAX_SIDE` (16384), or a stride narrower than the width draws
+/// nothing, and `data` isn't read.
 ///
 /// # Safety
 /// `this`, `layout_state` and `image_cache` are valid, and `data` is null or
-/// valid for `stride * height * 4` bytes.
+/// valid for `stride * height * 4` bytes whenever that size can be drawn.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn LsoRenderer_render(
     this: &mut Renderer,
@@ -174,16 +176,14 @@ pub unsafe extern "C" fn LsoRenderer_render(
     height: u32,
     stride: u32,
 ) -> LsoRendered {
-    let rendered = if data.is_null() {
-        Rendered {
-            drew: false,
-            size_hint: None,
+    let rendered = match render::image_len(width, height, stride) {
+        Some(len) if !data.is_null() => {
+            // SAFETY: the caller passes `len` valid bytes for a size that can
+            // be drawn, and `len` is at most `isize::MAX`.
+            let image = unsafe { std::slice::from_raw_parts_mut(data, len) };
+            this.render(layout_state, image_cache, image, [width, height], stride)
         }
-    } else {
-        let len = stride as usize * height as usize * 4;
-        // SAFETY: the caller passes `len` valid bytes.
-        let image = unsafe { std::slice::from_raw_parts_mut(data, len) };
-        this.render(layout_state, image_cache, image, [width, height], stride)
+        _ => Rendered::NOTHING,
     };
     let [size_hint_width, size_hint_height] = rendered.size_hint.unwrap_or_default();
     LsoRendered {
@@ -342,6 +342,49 @@ mod tests {
         assert!(first.drew && !first.has_size_hint);
         assert!(!second.drew);
         assert!(!null.drew);
+        LsoRenderer_drop(renderer);
+    }
+
+    #[test]
+    fn a_size_too_large_draws_nothing_through_the_c_function() {
+        use crate::render::MAX_SIDE;
+        use livesplit_core::{Lang, Layout, settings::ImageCache};
+
+        let mut layout = Layout::default_layout(Lang::English);
+        let mut cache = ImageCache::new();
+        let state = layout.state(
+            &mut cache,
+            &timer(&["Time"]).read().unwrap().snapshot(),
+            Lang::English,
+        );
+        let mut renderer = LsoRenderer_new();
+        // A tiny buffer: the size is rejected before the buffer is used.
+        let mut pixels = [0u8; 4];
+
+        for (width, height, stride) in [
+            (u32::MAX, u32::MAX, u32::MAX),
+            (1, u32::MAX, u32::MAX),
+            (MAX_SIDE + 1, 1, MAX_SIDE + 1),
+            (1, MAX_SIDE + 1, 1),
+            (1, 1, MAX_SIDE + 1),
+            (2, 1, 1),
+        ] {
+            // SAFETY: valid objects; a size that can't be drawn doesn't read
+            // the buffer.
+            let rendered = unsafe {
+                LsoRenderer_render(
+                    &mut renderer,
+                    &state,
+                    &cache,
+                    pixels.as_mut_ptr(),
+                    width,
+                    height,
+                    stride,
+                )
+            };
+            assert!(!rendered.drew, "{width} x {height}, stride {stride}");
+            assert!(!rendered.has_size_hint);
+        }
         LsoRenderer_drop(renderer);
     }
 }

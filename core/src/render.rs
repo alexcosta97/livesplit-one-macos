@@ -19,10 +19,32 @@ pub struct Rendered {
 }
 
 impl Rendered {
-    const NOTHING: Self = Self {
+    pub(crate) const NOTHING: Self = Self {
         drew: false,
         size_hint: None,
     };
+}
+
+/// The largest width, height or stride drawn, in pixels. Anything larger draws
+/// nothing, so a hand-edited window frame can't ask for gigabytes. Swift's
+/// `LayoutRenderer.maximumSide` matches it.
+pub const MAX_SIDE: u32 = 16_384;
+
+/// The length in bytes of an image of `width` × `height` pixels, `stride`
+/// pixels a row, or `None` if nothing can be drawn into it: a zero size, a
+/// side or stride larger than [`MAX_SIDE`], a stride narrower than the width,
+/// or a length that overflows or is larger than a slice can be.
+pub(crate) fn image_len(width: u32, height: u32, stride: u32) -> Option<usize> {
+    if width == 0 || height == 0 || stride < width {
+        return None;
+    }
+    if width > MAX_SIDE || height > MAX_SIDE || stride > MAX_SIDE {
+        return None;
+    }
+    let len = (stride as usize)
+        .checked_mul(height as usize)?
+        .checked_mul(4)?;
+    (len <= isize::MAX as usize).then_some(len)
 }
 
 /// livesplit-core's software renderer, drawing only when the layout state or
@@ -57,8 +79,9 @@ impl Renderer {
     /// Renders `state` into `image` (RGBA8, premultiplied alpha, `stride`
     /// pixels a row), unless neither the state nor the size changed since the
     /// last call. Pass the same image every time, unless the size changes:
-    /// livesplit-core only redraws the parts that changed. A zero size, a
-    /// stride narrower than the width, or an image too short draws nothing.
+    /// livesplit-core only redraws the parts that changed. A zero size, a side
+    /// or stride larger than [`MAX_SIDE`], a stride narrower than the width, or
+    /// an image too short draws nothing.
     pub fn render(
         &mut self,
         state: &LayoutState,
@@ -67,10 +90,10 @@ impl Renderer {
         [width, height]: [u32; 2],
         stride: u32,
     ) -> Rendered {
-        let needed = stride as usize * height as usize * 4;
-        if width == 0 || height == 0 || stride < width || image.len() < needed {
+        let Some(needed) = image_len(width, height, stride).filter(|&len| image.len() >= len)
+        else {
             return Rendered::NOTHING;
-        }
+        };
         let size = [width, height, stride];
 
         self.next_state.clear();
@@ -81,6 +104,15 @@ impl Renderer {
             return Rendered::NOTHING;
         }
 
+        // livesplit-core redraws its background only when the scene changes,
+        // and a new stride alone doesn't change the scene: it would copy a blank
+        // background. A new renderer draws everything.
+        if let Some([last_width, last_height, last_stride]) = self.last_size
+            && [last_width, last_height] == [width, height]
+            && last_stride != stride
+        {
+            self.inner = BorrowedRenderer::new();
+        }
         // A new size comes with a new image, so every pixel is drawn.
         let size_hint = self.inner.render(
             state,
@@ -213,6 +245,7 @@ mod tests {
         renderer.render(&before, &cache, &mut pixels, [WIDTH, HEIGHT], WIDTH);
 
         let _ = timer.write().unwrap().start();
+        // Starting also changes the timer's colour, so the frame differs however little time passes.
         thread::sleep(Duration::from_millis(20));
         let after = state(&mut layout, &mut cache, &timer);
 
@@ -242,6 +275,91 @@ mod tests {
         let [width, height] = rendered.size_hint.expect("a taller layout gives a hint");
         assert_eq!(width, WIDTH as f32);
         assert!(height > HEIGHT as f32, "{height}");
+    }
+
+    #[test]
+    fn a_size_whose_length_overflows_draws_nothing() {
+        let (mut layout, mut cache, timer) = (
+            Layout::default_layout(Lang::English),
+            ImageCache::new(),
+            timer(&["Time"]),
+        );
+        let mut renderer = Renderer::new();
+        let state = state(&mut layout, &mut cache, &timer);
+        let mut pixels = image(1, 1);
+
+        let rendered = renderer.render(&state, &cache, &mut pixels, [u32::MAX, u32::MAX], u32::MAX);
+
+        assert_eq!(rendered, Rendered::NOTHING);
+    }
+
+    #[test]
+    fn a_side_or_stride_over_the_maximum_draws_nothing() {
+        let (mut layout, mut cache, timer) = (
+            Layout::default_layout(Lang::English),
+            ImageCache::new(),
+            timer(&["Time"]),
+        );
+        let mut renderer = Renderer::new();
+        let state = state(&mut layout, &mut cache, &timer);
+        // Long enough for each size below, so only the maximum stops it.
+        let mut pixels = image(MAX_SIDE + 1, 1);
+
+        for ([width, height], stride) in [
+            ([MAX_SIDE + 1, 1], MAX_SIDE + 1),
+            ([1, MAX_SIDE + 1], 1),
+            ([1, 1], MAX_SIDE + 1),
+        ] {
+            assert_eq!(
+                renderer.render(&state, &cache, &mut pixels, [width, height], stride),
+                Rendered::NOTHING,
+                "{width} x {height}, stride {stride}"
+            );
+        }
+        assert_eq!(image_len(MAX_SIDE, MAX_SIDE, MAX_SIDE), Some(1 << 30));
+    }
+
+    #[test]
+    fn draws_with_a_stride_wider_than_the_image() {
+        let (mut layout, mut cache, timer) = (
+            Layout::default_layout(Lang::English),
+            ImageCache::new(),
+            timer(&["Time"]),
+        );
+        let mut renderer = Renderer::new();
+        let state = state(&mut layout, &mut cache, &timer);
+        let stride = WIDTH + 20;
+        let mut pixels = image(stride, HEIGHT);
+
+        let rendered = renderer.render(&state, &cache, &mut pixels, [WIDTH, HEIGHT], stride);
+
+        assert!(rendered.drew);
+        assert!(pixels.iter().any(|&byte| byte != 0));
+    }
+
+    #[test]
+    fn draws_again_when_only_the_stride_changes() {
+        let (mut layout, mut cache, timer) = (
+            Layout::default_layout(Lang::English),
+            ImageCache::new(),
+            timer(&["Time"]),
+        );
+        let mut renderer = Renderer::new();
+        let state = state(&mut layout, &mut cache, &timer);
+        renderer.render(
+            &state,
+            &cache,
+            &mut image(WIDTH, HEIGHT),
+            [WIDTH, HEIGHT],
+            WIDTH,
+        );
+
+        let stride = WIDTH + 20;
+        let mut wider = image(stride, HEIGHT);
+        let rendered = renderer.render(&state, &cache, &mut wider, [WIDTH, HEIGHT], stride);
+
+        assert!(rendered.drew);
+        assert!(wider.iter().any(|&byte| byte != 0));
     }
 
     #[test]
