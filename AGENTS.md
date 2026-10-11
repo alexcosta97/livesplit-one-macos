@@ -73,9 +73,9 @@ session reads it. Nothing is recorded only there.
 Every change users can see is documented in the same branch as the change.
 The user documentation is the wiki, written in `docs/wiki/` (spec §16):
 update the pages it affects, or Upcoming Changes once there is a full release
-(spec §16.3). Until #25 adds `docs/wiki/`, it is `README.md`. If a screen in a screenshot changes,
-say in the pull request which screenshots need retaking. A pull request with a
-change users can see and no documentation is not ready for review.
+(spec §16.3). If a screen in a screenshot changes, say in the pull request
+which screenshots need retaking. A pull request with a change users can see
+and no documentation is not ready for review.
 
 Git worktrees go outside the repository folder, beside it, for example
 `../livesplit-one-macos-wt/<name>`. Don't use agent tools that create

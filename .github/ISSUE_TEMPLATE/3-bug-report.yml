@@ -71,7 +71,7 @@ body:
     attributes:
       label: Logs
       description: |
-        Attach or paste the relevant part of the day's log. The log files are in `~/Library/Logs/livesplit-one-macos/`, one per day, named `livesplit-one-macos-YYYY-MM-DD.log`. Right-click the timer and choose **Open Log Folder** to open it in Finder. Console.app also lists the files under **Log Reports**.
+        Attach or paste the relevant part of the day's log. The log files are in `~/Library/Logs/livesplit-one-macos/`, one per day, named `livesplit-one-macos-YYYY-MM-DD.log`. Right-click the timer and choose **Open Log Folder** to open it in Finder. Console.app also lists the files under **Log Reports**. [Settings and Logs](https://github.com/alexcosta97/livesplit-one-macos/wiki/Settings-and-Logs) has more.
       render: text
     validations:
       required: false
