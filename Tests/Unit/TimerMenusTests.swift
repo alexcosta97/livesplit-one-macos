@@ -12,12 +12,13 @@ import Testing
         timingMethod: .realTime)
     var shortcuts = Shortcuts()
     let runner: CommandRunner
+    let timer: SharedTimer
 
     init() {
         let run = Run()
         run.pushSegment(Segment("Time"))
-        runner = CommandRunner(
-            timer: LiveSplitCore.Timer(run)!.intoShared(), resetSavesBestTimes: nil, changed: {})
+        timer = LiveSplitCore.Timer(run)!.intoShared()
+        runner = CommandRunner(timer: timer, resetSavesBestTimes: nil, changed: {})
     }
 
     private func makeMenus() -> TimerMenus {
@@ -48,7 +49,13 @@ import Testing
                 "Hide LiveSplit One for macOS", "Hide Others", "Show All", "—",
                 "Quit LiveSplit One for macOS",
             ])
+        #expect(app.items[0].action == #selector(AppDelegate.showAbout(_:)))
+        #expect(app.items[2].action == #selector(AppDelegate.showSettings(_:)))
         #expect(app.items[2].keyEquivalent == ",")
+        #expect(app.items[4].action == #selector(NSApplication.hide(_:)))
+        #expect(app.items[5].action == #selector(NSApplication.hideOtherApplications(_:)))
+        #expect(app.items[5].keyEquivalent == "h")
+        #expect(app.items[6].action == #selector(NSApplication.unhideAllApplications(_:)))
         #expect(app.items[4].keyEquivalent == "h")
         #expect(app.items[5].keyEquivalentModifierMask == [.option, .command])
         #expect(app.items[8].keyEquivalent == "q")
@@ -57,11 +64,16 @@ import Testing
         let window = try submenu("Window", in: menus.mainMenu)
         #expect(window === menus.windowMenu)
         #expect(titles(window) == ["Close", "Minimize", "—", "Always on Top"])
+        #expect(window.items[0].action == #selector(NSWindow.performClose(_:)))
         #expect(window.items[0].keyEquivalent == "w")
+        #expect(window.items[3].action == #selector(AppDelegate.toggleAlwaysOnTop(_:)))
         #expect(window.items[1].keyEquivalent == "m")
         #expect(window.items[1].action == #selector(NSWindow.miniaturize(_:)))
 
-        #expect(titles(try submenu("Help", in: menus.mainMenu)) == ["Open Log Folder"])
+        let help = try submenu("Help", in: menus.mainMenu)
+        #expect(help === menus.helpMenu)
+        #expect(titles(help) == ["Open Log Folder"])
+        #expect(help.items[0].action == #selector(AppDelegate.openLogFolder(_:)))
     }
 
     @Test func theRightClickMenu() throws {
@@ -75,7 +87,12 @@ import Testing
         #expect(menu.items[1].identifier?.rawValue == "timer-compare-against")
         #expect(menu.items[3].identifier?.rawValue == "timer-always-on-top")
         #expect(menu.items[3].action == #selector(AppDelegate.toggleAlwaysOnTop(_:)))
+        #expect(menu.items[5].action == #selector(AppDelegate.showSettings(_:)))
+        #expect(menu.items[5].keyEquivalent == ",")
         #expect(menu.items[6].action == #selector(AppDelegate.openLogFolder(_:)))
+        #expect(menu.items[7].action == #selector(AppDelegate.showAbout(_:)))
+        #expect(menu.items[8].action == #selector(NSApplication.terminate(_:)))
+        #expect(menu.items[8].keyEquivalent == "q")
         let control = try submenu("Control", in: menu)
         #expect(
             control.items.map { $0.identifier?.rawValue } == [
@@ -156,13 +173,37 @@ import Testing
         #expect(context.items[0].keyEquivalentModifierMask == [.control, .shift])
     }
 
-    @Test func menusNeverRunAShortcutThemselves() throws {
+    @Test func menusNeverRunAShortcutThemselves() async throws {
         let menus = makeMenus()
         let control = try submenu("Control", in: menus.mainMenu)
         let event = keyDown(49, " ")  // kVK_Space
         var target: AnyObject?
         var action: Selector?
         #expect(!menus.menuHasKeyEquivalent(control, for: event, target: &target, action: &action))
+    }
+
+    /// AppKit only asks `menuHasKeyEquivalent` of a menu's delegate, so every menu must have it.
+    @Test func everyMenuThatCanRunACommandHasTheDelegate() throws {
+        let menus = makeMenus()
+        for root in [menus.mainMenu, menus.contextMenu] {
+            for title in ["Control", "Compare Against"] {
+                #expect(try submenu(title, in: root).delegate === menus)
+            }
+        }
+    }
+
+    /// Plain `u` and Space are Control shortcuts. Sent to the menu bar, as while the user types in
+    /// the Settings window, they must reach no command. The runner's queue is serial, so a
+    /// command run afterwards is done only once every earlier one is.
+    @Test func aKeyPressedInTheMenuBarRunsNoCommand() async throws {
+        let menus = makeMenus()
+        #expect(!menus.mainMenu.performKeyEquivalent(with: keyDown(32, "u")))  // kVK_ANSI_U
+        #expect(!menus.mainMenu.performKeyEquivalent(with: keyDown(49, " ")))  // kVK_Space
+        #expect(!menus.contextMenu.performKeyEquivalent(with: keyDown(49, " ")))
+        await withCheckedContinuation { continuation in
+            runner.run(.undoAllPauses, from: .keyboard) { _ in continuation.resume() }
+        }
+        #expect(TimerMenuState.read(from: timer).phase == .notRunning)
     }
 
     @Test func aDisabledCommandIsntRun() {

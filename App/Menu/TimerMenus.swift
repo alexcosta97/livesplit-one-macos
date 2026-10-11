@@ -1,5 +1,12 @@
 import AppKit
 
+/// A menu that shows key equivalents but never matches a key press against them. A delegate's
+/// `menuHasKeyEquivalent` returning `false` doesn't stop AppKit from matching the items itself,
+/// so the menu refuses the search.
+final class ShortcutDisplayMenu: NSMenu {
+    override func performKeyEquivalent(with event: NSEvent) -> Bool { false }
+}
+
 /// The menu bar and the timer's right-click menu (spec §7), built from the same items. Control
 /// and Compare Against run their commands through `CommandRunner`. The other items have no
 /// target, so they go up the responder chain to the window, the app and the app delegate.
@@ -54,7 +61,7 @@ final class TimerMenus: NSObject, NSMenuDelegate, NSMenuItemValidation {
     /// A Control menu: one item per command, its tag the command's index. Titles and enabling
     /// come from `validateMenuItem(_:)`, key equivalents from `refreshShortcuts()`.
     private func controlMenu(identifierPrefix: String?) -> NSMenu {
-        let menu = NSMenu(title: "Control")
+        let menu = ShortcutDisplayMenu(title: "Control")
         menu.delegate = self
         for (index, command) in ControlCommand.allCases.enumerated() {
             let item = NSMenuItem(

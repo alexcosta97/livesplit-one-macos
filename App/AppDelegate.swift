@@ -33,6 +33,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 + "\(system.majorVersion).\(system.minorVersion).\(system.patchVersion)")
         let settings = SettingsStore(directory: ConfigFolder.current)
         self.settings = settings
+        // Tabbing items would join the Window menu once the Settings window opens (spec §7).
+        NSWindow.allowsAutomaticWindowTabbing = false
         let content = TimerContent()
         let timerWindow = TimerWindowController.make(content: content, settings: settings)
         let runner = CommandRunner(
