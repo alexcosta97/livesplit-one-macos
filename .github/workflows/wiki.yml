@@ -1,0 +1,34 @@
+name: Wiki
+
+# Publishes docs/wiki/ to the repository's wiki (spec §16.1). The pages are
+# checked on pull requests by the lint job in ci.yml.
+on:
+  push:
+    branches: [main]
+    paths:
+      - docs/wiki/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: publish wiki
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    # One sync at a time, in order: a newer push waits rather than racing.
+    concurrency:
+      group: wiki
+    # Only first-party actions while this job holds a write token.
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          scripts/wiki/publish.sh docs/wiki \
+            "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.wiki.git" \
+            "$GITHUB_SHA"

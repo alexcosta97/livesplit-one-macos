@@ -45,6 +45,9 @@ jobs:
           mkdir notes
           scripts/release/notes.sh rc "$PREVIOUS_RC_TAG" > notes/rc.md
           scripts/release/notes.sh full > notes/full.md
+          # The Upcoming Changes entries, for the release job's last step,
+          # which has no checkout.
+          scripts/wiki/upcoming.sh > notes/upcoming.txt
       - if: steps.next.outputs.release == 'true'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -133,6 +136,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      # The Upcoming Changes issue (spec §16.3).
+      issues: write
     # As in the candidate job: no checkout and no third-party action.
     steps:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
@@ -171,4 +176,23 @@ jobs:
             # A re-run after a failure after the release was published.
             gh release upload "$TAG" dist/* --clobber
             gh release edit "$TAG" --prerelease=false --latest --notes-file notes/full.md
+          fi
+      # After the release is published, so it can't fail the release. The
+      # entries come from the version job (notes/upcoming.txt).
+      - name: Ask to move upcoming documentation into the wiki
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: v${{ needs.version.outputs.version }}
+        run: |
+          entries=$(cat notes/upcoming.txt)
+          if [[ -n "$entries" ]]; then
+            {
+              echo "$TAG is released, so move its documentation from Upcoming Changes into the wiki pages (spec §16.3), then empty Upcoming Changes."
+              echo
+              echo "Entries:"
+              while IFS= read -r entry; do echo "- $entry"; done <<< "$entries"
+            } > body.md
+            gh issue create --title "Move upcoming documentation into the wiki for $TAG" \
+              --label task --body-file body.md
           fi
