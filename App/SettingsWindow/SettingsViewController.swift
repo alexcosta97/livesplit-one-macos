@@ -150,6 +150,8 @@ final class SettingsViewController: NSViewController {
         let command = ControlCommand.allCases[sender.tag / 100]
         let shortcut = store.settings.shortcuts.shortcuts(for: command)[sender.tag % 100]
         store.update { $0.shortcuts.remove(shortcut, from: command) }
+        // Recording deliberately goes on: removing one key while adding another is fine, and
+        // the recorder takes focus back in `reload()`.
         messages = [:]
         onChange()
         reload()
@@ -176,6 +178,13 @@ final class SettingsViewController: NSViewController {
         case .usedBy(let other):
             messages[command] = "\(shortcut.displayName) is already used by \(other.name)."
         }
+        reload()
+    }
+
+    /// Ends any recording and clears the refusals, as when the user leaves the window.
+    func stopRecording() {
+        recording = nil
+        messages = [:]
         reload()
     }
 

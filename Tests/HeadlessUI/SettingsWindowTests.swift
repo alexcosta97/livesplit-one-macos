@@ -155,6 +155,54 @@ import Testing
         #expect(changes == 3)
     }
 
+    /// How the Settings window stops being the one the user is in.
+    enum Leaving: String, CaseIterable, Sendable {
+        case resigningKey, closing
+
+        @MainActor func leave(_ window: NSWindow) {
+            switch self {
+            case .resigningKey:
+                NotificationCenter.default.post(
+                    name: NSWindow.didResignKeyNotification, object: window)
+            case .closing:
+                window.close()
+            }
+        }
+    }
+
+    /// Otherwise the recorder would still be there when the window is next opened, and take
+    /// ⌘W or ⌘Q as a shortcut to refuse rather than run it.
+    @Test(arguments: Leaving.allCases)
+    func leavingTheWindowStopsRecording(_ leaving: Leaving) throws {
+        let controller = SettingsWindowController(store: store, onChange: {})
+        let window = try #require(controller.window)
+        let content = controller.content
+        try press("add-shortcut-pause", in: content)
+        #expect(content.recording == .pause)
+
+        leaving.leave(window)
+        #expect(content.recording == nil)
+        let recorder: KeyRecorderView? = find("shortcut-recorder", in: content.view)
+        #expect(recorder == nil)
+        let add: NSButton? = find("add-shortcut-pause", in: content.view)
+        #expect(add != nil)
+    }
+
+    @Test(arguments: Leaving.allCases)
+    func leavingTheWindowClearsItsMessages(_ leaving: Leaving) throws {
+        let controller = SettingsWindowController(store: store, onChange: {})
+        let window = try #require(controller.window)
+        let content = controller.content
+        try press("add-shortcut-start_split", in: content)
+        try recorder(in: content).keyDown(with: keyDown(kVK_Delete, "\u{7F}"))
+        #expect(content.messages[.startSplit] == "⌫ is already used by Reset.")
+
+        leaving.leave(window)
+        #expect(content.messages.isEmpty)
+        let message: NSTextField? = find("shortcut-message-start_split", in: content.view)
+        #expect(message == nil)
+    }
+
     @Test func theWindowIsNamedAndClosable() {
         let controller = SettingsWindowController(store: store, onChange: {})
         let window = controller.window
