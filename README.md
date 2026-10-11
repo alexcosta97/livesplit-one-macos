@@ -23,6 +23,8 @@ and a Mac showing the timer.
 > and planned work is tracked in the
 > [issues](https://github.com/alexcosta97/livesplit-one-macos/issues).
 
+The user documentation is in [the wiki](https://github.com/alexcosta97/livesplit-one-macos/wiki).
+
 ## What it will do
 
 - Show a borderless timer window that draws a LiveSplit layout exactly as
@@ -45,22 +47,11 @@ and a Mac showing the timer.
 
 ## Download
 
-Once the first version is released, get it from
+Get it from
 [the latest release](https://github.com/alexcosta97/livesplit-one-macos/releases/latest).
-It is a `.zip` containing the app; unzip it and move the app to your
-Applications folder.
-
-### Opening the app the first time
-
-The app is not signed by Apple yet, so macOS blocks it the first time you
-open it. To open it:
-
-1. Open the app. macOS says it can't be opened; close that message.
-2. Open **System Settings → Privacy & Security**.
-3. Scroll down to the message about the app and click **Open Anyway**, then
-   confirm.
-
-After that, the app opens normally.
+The app isn't notarised yet, so macOS blocks it the first time;
+[Installing](https://github.com/alexcosta97/livesplit-one-macos/wiki/Installing)
+shows how to open it.
 
 ## Using it with livesplit-asr-bridge
 
@@ -80,37 +71,11 @@ stop.
 
 ## Settings and logs
 
-Settings are stored in one file:
-
-```
-~/Library/Application Support/livesplit-one-macos/app.toml
-```
-
-It holds the last splits and layout opened, the recent files, the window
-position for each layout, Always on Top and the last server address. Your
-splits and layouts stay wherever you keep them; the app only stores their
-paths.
-
-The file is created the first time a setting changes. If it can't be read,
-for example after editing it by hand, the app starts with the default
-settings and keeps the old file next to it as `app.toml.bad`, replacing any
-older one. If even that isn't possible, for example because the folder is
-read-only, the app leaves the file untouched and doesn't save setting
-changes until it is restarted.
-
-Logs are written to:
-
-```
-~/Library/Logs/livesplit-one-macos/
-```
-
-- There is one file per day, named `livesplit-one-macos-YYYY-MM-DD.log`.
-- Files older than 7 days are deleted.
-- Each day's file is limited to 50 MB. Past that, only errors are written.
-- Right-click the timer and choose **Open Log Folder** to open the folder in
-  Finder. Console.app also lists the files, under **Log Reports**.
-
-These follow the same rules as livesplit-asr-bridge.
+Settings are in `~/Library/Application Support/livesplit-one-macos/` and
+logs in `~/Library/Logs/livesplit-one-macos/`, the same rules as
+livesplit-asr-bridge.
+[Settings and Logs](https://github.com/alexcosta97/livesplit-one-macos/wiki/Settings-and-Logs)
+has the details.
 
 ## Building from source
 
