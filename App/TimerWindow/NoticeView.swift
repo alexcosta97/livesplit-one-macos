@@ -46,6 +46,24 @@ final class NoticeView: NSView {
             bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -Self.margin),
             widthAnchor.constraint(lessThanOrEqualTo: view.widthAnchor, constant: -2 * Self.margin),
         ])
+        // A resized window doesn't lay the notice out again unless its own frame changes, so the
+        // wrap width follows the window's view directly.
+        view.postsFrameChangedNotifications = true
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(superviewDidResize(_:)),
+            name: NSView.frameDidChangeNotification, object: view)
+        updateWrapWidth()
+    }
+
+    @objc private func superviewDidResize(_ notification: Notification) {
+        updateWrapWidth()
+    }
+
+    /// A wrapping label needs a width to wrap at: the widest the notice can be, less its padding.
+    private func updateWrapWidth() {
+        let available = (superview?.bounds.width ?? 0) - 2 * (Self.margin + Self.padding.width)
+        let width = max(available, 0)
+        if label.preferredMaxLayoutWidth != width { label.preferredMaxLayoutWidth = width }
     }
 
     /// Shows `text`, or hides the notice when it is `nil`. VoiceOver reads each new notice.
@@ -59,13 +77,6 @@ final class NoticeView: NSView {
                 .announcement: text,
                 .priority: NSAccessibilityPriorityLevel.high.rawValue,
             ])
-    }
-
-    override func layout() {
-        // A wrapping label needs a width to wrap at.
-        let available = (superview?.bounds.width ?? 0) - 2 * (Self.margin + Self.padding.width)
-        label.preferredMaxLayoutWidth = max(available, 0)
-        super.layout()
     }
 
     /// Clicks go through to the timer, so a drag that starts here still moves the window.
