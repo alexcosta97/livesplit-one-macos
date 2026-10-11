@@ -151,7 +151,7 @@ jobs:
     concurrency:
       group: wiki
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
@@ -172,16 +172,19 @@ In `.github/workflows/release.yml`, in the `release` job, change `permissions` t
       issues: write
 ```
 
-and add this as the job's last step, after "Publish the release":
+The `release` job has no checkout, by design (only first-party actions and no repository code while it holds a write token), so it can't run `upcoming.sh` itself. At the end of the `version` job's "Write the release notes" step, add `scripts/wiki/upcoming.sh > notes/upcoming.txt`; the file travels in the `notes` artifact the `release` job already downloads.
+
+Then add this as the `release` job's last step, after "Publish the release":
 
 ```yaml
       # After the release is published, so it can't fail the release.
       - name: Ask to move upcoming documentation into the wiki
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
           TAG: v${{ needs.version.outputs.version }}
         run: |
-          entries=$(scripts/wiki/upcoming.sh)
+          entries=$(cat notes/upcoming.txt)
           if [[ -n "$entries" ]]; then
             {
               echo "$TAG is released, so move its documentation from Upcoming Changes into the wiki pages (spec §16.3), then empty Upcoming Changes."
