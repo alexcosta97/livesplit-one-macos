@@ -114,6 +114,7 @@ targets:
       - Tests/HeadlessUI
       # Shared with the unit tests.
       - Tests/Unit/Support/TemporaryFolder.swift
+      - Tests/Unit/Support/KeyEvents.swift
     dependencies:
       - target: LiveSplitOne
     settings:
