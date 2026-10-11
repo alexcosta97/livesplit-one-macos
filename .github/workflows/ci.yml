@@ -72,7 +72,10 @@ jobs:
       - run: swift format lint --strict --recursive App Tests LiveSplitCore/Wrapper scripts
       # actionlint also runs shellcheck on the workflows' `run:` blocks.
       - run: actionlint
-      - run: shellcheck scripts/*.sh scripts/release/*.sh
+      - run: shellcheck scripts/*.sh scripts/release/*.sh scripts/wiki/*.sh
+      # The wiki's pages and its scripts (spec §16.1).
+      - run: scripts/wiki/test-wiki-scripts.sh
+      - run: scripts/wiki/check.sh docs/wiki
       # The release scripts are tested here so a broken one fails a required
       # check. git-cliff comes from mise and jq from the runner.
       - run: scripts/release/test-release-scripts.sh

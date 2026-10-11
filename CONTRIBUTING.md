@@ -59,8 +59,10 @@ and is not committed.
    cargo test --locked --manifest-path core/Cargo.toml
    swift format lint --strict --recursive App Tests LiveSplitCore/Wrapper scripts
    mise x -- actionlint
-   mise x -- shellcheck scripts/*.sh scripts/release/*.sh
+   mise x -- shellcheck scripts/*.sh scripts/release/*.sh scripts/wiki/*.sh
    mise x -- scripts/release/test-release-scripts.sh
+   scripts/wiki/test-wiki-scripts.sh
+   scripts/wiki/check.sh docs/wiki
    xcodegen generate
    xcodebuild test -project LiveSplitOne.xcodeproj -scheme LiveSplitOne -destination 'platform=macOS'
    scripts/build-app.sh 0.0.0-dev
@@ -109,8 +111,7 @@ integration, under 10 % E2E.
 The user documentation is the repository's
 [wiki](https://github.com/alexcosta97/livesplit-one-macos/wiki), written in
 `docs/wiki/` and published on merge to `main` (spec §16). Never edit the wiki
-on GitHub: the next sync overwrites it. Until `docs/wiki/` exists (#25), the
-user documentation is [`README.md`](README.md).
+on GitHub: the next sync overwrites it.
 
 - A pull request that changes something users can see updates the
   documentation in the same pull request: the wiki page it belongs on (spec

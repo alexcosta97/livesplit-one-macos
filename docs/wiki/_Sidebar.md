@@ -1,0 +1,5 @@
+- [Home](Home)
+- [Installing](Installing)
+- [Settings and Logs](Settings-and-Logs)
+- [Troubleshooting](Troubleshooting)
+- [Upcoming Changes](Upcoming-Changes)
