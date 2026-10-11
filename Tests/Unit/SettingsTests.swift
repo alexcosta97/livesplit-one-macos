@@ -162,6 +162,7 @@ import Testing
                 #""Ctrl+u" for start_split: it isn't a shortcut"#,
                 #""Meta+q" for start_split: the app keeps it for its menus"#,
                 #""k" for reset: start_split already has it"#,
+                #""nonsense": not a command"#,
             ])
     }
 
@@ -172,10 +173,13 @@ import Testing
         #expect(settings.shortcuts.dropped == [#""u" for undo_split: start_split already has it"#])
     }
 
-    @Test func unknownKeysInTheShortcutsTableAreIgnored() throws {
-        let settings = try decode("[shortcuts]\nnote = \"x\"\nfoo = 1\n")
+    @Test func unknownKeysInTheShortcutsTableAreIgnoredAndNoted() throws {
+        let settings = try decode("[shortcuts]\nnote = \"x\"\nfoo = 1\nbar = [\"k\"]\n")
         #expect(settings.shortcuts == Shortcuts())
-        #expect(settings.shortcuts.dropped.isEmpty)
+        #expect(
+            settings.shortcuts.dropped == [
+                #""bar": not a command"#, #""foo": not a command"#, #""note": not a command"#,
+            ])
     }
 
     @Test func anEmptyListSurvivesARoundTrip() throws {

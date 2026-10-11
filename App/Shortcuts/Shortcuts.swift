@@ -71,9 +71,7 @@ struct Shortcuts: Codable, Equatable, Sendable {
 
     static func == (lhs: Shortcuts, rhs: Shortcuts) -> Bool { lhs.changed == rhs.changed }
 
-    /// Reads the table, resolving every command in order (spec §11): an entry that isn't a
-    /// shortcut, is reserved, or that an earlier command already has, is dropped into `dropped`.
-    /// A list of the wrong type throws, which makes the file unreadable.
+    /// A key in the `[shortcuts]` table, which may not be a command.
     private struct CommandKey: CodingKey {
         let stringValue: String
         var intValue: Int? { nil }
@@ -81,8 +79,11 @@ struct Shortcuts: Codable, Equatable, Sendable {
         init?(intValue: Int) { nil }
     }
 
+    /// Reads the table, resolving every command in order (spec §11): an entry that isn't a
+    /// shortcut, is reserved, or that an earlier command already has, is dropped into `dropped`.
+    /// A command's list of the wrong type throws, which makes the file unreadable. A key that
+    /// isn't a command is noted in `dropped` too, whatever its type, and otherwise ignored.
     init(from decoder: any Decoder) throws {
-        // Only the known commands are decoded, so an unknown key of any type is ignored.
         let container = try decoder.container(keyedBy: CommandKey.self)
         var table: [String: [String]] = [:]
         for command in ControlCommand.allCases {
@@ -117,6 +118,12 @@ struct Shortcuts: Codable, Equatable, Sendable {
                 }
             }
             set(kept, for: command)
+        }
+        // Sorted, since the table's order isn't kept.
+        let commandNames = Set(ControlCommand.allCases.map(\.rawValue))
+        for key in container.allKeys.map(\.stringValue).sorted()
+        where !commandNames.contains(key) {
+            dropped.append("\"\(key)\": not a command")
         }
     }
 
