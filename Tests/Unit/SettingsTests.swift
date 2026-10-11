@@ -69,6 +69,7 @@ import Testing
         settings.setFrame(
             WindowFrame(x: 120, y: 640, width: 300, height: 520),
             forLayout: "/Users/me/Layouts/Main.ls1l")
+        settings.setFrame(WindowFrame(x: 120, y: 300, width: 300, height: 500), forLayout: nil)
         let expected = """
             # LiveSplit One for macOS settings. The app rewrites this file when a setting changes.
 
@@ -78,6 +79,12 @@ import Testing
             last_splits = "/Users/me/Splits/GTA San Andreas.lss"
             recent_layouts = ["/Users/me/Layouts/Main.ls1l"]
             recent_splits = ["/Users/me/Splits/GTA San Andreas.lss", "/Users/me/Splits/Any%.lss"]
+
+            [default_layout_window]
+            height = 500.0
+            width = 300.0
+            x = 120.0
+            y = 300.0
 
             [[windows]]
             height = 520.0
@@ -175,6 +182,18 @@ import Testing
                 """
                 [[windows]]
                 layout = "/a.ls1l"
+                x = 1
+                y = 2
+                width = 300
+                """)
+        }
+    }
+
+    @Test func aDefaultLayoutWindowMissingAKeyMakesTheFileUnreadable() {
+        #expect(throws: (any Error).self) {
+            try decode(
+                """
+                [default_layout_window]
                 x = 1
                 y = 2
                 width = 300
