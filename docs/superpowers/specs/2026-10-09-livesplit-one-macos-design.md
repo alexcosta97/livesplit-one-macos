@@ -316,7 +316,8 @@ Quit                   ⌘Q
   - *LiveSplit One*: About, Settings… (⌘,), Hide (⌘H), Hide Others (⌥⌘H),
     Show All, Quit (⌘Q).
   - *Control* and *Compare Against*, as in the right-click menu.
-  - *Window*: Minimize (⌘M), Always on Top.
+  - *Window*: Close (⌘W, for the Settings window; the timer window has no
+    close button), Minimize (⌘M), Always on Top.
   - *Help*: Open Log Folder.
 
   The Files, Connect and Edit Splits items are added to both menus by their
@@ -567,8 +568,8 @@ The `[shortcuts]` table has one list per Control command (`start_split`,
 only the commands whose shortcuts differ from the defaults, so a later
 version's new defaults reach anyone who never changed them. A command that
 isn't listed has its defaults, and `[]` means no shortcut. An entry that
-isn't a shortcut, or that an earlier command in that order already has, is
-dropped and logged.
+isn't a shortcut, that can't be recorded (section 7.3), or that an earlier
+command in that order already has, is dropped and logged.
 
 The splits and layouts themselves stay wherever the user keeps them; the app
 only stores their paths.
@@ -799,12 +800,12 @@ In sidebar order:
 | Home | Landing | What the app is (unofficial, a version of LiveSplit One), a diagram of the two-PC setup, where to start, links to every page | #25 |
 | Installing | Task | Downloading, moving the app to Applications, opening an app that isn't notarised (Open Anyway), full releases and release candidates, updating by hand (no auto-update), uninstalling, including the settings and log folders | #25 |
 | Getting Started | Tutorial | First launch through the first split: open splits and a layout, start and split with the keyboard, reset, save, then connect to livesplit-asr-bridge | #12, the first issue after which the whole tutorial works; #14 adds connecting |
-| The Timer Window | Reference | Moving and resizing, Always on Top, the window remembered per layout, overlay notices and what each one means, the keyboard shortcuts | #11, #13 |
+| The Timer Window | Reference | Moving and resizing, Always on Top, the window remembered per layout, overlay notices and what each one means, the keyboard shortcuts and how to change them | #11, #13 |
 | The Menu | Reference | Every item in the right-click menu and the menu bar (section 7), when each is disabled, Compare Against and the timing method | #13 |
 | Splits and Layouts | Task | Opening splits in any format livesplit-core reads, opening `.lsl` and `.ls1l` layouts, recent files, saving, Save Layout As and why it writes `.ls1l`, unsaved changes, reset with new best times, what reopens at launch | #12 |
 | Editing Splits | Task | The splits editor (section 9): game details, segments, times, comparisons, Real Time and Game Time, Clear History and Clear Times, OK and Cancel | #15 |
 | Connecting to a Server | Task | Connecting to livesplit-asr-bridge, which address to use, local network access and where to allow it, the status notices, automatic reconnection, Disconnect, servers other than the bridge | #14 |
-| Settings and Logs | Reference | `app.toml` and what it holds, `app.toml.bad`, the log folder, the categories, retention and the size cap, Open Log Folder, Console.app | #25, from what #16 and #17 built; #13 adds Open Log Folder |
+| Settings and Logs | Reference | `app.toml` and what it holds, `app.toml.bad`, the log folder, the categories, retention and the size cap, Open Log Folder, Console.app | #25, from what #16 and #17 built; #13 adds Open Log Folder and the Settings window (section 7.3) |
 | Troubleshooting | Task | By symptom (what you see, why, what to do), ending with how to report a bug with the version and the day's log file | #25 starts it; each issue adds what it finds; #41 completes it |
 | Upcoming Changes | Staging | Section 16.3 | #25 |
 
