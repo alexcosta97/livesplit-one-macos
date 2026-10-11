@@ -419,7 +419,7 @@ folder, the same one livesplit-asr-bridge uses (`dirs::config_dir()`):
 `app.toml` holds:
 
 - the last splits and layout paths, and the recent files lists (10 each);
-- the window frame per layout path, and Always on Top;
+- the window frame per layout path, the default layout's window frame, and Always on Top;
 - the last Connect to Server URL.
 
 It is read at launch and written when one of these changes, atomically, so a
@@ -445,6 +445,12 @@ layout = "/Users/me/Layouts/Main.ls1l"
 width = 300.0
 x = 120.0
 y = 640.0
+
+[default_layout_window]
+x = 120.0
+y = 300.0
+width = 300.0
+height = 500.0
 ```
 
 Every key is optional: a missing key takes its default (nothing opened, no
@@ -452,8 +458,10 @@ recent files, Always on Top off) and an unknown key is ignored, so a file
 from another version still reads. A key with the wrong type makes the file
 unreadable. Recent lists are trimmed to 10 and repeats dropped. A window entry
 missing a key makes the file unreadable too; one with a number that isn't
-finite, a size that isn't positive, or a duplicate layout is dropped. A broken
-file replaces any older `app.toml.bad`.
+finite, a size that isn't positive, or a duplicate layout is dropped. The
+`default_layout_window` table (with keys `x`, `y`, `width`, `height`) holds
+the window's frame while the default layout is shown, which has no path. A
+broken file replaces any older `app.toml.bad`.
 
 The splits and layouts themselves stay wherever the user keeps them; the app
 only stores their paths.

@@ -240,4 +240,47 @@ import Testing
         #expect(!WindowFrame(x: .nan, y: 0, width: 300, height: 120).isUsable)
         #expect(!WindowFrame(x: 0, y: 0, width: .infinity, height: 120).isUsable)
     }
+
+    @Test func theDefaultLayoutsFrameIsKeptApartFromLayoutFiles() throws {
+        var settings = Settings()
+        let frame = WindowFrame(x: 10, y: 20, width: 300, height: 500)
+        settings.setFrame(frame, forLayout: nil)
+
+        #expect(settings.frame(forLayout: nil) == frame)
+        #expect(settings.windows.isEmpty)
+        let text = try settings.tomlText()
+        #expect(text.contains("[default_layout_window]"))
+        #expect(try Settings.decode(Data(text.utf8)) == settings)
+    }
+
+    @Test func aWholeNumberDefaultLayoutFrameLoads() throws {
+        let text = """
+            [default_layout_window]
+            x = 100
+            y = 200
+            width = 300
+            height = 500
+            """
+        let settings = try Settings.decode(Data(text.utf8))
+        #expect(settings.defaultLayoutFrame == WindowFrame(x: 100, y: 200, width: 300, height: 500))
+    }
+
+    @Test func anUnusableDefaultLayoutFrameIsDropped() throws {
+        let text = """
+            [default_layout_window]
+            x = 0
+            y = 0
+            width = 0
+            height = 500
+            """
+        #expect(try Settings.decode(Data(text.utf8)).defaultLayoutFrame == nil)
+    }
+
+    @Test func aLayoutPathStillKeysItsOwnFrame() {
+        var settings = Settings()
+        let frame = WindowFrame(x: 1, y: 2, width: 3, height: 4)
+        settings.setFrame(frame, forLayout: "/Users/me/Layouts/main.ls1l")
+        #expect(settings.frame(forLayout: "/Users/me/Layouts/main.ls1l") == frame)
+        #expect(settings.frame(forLayout: nil) == nil)
+    }
 }
