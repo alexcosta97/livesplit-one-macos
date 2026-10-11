@@ -363,17 +363,23 @@ Quit                   ⌘Q
   |---|---|
   | Start/Split | `Space` |
   | Reset | `Backspace` (⌫) |
-  | Undo Split | `KeyZ` |
-  | Skip Split | `KeyS` |
-  | Pause/Resume | `KeyP` |
+  | Undo Split | `u` |
+  | Skip Split | `s` |
+  | Pause/Resume | `p` |
   | Undo All Pauses | none |
 
 - A shortcut is a key with any of the modifiers `Shift`, `Control`, `Alt` (⌥)
-  and `Meta` (⌘), written as livesplit-core's hotkeys are, so #19's global
-  hotkeys can use the same strings: `"Space"`, `"Numpad1"`,
-  `"Control+Shift+Space"`. Keys are named by the W3C `KeyboardEvent.code`
-  names and matched by their position on the keyboard, not by the character
-  they type, so they stay put on AZERTY or Dvorak.
+  and `Meta` (⌘): `"u"`, `"Space"`, `"Numpad1"`, `"Control+Shift+Space"`. As
+  in most Mac apps, a key is matched by the character it types with no
+  modifiers on the current keyboard layout, not by where it is: `u` is
+  whichever key types *u*, on QWERTY, AZERTY or Dvorak alike. Letters are
+  written lowercase and match either case. Keys that type nothing visible,
+  or that are also on the numeric keypad, have names: `Space`, `Backspace`,
+  `Delete`, `Enter`, `Tab`, `Escape`, `Up`, `Down`, `Left`, `Right`, `Home`,
+  `End`, `PageUp`, `PageDown`, `F1` to `F20`, and `Numpad0` to `Numpad9`,
+  `NumpadDecimal`, `NumpadAdd`, `NumpadSubtract`, `NumpadMultiply`,
+  `NumpadDivide`, `NumpadEnter`, `NumpadEqual`, `NumpadClear`. So `1` and
+  `Numpad1` are different shortcuts.
 - Caps Lock, and the function and numeric-pad flags AppKit adds by itself,
   don't count as modifiers.
 - A shortcut runs its command only if the menu item would be enabled. One the
@@ -542,7 +548,7 @@ y = 640.0
 
 [shortcuts]
 start_split = ["Space", "Numpad1"]
-undo_all_pauses = ["Control+Shift+KeyP"]
+undo_all_pauses = ["Control+Shift+p"]
 ```
 
 Every key is optional: a missing key takes its default (nothing opened, no
@@ -910,9 +916,11 @@ three):
 
 Later:
 
-- #19 Global hotkeys, with a hotkey settings window (livesplit-core's hotkey
-  system supports macOS, and needs Accessibility or Input Monitoring
-  permission).
+- #19 Global hotkeys, set in the Settings window (section 7.3).
+  livesplit-core's hotkey system supports macOS, and needs Accessibility or
+  Input Monitoring permission. It names keys by their position, so the
+  shortcuts' characters (section 7.2) are turned into key positions with the
+  current keyboard layout.
 - #20 Layout editor.
 - #21 Running auto splitters inside the app (livesplit-core's `auto-splitting`
   feature).
