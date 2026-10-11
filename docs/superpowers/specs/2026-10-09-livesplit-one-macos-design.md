@@ -307,7 +307,9 @@ Quit                   ⌘Q
   timer is running, Undo Split with nothing to undo, and so on.
 - **Start/Split** reads *Start* while the timer isn't running and *Split*
   otherwise. **Pause** reads *Resume* while the timer is paused. The Control
-  items show their first shortcut that a menu can show (section 7.2).
+  items show their first shortcut that a menu can show (section 7.2) while the
+  timer window is in front. While another window is in front, they show none,
+  so no menu can run a shortcut typed there.
 - **Commands** from the menus and shortcuts run through the same event-reporting
   command sink as server commands (section 5.1), on a background queue, since
   a reset can wait for a decision (section 5.3). Pause and Resume send `pause`

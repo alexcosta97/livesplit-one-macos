@@ -181,8 +181,52 @@ import Testing
         #expect(compare.items.map(\.state) == [.on, .off, .off, .off, .off, .on])
     }
 
+    /// The Control items of both menus.
+    private func controlItems(_ menus: TimerMenus) throws -> [[NSMenuItem]] {
+        [
+            try submenu("Control", in: menus.mainMenu).items,
+            try submenu("Control", in: menus.contextMenu).items,
+        ]
+    }
+
+    @Test func controlItemsShowNoShortcutsUntilTheTimerWindowIsInFront() throws {
+        let menus = makeMenus()
+        #expect(!menus.showsShortcuts)
+        for items in try controlItems(menus) {
+            #expect(items.allSatisfy { $0.keyEquivalent.isEmpty })
+            #expect(items.allSatisfy { $0.keyEquivalentModifierMask == [] })
+        }
+
+        menus.showsShortcuts = true
+        for items in try controlItems(menus) {
+            #expect(items.map(\.keyEquivalent) == [" ", "\u{8}", "u", "s", "p", ""])
+        }
+
+        menus.showsShortcuts = false
+        _ = shortcuts.add(Shortcut("Control+Shift+Space")!, to: .reset)
+        menus.refreshShortcuts()
+        for items in try controlItems(menus) {
+            #expect(items.allSatisfy { $0.keyEquivalent.isEmpty })
+            #expect(items.allSatisfy { $0.keyEquivalentModifierMask == [] })
+        }
+    }
+
+    /// While another window is in front, such as the Settings window, the Control items have no
+    /// key equivalents, so a plain `u` or Space typed there can't match one on any macOS.
+    @Test func aKeyPressedWhileTheTimerWindowIsntInFrontRunsNoCommand() async throws {
+        let menus = makeMenus()
+        menus.showsShortcuts = false
+        #expect(!menus.mainMenu.performKeyEquivalent(with: keyDown(32, "u")))  // kVK_ANSI_U
+        #expect(!menus.mainMenu.performKeyEquivalent(with: keyDown(49, " ")))  // kVK_Space
+        #expect(!menus.contextMenu.performKeyEquivalent(with: keyDown(49, " ")))
+        await finishCommands()
+        #expect(TimerMenuState.read(from: timer).phase == .notRunning)
+        #expect(!unified.entries.contains { $0.message.contains("from the menu") })
+    }
+
     @Test func controlItemsShowTheirFirstShortcutThatAMenuCanShow() throws {
         let menus = makeMenus()
+        menus.showsShortcuts = true
         let control = try submenu("Control", in: menus.mainMenu)
         #expect(control.items.map(\.keyEquivalent) == [" ", "\u{8}", "u", "s", "p", ""])
         #expect(control.items.allSatisfy { $0.keyEquivalentModifierMask == [] })
@@ -212,7 +256,7 @@ import Testing
 
     /// The delegate fills Compare Against each time it opens (`menuNeedsUpdate`) and gives the
     /// Control items their titles and enabled state (validation), so every such menu needs it.
-    /// What stops the menus running a key press is `ShortcutDisplayMenu`, not the delegate.
+    /// What stops the menus running a key press is `showsShortcuts`, not the delegate.
     @Test func everyMenuThatCanRunACommandHasTheDelegate() throws {
         let menus = makeMenus()
         for root in [menus.mainMenu, menus.contextMenu] {
@@ -222,10 +266,12 @@ import Testing
         }
     }
 
-    /// Plain `u` and Space are Control shortcuts. Sent to the menu bar, as while the user types in
-    /// the Settings window, they must reach no command.
+    /// Plain `u` and Space are Control shortcuts. Even with the items showing them, the menus
+    /// don't match a key press against them (belt and braces: what makes this safe on every
+    /// macOS is that the items have no key equivalents unless the timer window is in front).
     @Test func aKeyPressedInTheMenuBarRunsNoCommand() async throws {
         let menus = makeMenus()
+        menus.showsShortcuts = true
         #expect(!menus.mainMenu.performKeyEquivalent(with: keyDown(32, "u")))  // kVK_ANSI_U
         #expect(!menus.mainMenu.performKeyEquivalent(with: keyDown(49, " ")))  // kVK_Space
         #expect(!menus.contextMenu.performKeyEquivalent(with: keyDown(49, " ")))

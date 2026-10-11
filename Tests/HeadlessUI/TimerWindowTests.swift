@@ -53,6 +53,21 @@ import Testing
         #expect(!plain.validateMenuItem(minimize))
     }
 
+    /// The menus show the Control shortcuts only while the timer window is key (spec §7), so
+    /// the controller says when it becomes and stops being key.
+    @Test func theControllerSaysWhenTheWindowIsKey() throws {
+        let folder = try TemporaryFolder()
+        let controller = makeController(SettingsStore(directory: folder.url))
+        var changes: [Bool] = []
+        controller.onKeyChange = { changes.append($0) }
+        controller.windowDidBecomeKey(
+            Notification(name: NSWindow.didBecomeKeyNotification, object: controller.window))
+        #expect(changes == [true])
+        controller.windowDidResignKey(
+            Notification(name: NSWindow.didResignKeyNotification, object: controller.window))
+        #expect(changes == [true, false])
+    }
+
     @Test func theWindowIsNotShownUntilAsked() throws {
         let folder = try TemporaryFolder()
         #expect(!makeController(SettingsStore(directory: folder.url)).window.isVisible)

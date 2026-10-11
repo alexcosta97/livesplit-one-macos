@@ -25,7 +25,7 @@ While the timer window is in front, these keys run the timer's commands:
 
 **Undo All Pauses** has no key until you give it one. A key does nothing when its command is greyed out in the menu, and holding a key down runs its command once.
 
-A letter works whichever key types it on your keyboard layout, with or without Caps Lock. The menus show next to each command its first key that a menu can show: keys on the numeric keypad aren't shown in menus.
+A letter works whichever key types it on your keyboard layout, with or without Caps Lock. While the timer window is in front, the menus show next to each command its first key that a menu can show: keys on the numeric keypad aren't shown in menus.
 
 To change them, open **Settings…** (⌘,): see [Settings and Logs](Settings-and-Logs#the-settings-window). The keys work only while the timer window is in front, not while you're in a game. Keys that work everywhere are planned.
 

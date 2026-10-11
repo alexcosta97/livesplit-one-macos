@@ -1,8 +1,9 @@
 import AppKit
 
-/// A menu that shows key equivalents but never matches a key press against them. A delegate's
-/// `menuHasKeyEquivalent` returning `false` doesn't stop AppKit from matching the items itself,
-/// so the menu refuses the search.
+/// A menu that refuses to match a key press against its items' key equivalents. Belt and braces:
+/// some macOS versions (26) match the menu bar's items without calling this, so what keeps the
+/// Control shortcuts out of other windows is `TimerMenus.showsShortcuts`, which gives the items
+/// key equivalents only while the timer window is key.
 final class ShortcutDisplayMenu: NSMenu {
     override func performKeyEquivalent(with event: NSEvent) -> Bool { false }
 }
@@ -24,6 +25,13 @@ final class TimerMenus: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private let shortcuts: @MainActor () -> Shortcuts
     private var controlMenus: [NSMenu] = []
     private var compareMenus: [NSMenu] = []
+    /// Whether the Control items show their shortcuts: only while the timer window is key
+    /// (spec §7). Then `ShortcutKeys` takes every Control shortcut before a menu sees it. In
+    /// any other window the items have no key equivalents, so no menu can match a plain key
+    /// typed there, such as `u` in the Settings window, on any macOS version.
+    var showsShortcuts = false {
+        didSet { if showsShortcuts != oldValue { refreshShortcuts() } }
+    }
 
     init(
         runner: CommandRunner, readState: @escaping @MainActor () -> TimerMenuState,
@@ -132,15 +140,17 @@ final class TimerMenus: NSObject, NSMenuDelegate, NSMenuItemValidation {
         ]
     }
 
-    /// Shows each Control command's first shortcut that a menu can show (spec §7). Call after the
-    /// shortcuts change.
+    /// Shows each Control command's first shortcut that a menu can show while `showsShortcuts`
+    /// is on, and none otherwise (spec §7). Call after the shortcuts change.
     func refreshShortcuts() {
         let shortcuts = shortcuts()
         for menu in controlMenus {
             for item in menu.items {
                 let command = ControlCommand.allCases[item.tag]
-                let shown = shortcuts.shortcuts(for: command).lazy
-                    .compactMap(\.menuKeyEquivalent).first
+                let shown =
+                    showsShortcuts
+                    ? shortcuts.shortcuts(for: command).lazy.compactMap(\.menuKeyEquivalent).first
+                    : nil
                 item.keyEquivalent = shown?.key ?? ""
                 item.keyEquivalentModifierMask = shown?.modifiers ?? []
             }
@@ -212,9 +222,9 @@ final class TimerMenus: NSObject, NSMenuDelegate, NSMenuItemValidation {
 
     /// Menus show the Control shortcuts but never run them: `ShortcutKeys` does, only while the
     /// timer window is key (spec §7.2). Otherwise a plain `u` would run Undo Split while typing
-    /// in the Settings window. `ShortcutDisplayMenu` is what stops the Control menus matching
-    /// a key press, since AppKit matches items itself whatever this returns; this method is
-    /// belt and braces.
+    /// in the Settings window. Belt and braces, like `ShortcutDisplayMenu`: AppKit can match
+    /// items itself whatever this returns. What makes it safe is `showsShortcuts`, which leaves
+    /// the items without key equivalents while another window is key.
     func menuHasKeyEquivalent(
         _ menu: NSMenu, for event: NSEvent,
         target: AutoreleasingUnsafeMutablePointer<AnyObject?>,
