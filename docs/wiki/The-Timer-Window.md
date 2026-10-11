@@ -1,4 +1,4 @@
-The timer window shows your layout and nothing else. It has no title bar and no buttons.
+The timer window shows your layout and nothing else. It has no title bar and no buttons. Everything else is in its right-click menu: see [The Menu](The-Menu).
 
 <!-- screenshot: S1 timer-window.png -->
 The timer window with a layout, running.
@@ -6,6 +6,28 @@ The timer window with a layout, running.
 ## Moving and resizing
 
 Drag anywhere in the window to move it. Drag an edge or a corner to resize it. The layout stretches to fill the window, as it does in LiveSplit One.
+
+## Always on Top
+
+Right-click the timer and choose **Always on Top** to keep the window above other apps' windows, for example over a game in a window. Choose it again to turn it off. The app remembers it.
+
+## Keyboard shortcuts
+
+While the timer window is in front, these keys run the timer's commands:
+
+| Key | Command |
+|---|---|
+| Space | **Start** or **Split** |
+| ⌫ (Delete) | **Reset** |
+| U | **Undo Split** |
+| S | **Skip Split** |
+| P | **Pause** or **Resume** |
+
+**Undo All Pauses** has no key until you give it one. A key does nothing when its command is greyed out in the menu, and holding a key down runs its command once.
+
+A letter works whichever key types it on your keyboard layout, with or without Caps Lock. The menus show each command's first key next to it.
+
+To change them, open **Settings…** (⌘,): see [Settings and Logs](Settings-and-Logs#the-settings-window). The keys work only while the timer window is in front, not while you're in a game. Keys that work everywhere are planned.
 
 ## Size and position
 
