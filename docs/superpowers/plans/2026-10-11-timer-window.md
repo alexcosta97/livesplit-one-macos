@@ -535,7 +535,7 @@ git commit -m "feat(core): render only changed frames and return the size hint"
 - Create: `LiveSplitCore/Wrapper/LayoutRenderer.swift`
 - Create: `Tests/Integration/RenderingTests.swift`
 - Create: `Tests/Integration/Support/Snapshot.swift`
-- Create: `Tests/Integration/Snapshots/default-layout.png`, `default-layout@2x.png`, `three-segments.png` (recorded in Step 5)
+- Create: `Tests/Integration/Snapshots/default-layout.png`, `default-layout-2x.png`, `three-segments.png` (recorded in Step 5)
 - Modify: `CONTRIBUTING.md` (Testing)
 - Modify: `docs/superpowers/specs/2026-10-09-livesplit-one-macos-design.md` (§14.1)
 
@@ -690,7 +690,7 @@ private final class Scene {
         let frame = LayoutRenderer().render(scene.state, scene.imageCache, width: 600, height: 1000)
         let image = try #require(frame.image)
         #expect(image.width == 600 && image.height == 1000)
-        #expect(Snapshot.mismatch(image, "default-layout@2x") == nil)
+        #expect(Snapshot.mismatch(image, "default-layout-2x") == nil)
     }
 
     @Test func aRunWithSegmentsMatchesItsSnapshot() throws {
@@ -851,7 +851,7 @@ TEST_RUNNER_LSO_RECORD_SNAPSHOTS=1 xcodebuild test -project LiveSplitOne.xcodepr
 open Tests/Integration/Snapshots/
 ```
 
-Expected: the three snapshot tests fail with "Recorded …", and `Tests/Integration/Snapshots/` holds three PNGs. Open each one and check it by eye: the default layout has a title, a splits list with the segment names, a large timer at 0.00 and a "Previous Segment" row. Text in `default-layout@2x.png` is sharp at its full size, not a blown-up `default-layout.png`. If an image looks wrong, stop and find out why before going on.
+Expected: the three snapshot tests fail with "Recorded …", and `Tests/Integration/Snapshots/` holds three PNGs. Open each one and check it by eye: the default layout has a title, a splits list with the segment names, a large timer at 0.00 and a "Previous Segment" row. Text in `default-layout-2x.png` is sharp at its full size, not a blown-up `default-layout.png`. If an image looks wrong, stop and find out why before going on.
 
 - [ ] **Step 6: Run the tests again**
 

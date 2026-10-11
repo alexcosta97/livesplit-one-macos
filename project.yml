@@ -137,9 +137,6 @@ targets:
         # XcodeGen would otherwise host it in the app, by target name.
         TEST_HOST: ""
         BUNDLE_LOADER: ""
-        # Otherwise Xcode merges default-layout.png and default-layout@2x.png into one TIFF, and
-        # the snapshot tests can't find either (spec §14.1).
-        COMBINE_HIDPI_IMAGES: NO
   LiveSplitOneE2ETests:
     type: bundle.ui-testing
     platform: macOS

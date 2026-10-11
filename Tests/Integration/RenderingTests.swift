@@ -43,7 +43,7 @@ private final class Scene {
         let frame = LayoutRenderer().render(scene.state, scene.imageCache, width: 600, height: 1000)
         let image = try #require(frame.image)
         #expect(image.width == 600 && image.height == 1000)
-        #expect(Snapshot.mismatch(image, "default-layout@2x") == nil)
+        #expect(Snapshot.mismatch(image, "default-layout-2x") == nil)
     }
 
     @Test func aRunWithSegmentsMatchesItsSnapshot() throws {
@@ -72,6 +72,7 @@ private final class Scene {
         _ = renderer.render(scene.state, scene.imageCache, width: 300, height: 500)
         let sink = EventSink(timer: scene.timer, report: { _ in }, decideReset: { .cancel })
         #expect(sink.handleCommand(#"{"command":"start"}"#) == #"{"success":null}"#)
+        // Starting also changes the timer's colour, so the frame differs however little time passes.
         Thread.sleep(forTimeInterval: 0.02)
 
         scene.update()

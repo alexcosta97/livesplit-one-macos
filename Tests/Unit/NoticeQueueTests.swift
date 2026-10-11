@@ -58,6 +58,42 @@ private final class ManualClock {
         #expect(clock.delays == [4, 4])
     }
 
+    @Test func threeNoticesArrivingTogetherShowInOrder() {
+        let clock = ManualClock()
+        let queue = NoticeQueue(schedule: clock.schedule)
+        var shown: [String?] = []
+        queue.onChange = { shown.append($0) }
+
+        queue.show("Couldn't read the settings")
+        queue.show("Couldn't open the splits")
+        queue.show("Connected to pc")
+        #expect(queue.waiting == ["Couldn't open the splits", "Connected to pc"])
+
+        clock.advance()
+        #expect(queue.waiting == ["Connected to pc"])
+        clock.advance()
+        #expect(queue.waiting.isEmpty)
+        #expect(queue.current == "Connected to pc")
+        clock.advance()
+        #expect(queue.current == nil)
+        #expect(
+            shown == [
+                "Couldn't read the settings", "Couldn't open the splits", "Connected to pc", nil,
+            ])
+        #expect(clock.delays == [4, 4, 4])
+    }
+
+    @Test func afterDelayRunsTheActionOnTheMainActorLater() async {
+        let start = ContinuousClock.now
+        await withCheckedContinuation { (done: CheckedContinuation<Void, Never>) in
+            NoticeQueue.afterDelay(0.05) {
+                MainActor.assertIsolated()
+                done.resume()
+            }
+        }
+        #expect(ContinuousClock.now - start >= .milliseconds(50))
+    }
+
     @Test func aNoticeAlreadyShownOrWaitingIsntRepeated() {
         let clock = ManualClock()
         let queue = NoticeQueue(schedule: clock.schedule)

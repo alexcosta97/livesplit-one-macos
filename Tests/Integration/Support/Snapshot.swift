@@ -32,24 +32,33 @@ enum Snapshot {
         else { return "No reference \(name).png. Record it (see CONTRIBUTING.md)." }
         guard reference.width == image.width, reference.height == image.height else {
             return "\(name): \(image.width)×\(image.height), reference "
-                + "\(reference.width)×\(reference.height)."
+                + "\(reference.width)×\(reference.height). \(saveActual(image, name))"
         }
         guard let actual = pixels(of: image), let expected = pixels(of: reference) else {
-            return "\(name): couldn't read the pixels."
+            return "\(name): couldn't read the pixels. \(saveActual(image, name))"
         }
         var differing = 0
         for pixel in stride(from: 0, to: actual.count, by: 4) {
-            let channels = (0..<4).map { abs(Int(actual[pixel + $0]) - Int(expected[pixel + $0])) }
-            if channels.contains(where: { $0 > channelTolerance }) { differing += 1 }
+            for channel in pixel..<pixel + 4
+            where abs(Int(actual[channel]) - Int(expected[channel])) > channelTolerance {
+                differing += 1
+                break
+            }
         }
         let share = Double(differing) / Double(image.width * image.height)
         guard share > pixelTolerance else { return nil }
+        return "\(name): \(differing) pixels differ. \(saveActual(image, name))"
+    }
+
+    /// Saves this run's image to the temporary folder, and says where.
+    private static func saveActual(_ image: CGImage, _ name: String) -> String {
         let saved = FileManager.default.temporaryDirectory
             .appending(path: "lso-snapshots/\(name).png")
         try? FileManager.default.createDirectory(
             at: saved.deletingLastPathComponent(), withIntermediateDirectories: true)
-        _ = write(image, to: saved)
-        return "\(name): \(differing) pixels differ. This run's image is at \(saved.path)."
+        return write(image, to: saved)
+            ? "This run's image is at \(saved.path)."
+            : "Couldn't save this run's image to \(saved.path)."
     }
 
     /// The image's pixels as RGBA8, premultiplied, in sRGB.
