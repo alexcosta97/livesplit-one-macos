@@ -47,13 +47,20 @@ final class TimerView: NSView {
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
-        displayLink?.invalidate()
-        displayLink = nil
+        stopDisplayLink()
         guard window != nil else { return }
         let link = displayLink(target: self, selector: #selector(refresh(_:)))
         link.add(to: .main, forMode: .common)
         displayLink = link
         updateFrameRate(idle: false)
+    }
+
+    /// Ends the display link, which keeps this view alive and wakes the app on every refresh. The
+    /// window's controller calls it when the window closes, since closing a window doesn't take
+    /// its views out of it. Moving the view to another window starts a new link.
+    func stopDisplayLink() {
+        displayLink?.invalidate()
+        displayLink = nil
     }
 
     override func setFrameSize(_ newSize: NSSize) {
@@ -74,15 +81,22 @@ final class TimerView: NSView {
     /// Renders one frame at the view's size in pixels. Each display refresh calls it.
     func drawFrame() {
         let pixels = convertToBacking(bounds).size
+        // `Int(_:)` traps on infinity, NaN and numbers past `Int.max`. AppKit keeps view geometry
+        // finite, but this doesn't rely on it. Anything larger than the renderer's maximum draws
+        // nothing anyway.
+        let drawable = 0...CGFloat(LayoutRenderer.maximumSide)
+        guard drawable.contains(pixels.width), drawable.contains(pixels.height) else { return }
         let frame = content.render(
             pixelWidth: Int(pixels.width.rounded()), pixelHeight: Int(pixels.height.rounded()))
         if let image = frame.image {
             layer?.contents = image
             framesDrawn += 1
         }
+        // The scale the frame was drawn at, from the same conversion, so the hint comes back to
+        // the points it was drawn from.
         if let hint = frame.sizeHint,
             let size = WindowPlacement.size(
-                forHint: hint, scale: window?.backingScaleFactor ?? 1)
+                forHint: hint, scale: convertToBacking(NSSize(width: 1, height: 1)).width)
         {
             onSizeHint?(size)
         }

@@ -1,4 +1,5 @@
 import AppKit
+import LiveSplitCore
 import Testing
 
 @testable import LiveSplitOne
@@ -74,5 +75,47 @@ import Testing
         #expect(view.preferredFrameRate == .default)
         view.drawFrame()
         #expect(view.preferredFrameRate == TimerView.idleFrameRate)
+        view.stopDisplayLink()
+    }
+
+    @Test func stoppingTheDisplayLinkEndsIt() {
+        let window = NSWindow(
+            contentRect: CGRect(x: 0, y: 0, width: 300, height: 500), styleMask: [.borderless],
+            backing: .buffered, defer: false)
+        let view = makeView()
+        window.contentView = view
+        #expect(view.preferredFrameRate != nil)
+
+        view.stopDisplayLink()
+
+        #expect(view.preferredFrameRate == nil)
+        // A frame drawn by hand afterwards still works.
+        view.drawFrame()
+        #expect(view.framesDrawn == 1)
+    }
+
+    // AppKit traps on a frame that isn't finite and clamps a huge one, so the guard in
+    // `drawFrame` can't be reached from here; this checks a huge view draws nothing.
+    @Test func aHugeViewDrawsNothing() {
+        let view = makeView(width: 1e20, height: 500)
+        view.drawFrame()
+        #expect(view.framesDrawn == 0)
+    }
+
+    @Test func aTallerLayoutAsksForATallerWindow() throws {
+        let view = makeView()
+        var hints: [CGSize] = []
+        view.onSizeHint = { hints.append($0) }
+        view.drawFrame()
+        #expect(hints.isEmpty)
+
+        view.content.layout.push(BlankSpaceComponent().intoGeneric())
+        view.content.markChanged()
+        view.drawFrame()
+
+        #expect(hints.count == 1)
+        let hint = try #require(hints.first)
+        #expect(hint.width == 300)
+        #expect(hint.height > 500)
     }
 }

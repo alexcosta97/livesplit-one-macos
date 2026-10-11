@@ -80,6 +80,10 @@ final class TimerWindowController: NSObject, NSWindowDelegate {
         if pendingSave != nil { saveFrame() }
     }
 
+    func windowWillClose(_ notification: Notification) {
+        timerView.stopDisplayLink()
+    }
+
     func windowDidMove(_ notification: Notification) {
         scheduleSave()
     }

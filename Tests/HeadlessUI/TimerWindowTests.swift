@@ -134,6 +134,16 @@ import Testing
         #expect(controller.shownNotice == "Connected to pc")
     }
 
+    @Test func closingTheWindowStopsItsDisplayLink() throws {
+        let folder = try TemporaryFolder()
+        let controller = makeController(SettingsStore(directory: folder.url))
+        #expect(controller.timerView.preferredFrameRate != nil)
+
+        controller.window.close()
+
+        #expect(controller.timerView.preferredFrameRate == nil)
+    }
+
     @Test func aDragSavesOnceAfterItStops() async throws {
         let folder = try TemporaryFolder()
         let store = SettingsStore(directory: folder.url)
