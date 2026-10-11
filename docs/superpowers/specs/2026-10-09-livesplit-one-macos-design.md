@@ -272,8 +272,8 @@ Each addition gets Rust unit tests in `core/`.
   shows for its 4 seconds in turn. One already shown or waiting isn't repeated.
 - **Dock and menu bar.** The app has a Dock icon and a standard menu bar with
   the same commands as the right-click menu, as macOS expects.
-- **Keyboard shortcuts** for the Control commands work while the window has
-  focus. Global hotkeys are backlog.
+- **Keyboard shortcuts** for the Control commands work while the timer window
+  has focus. Global hotkeys are backlog. See section 7.2.
 
 ## 7. Right-click menu
 
@@ -297,13 +297,30 @@ Save Layout As…
 Connect to Server…     (Disconnect from <host> while connected or retrying)
 Always on Top
 ─────────────
+Settings…              ⌘,
 Open Log Folder
 About LiveSplit One for macOS
-Quit
+Quit                   ⌘Q
 ```
 
 - Items that can't be used are disabled, not hidden: Edit Splits while the
   timer is running, Undo Split with nothing to undo, and so on.
+- **Start/Split** reads *Start* while the timer isn't running and *Split*
+  otherwise. **Pause** reads *Resume* while the timer is paused. The Control
+  items show their first shortcut that a menu can show (section 7.2).
+- **Commands** from the menus and shortcuts run through the same event-reporting
+  command sink as server commands (section 5.1), on a background queue, since
+  a reset can wait for a decision (section 5.3). Pause and Resume send `pause`
+  and `resume`, never `togglePauseOrStart`, which would start a stopped timer.
+- **The menu bar** has the same commands, in the menus macOS apps use:
+  - *LiveSplit One*: About, Settings… (⌘,), Hide (⌘H), Hide Others (⌥⌘H),
+    Show All, Quit (⌘Q).
+  - *Control* and *Compare Against*, as in the right-click menu.
+  - *Window*: Minimize (⌘M), Always on Top.
+  - *Help*: Open Log Folder.
+
+  The Files, Connect and Edit Splits items are added to both menus by their
+  issues.
 - **Compare Against** lists the run's comparisons, including custom ones, with
   a tick on the current one, and the timing method below a separator.
 - **Save Layout As…** saves LiveSplit One's `.ls1l` format, the only layout
@@ -321,15 +338,62 @@ Quit
 - **Unsaved splits:** opening other splits, Close Splits and Quit ask
   *Save / Don't Save / Cancel* when the run has unsaved changes. A finished or
   reset attempt counts as a change, as in LiveSplit.
-- **Reset with new best times:** a Reset after beating some best times asks
-  whether to update them, with *Yes / No / Don't Reset*, as LiveSplit One
-  does. A reset from the server follows the same rule: when its command says
-  whether to save the attempt, the app doesn't ask; when it doesn't, the app
-  asks, and the server gets its reply once the user answers (section 5.3).
+- **Reset with new best times:** what a Reset after beating some best times
+  does is a setting, `reset_saves_best_times` (section 11), changed in the
+  Settings window (section 7.3): *Ask*, *Update them* or *Keep the old ones*.
+  While it is *Ask* (the default), the Reset asks whether to update them, with
+  *Yes / No / Don't Reset*, as LiveSplit One does, and saves a *Yes* or *No*
+  as the setting, so it asks only once. *Don't Reset* cancels the reset and
+  isn't saved. A reset from the server follows the same rule: when its command
+  says whether to save the attempt, the app doesn't ask; when it doesn't, the
+  setting decides, and if it is *Ask* the server gets its reply once the user
+  answers (section 5.3). The question comes with #12; until then, *Ask*
+  updates the best times, livesplit-core's own default.
 - A file that fails to load shows an alert with livesplit-core's reason. The
   current splits and layout stay as they were.
 - A failed save shows an alert, and the run stays marked unsaved.
 - File dialogs go through a `FilePicker` protocol (section 14.2).
+
+### 7.2 Keyboard shortcuts
+
+- Each Control command has a list of shortcuts, any of which runs it while the
+  timer window has focus. The defaults are single keys, as in terminal apps:
+
+  | Command | Default |
+  |---|---|
+  | Start/Split | `Space` |
+  | Reset | `Backspace` (⌫) |
+  | Undo Split | `KeyZ` |
+  | Skip Split | `KeyS` |
+  | Pause/Resume | `KeyP` |
+  | Undo All Pauses | none |
+
+- A shortcut is a key with any of the modifiers `Shift`, `Control`, `Alt` (⌥)
+  and `Meta` (⌘), written as livesplit-core's hotkeys are, so #19's global
+  hotkeys can use the same strings: `"Space"`, `"Numpad1"`,
+  `"Control+Shift+Space"`. Keys are named by the W3C `KeyboardEvent.code`
+  names and matched by their position on the keyboard, not by the character
+  they type, so they stay put on AZERTY or Dvorak.
+- Caps Lock, and the function and numeric-pad flags AppKit adds by itself,
+  don't count as modifiers.
+- A shortcut runs its command only if the menu item would be enabled. One the
+  window doesn't use goes on to the menu bar, so ⌘Q and the rest still work.
+- macOS keeps some combinations for itself, such as ⌃Space for the input
+  source. The app never receives those, so they can't be recorded.
+
+### 7.3 Settings window
+
+Opened with Settings… (⌘,). One window, with two sections:
+
+- **General:** *When a reset has new best times:* Ask / Update them / Keep the
+  old ones (section 7.1).
+- **Shortcuts:** each Control command with its shortcuts, shown as they look
+  on the current keyboard. **+** records the next key press, Esc cancels
+  recording, and × removes a shortcut. A shortcut that another command uses
+  isn't added, and the row says which command has it. ⌘Q, ⌘H, ⌘M, ⌘, and ⌘W
+  can't be recorded. **Restore Defaults** puts back section 7.2's defaults.
+
+Every change is saved at once and shows in the menus.
 
 ## 8. Connect to Server
 
@@ -441,7 +505,9 @@ folder, the same one livesplit-asr-bridge uses (`dirs::config_dir()`):
 
 - the last splits and layout paths, and the recent files lists (10 each);
 - the window frame per layout path, the default layout's window frame, and Always on Top;
-- the last Connect to Server URL.
+- the last Connect to Server URL;
+- what a reset with new best times does (section 7.1);
+- the keyboard shortcuts that differ from the defaults (section 7.2).
 
 It is read at launch and written when one of these changes, atomically, so a
 crash mid-write leaves the old file whole. Launching never creates it. It is
@@ -459,6 +525,7 @@ last_server_url = "ws://192.168.1.20:16834"
 last_splits = "/Users/me/Splits/GTA San Andreas.lss"
 recent_layouts = ["/Users/me/Layouts/Main.ls1l"]
 recent_splits = ["/Users/me/Splits/GTA San Andreas.lss", "/Users/me/Splits/Any%.lss"]
+reset_saves_best_times = true
 
 [default_layout_window]
 height = 500.0
@@ -472,6 +539,10 @@ layout = "/Users/me/Layouts/Main.ls1l"
 width = 300.0
 x = 120.0
 y = 640.0
+
+[shortcuts]
+start_split = ["Space", "Numpad1"]
+undo_all_pauses = ["Control+Shift+KeyP"]
 ```
 
 Every key is optional: a missing key takes its default (nothing opened, no
@@ -483,6 +554,15 @@ finite, a size that isn't positive, or a duplicate layout is dropped. The
 `default_layout_window` table (with keys `x`, `y`, `width`, `height`) holds
 the window's frame while the default layout is shown, which has no path. A
 broken file replaces any older `app.toml.bad`.
+
+`reset_saves_best_times` is absent while the app should ask (section 7.1).
+The `[shortcuts]` table has one list per Control command (`start_split`,
+`reset`, `undo_split`, `skip_split`, `pause`, `undo_all_pauses`), and holds
+only the commands whose shortcuts differ from the defaults, so a later
+version's new defaults reach anyone who never changed them. A command that
+isn't listed has its defaults, and `[]` means no shortcut. An entry that
+isn't a shortcut, or that an earlier command in that order already has, is
+dropped and logged.
 
 The splits and layouts themselves stay wherever the user keeps them; the app
 only stores their paths.
@@ -577,8 +657,10 @@ under 10 % E2E.
 
 - First launch with no settings: default layout, empty run.
 - Open splits and a layout; relaunch reopens them at the same window position.
-- Right-click → Control → Start/Split, Undo, Reset with the new-best-times
-  prompt.
+- Right-click → Control → Start/Split, Undo Split, Reset.
+- Shortcuts: `Space` splits; a shortcut changed in the Settings window runs
+  its command; ⌘Q quits.
+- Reset with new best times: the prompt, and its answer saved (#12).
 - Connect to Server with the fake server: its commands start and split the
   timer; a local split reaches it; it drops and the app reconnects.
 - Edit Splits: rename a segment and change a time, then OK; and Cancel.
@@ -807,10 +889,12 @@ three):
   issue after it documents itself in its own page (section 16.2).
 - #11 Timer window: borderless window, rendering, size hint, resizing, Always
   on Top, overlay notices.
-- #13 Right-click menu and menu bar, with keyboard shortcuts while focused.
-  The Files, Connect and Edit Splits items are added by their issues.
+- #13 Right-click menu and menu bar, with keyboard shortcuts while focused
+  (customisable, section 7.2) and the Settings window (section 7.3). The
+  Files, Connect and Edit Splits items are added by their issues.
 - #12 Files: open and save splits, open layout, Save Layout As, recents,
-  unsaved-changes and reset prompts, reopen on launch.
+  unsaved-changes and reset prompts (the reset prompt saves its answer,
+  section 7.1), reopen on launch.
 - #14 Connect to Server: sheet, client, events to the server, status,
   automatic reconnection.
 - #15 Splits editor.
