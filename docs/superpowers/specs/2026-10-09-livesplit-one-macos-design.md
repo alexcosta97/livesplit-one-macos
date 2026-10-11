@@ -783,6 +783,10 @@ three):
 - #18 E2E harness and suite (section 14.2), filled in alongside #11–#17:
   each issue adds its own flows from section 14.3, and #18 closes when they
   all pass.
+- #48 Third-party licence notices: the release `.app` carries the notices
+  of every third-party component it links (livesplit-core and its crates,
+  swift-toml, toml++), generated or checked in CI. Before the first full
+  release, since those licences require their notices to go with copies.
 - #41 Complete the wiki for the first release: screenshots (section 16.4),
   a whole-wiki pass, Troubleshooting.
 
