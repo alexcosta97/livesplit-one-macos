@@ -38,6 +38,30 @@ final class FileController {
     var recentSplits: [String] { settings.settings.recentSplits.paths }
     var recentLayouts: [String] { settings.settings.recentLayouts.paths }
 
+    /// `path` for a log line. A path from a splits file or `app.toml` can't be trusted, so
+    /// control characters, line breaks included, are written escaped and can't forge a line.
+    static func loggable(_ path: String) -> String {
+        var result = ""
+        for scalar in path.unicodeScalars {
+            switch scalar {
+            case "\\": result += "\\\\"
+            case "\n": result += "\\n"
+            case "\r": result += "\\r"
+            case "\t": result += "\\t"
+            default:
+                if scalar.properties.generalCategory == .control {
+                    result += "\\u{" + String(scalar.value, radix: 16) + "}"
+                } else {
+                    result.unicodeScalars.append(scalar)
+                }
+            }
+        }
+        return result
+    }
+
+    /// The path as `app.toml` and the log hold it.
+    private func standard(_ url: URL) -> String { url.standardizedFileURL.path }
+
     // MARK: Launch
 
     /// Reopens the splits and layout of the last session. A file that can't be opened leaves
@@ -49,7 +73,7 @@ final class FileController {
                 let run = try SplitsFile.load(url)
                 if content.setRun(run) {
                     splitsPath = url.standardizedFileURL.path
-                    log.record(.app, "Opened splits \(path)")
+                    log.record(.app, "Opened splits \(Self.loggable(standard(url)))")
                 } else {
                     failedToReopen(url, error: .notSplits)
                 }
@@ -62,7 +86,7 @@ final class FileController {
             do {
                 let layout = try LayoutFile.load(url)
                 window.showLayout(layout, path: url.standardizedFileURL.path)
-                log.record(.app, "Opened layout \(path)")
+                log.record(.app, "Opened layout \(Self.loggable(standard(url)))")
             } catch {
                 failedToReopen(url, error: error)
             }
@@ -72,7 +96,9 @@ final class FileController {
     private func failedToReopen(_ url: URL, error: FileLoadError) {
         let name = url.lastPathComponent
         window.notices.show("Couldn't reopen \"\(name)\": \(error.reason(file: name))")
-        log.record(.error, "Couldn't open \(url.path): \(error.reason(file: name))")
+        log.record(
+            .error,
+            "Couldn't open \(Self.loggable(standard(url))): \(error.reason(file: name))")
     }
 
     // MARK: Splits
@@ -108,7 +134,7 @@ final class FileController {
             $0.lastSplitsPath = path
             $0.recentSplits.add(path)
         }
-        log.record(.app, "Opened splits \(path)")
+        log.record(.app, "Opened splits \(Self.loggable(path))")
         openLinkedLayout()
     }
 
@@ -121,6 +147,7 @@ final class FileController {
             window.showLayout(Layout.defaultLayout(lang), path: nil)
             settings.update { $0.lastLayoutPath = nil }
         case .path(let linked):
+            // A relative link resolves against the working directory, so it fails with a notice.
             let url = URL(filePath: linked)
             let name = url.lastPathComponent
             do {
@@ -129,7 +156,9 @@ final class FileController {
                 window.notices.show(
                     "Couldn't open the layout \"\(name)\" these splits use: "
                         + error.reason(file: name))
-                log.record(.error, "Couldn't open \(url.path): \(error.reason(file: name))")
+                log.record(
+                    .error,
+                    "Couldn't open \(Self.loggable(standard(url))): \(error.reason(file: name))")
             }
         }
     }
@@ -168,7 +197,7 @@ final class FileController {
             return false
         }
         content.markSaved(text)
-        log.record(.app, "Saved splits to \(url.standardizedFileURL.path)")
+        log.record(.app, "Saved splits to \(Self.loggable(standard(url)))")
         return true
     }
 
@@ -220,7 +249,7 @@ final class FileController {
             $0.lastLayoutPath = path
             $0.recentLayouts.add(path)
         }
-        log.record(.app, "Opened layout \(path)")
+        log.record(.app, "Opened layout \(Self.loggable(path))")
     }
 
     func saveLayoutAs() {
@@ -241,7 +270,7 @@ final class FileController {
             $0.lastLayoutPath = path
             $0.recentLayouts.add(path)
         }
-        log.record(.app, "Saved layout to \(path)")
+        log.record(.app, "Saved layout to \(Self.loggable(path))")
     }
 
     // MARK: Recent files
@@ -259,11 +288,13 @@ final class FileController {
     private func failedToOpen(_ url: URL, error: FileLoadError) {
         let name = url.lastPathComponent
         alerts.showLoadFailed(error, file: name)
-        log.record(.error, "Couldn't open \(url.path): \(error.reason(file: name))")
+        log.record(
+            .error,
+            "Couldn't open \(Self.loggable(standard(url))): \(error.reason(file: name))")
     }
 
     private func failedToSave(_ url: URL, reason: String) {
         alerts.showSaveFailed(reason: reason, file: url.lastPathComponent)
-        log.record(.error, "Couldn't save \(url.path): \(reason)")
+        log.record(.error, "Couldn't save \(Self.loggable(standard(url))): \(reason)")
     }
 }

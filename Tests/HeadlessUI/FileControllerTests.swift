@@ -261,6 +261,40 @@ final class FakeFileAlerts: FileAlerts {
         #expect(settings.settings.lastLayoutPath == standard(layout))
     }
 
+    @Test func aLinkToANonRegularFileShowsANoticeAndKeepsTheLayout() throws {
+        let layout = Fixtures.url("TextShadow.ls1l")
+        let url = try LinkedSplits.write(linking: "/dev/zero", in: folder)
+        let alerts = FakeFileAlerts()
+        let controller = makeController(picker: FakeFilePicker(open: [url]), alerts: alerts)
+        controller.openLayout(atPath: layout.path)
+        controller.openSplits()
+        #expect(runLength() > 1)
+        #expect(window.layoutPath == standard(layout))
+        #expect(settings.settings.lastLayoutPath == standard(layout))
+        #expect(
+            window.notices.current
+                == "Couldn't open the layout \"zero\" these splits use: It isn't a regular file.")
+        #expect(alerts.loadFailures.isEmpty)
+    }
+
+    @Test func aLinkWithNewlinesCantForgeLogLines() throws {
+        let link = "/tmp/x\n12:00:00.000  APP  Opened splits /forged"
+        let url = try LinkedSplits.write(linking: link, in: folder)
+        let controller = makeController(picker: FakeFilePicker(open: [url]))
+        controller.openSplits()
+        let errors = logged(.error)
+        #expect(errors.count == 1)
+        #expect(!errors[0].contains("\n"))
+        #expect(errors[0].contains("\\n12:00:00.000"))
+    }
+
+    @Test func loggablePathsEscapeControlCharacters() {
+        #expect(FileController.loggable("/a/b.lss") == "/a/b.lss")
+        #expect(FileController.loggable("/a\nb\r\tc") == "/a\\nb\\r\\tc")
+        #expect(FileController.loggable("/a\\b") == "/a\\\\b")
+        #expect(FileController.loggable("/a\u{1b}[0m") == "/a\\u{1b}[0m")
+    }
+
     // MARK: 3. Save splits
 
     @Test func savingWritesTheFileAndMarksTheRunSaved() throws {
@@ -297,12 +331,16 @@ final class FakeFileAlerts: FileAlerts {
     }
 
     @Test func aFailedSaveReportsAndLeavesTheRunUnsaved() throws {
-        let url = try copy("GameTime.lss", as: "Splits.lss")
+        let subfolder = folder.url.appending(path: "sub", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: subfolder, withIntermediateDirectories: true)
+        let url = subfolder.appending(path: "Splits.lss")
+        try FileManager.default.copyItem(at: Fixtures.url("GameTime.lss"), to: url)
         let alerts = FakeFileAlerts()
         let controller = makeController(picker: FakeFilePicker(open: [url]), alerts: alerts)
         controller.openSplits()
         makeUnsaved()
-        try FileManager.default.removeItem(at: folder.url)
+        // Only the file's folder goes, so the settings and the log stay.
+        try FileManager.default.removeItem(at: subfolder)
         #expect(!controller.saveSplits())
         #expect(content.hasUnsavedChanges)
         #expect(alerts.saveFailures.map(\.file) == ["Splits.lss"])
@@ -413,6 +451,10 @@ final class FakeFileAlerts: FileAlerts {
         makeUnsaved()
         #expect(!controller.confirmUnsavedChanges())
         #expect(alerts.saveFailures.count == 1)
+        #expect(controller.splitsPath == nil)
+        #expect(settings.settings.lastSplitsPath == nil)
+        #expect(controller.recentSplits.isEmpty)
+        #expect(content.hasUnsavedChanges)
     }
 
     @Test func choosingDontSaveGoesOnAndCancelStops() {

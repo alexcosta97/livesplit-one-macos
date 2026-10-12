@@ -26,10 +26,26 @@ enum FileLoadError: Error, Equatable, Sendable {
         }
     }
 
-    /// Reads `url`, turning macOS's error into `.unreadable`.
+    /// The most a splits or layout file may hold. Real files are kilobytes; the cap keeps a
+    /// link to an enormous file from filling memory on the main thread.
+    static let sizeLimit = 64 * 1024 * 1024
+
+    /// Reads `url`, turning macOS's error into `.unreadable`. Only a regular file under
+    /// `sizeLimit` is read, symlinks resolved: a link to a device or a pipe would never end,
+    /// and splits name their layout, so the path can't be trusted.
     static func read(_ url: URL) throws(FileLoadError) -> Data {
         do {
+            let values = try url.resolvingSymlinksInPath()
+                .resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey])
+            guard values.isRegularFile == true else {
+                throw FileLoadError.unreadable("It isn't a regular file.")
+            }
+            if let size = values.fileSize, size > sizeLimit {
+                throw FileLoadError.unreadable("It's too large to be a splits or layout file.")
+            }
             return try Data(contentsOf: url)
+        } catch let error as FileLoadError {
+            throw error
         } catch {
             throw .unreadable(error.localizedDescription)
         }
