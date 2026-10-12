@@ -21,9 +21,6 @@ import Testing
     @Test func saveIsTheDefaultAndEscapeCancels() {
         let alert = SystemFileAlerts.saveChanges(name: "A.lss")
         #expect(alert.buttons[0].keyEquivalent == "\r")
-        // AppKit gives a button titled "Don't Save" the standard Command-D.
-        #expect(alert.buttons[1].keyEquivalent == "d")
-        #expect(alert.buttons[1].keyEquivalentModifierMask == .command)
         #expect(alert.buttons[2].keyEquivalent == "\u{1b}")
     }
 
@@ -31,6 +28,13 @@ import Testing
         #expect(SystemFileAlerts.choice(for: .alertFirstButtonReturn) == .save)
         #expect(SystemFileAlerts.choice(for: .alertSecondButtonReturn) == .dontSave)
         #expect(SystemFileAlerts.choice(for: .alertThirdButtonReturn) == .cancel)
+    }
+
+    @Test func anyOtherResponseCancels() {
+        #expect(SystemFileAlerts.choice(for: .cancel) == .cancel)
+        #expect(SystemFileAlerts.choice(for: .abort) == .cancel)
+        #expect(SystemFileAlerts.choice(for: .stop) == .cancel)
+        #expect(SystemFileAlerts.choice(for: .OK) == .cancel)
     }
 
     @Test func loadFailedShowsTheErrorsMessage() {

@@ -16,6 +16,8 @@ protocol FileAlerts: AnyObject {
 
 /// The alerts as `NSAlert`s, built by the static factories for the headless tests and run
 /// app-modal.
+// A class, unlike LogFolderAlert's caseless enum, because `FileAlerts` needs an instance that
+// tests can fake.
 @MainActor
 final class SystemFileAlerts: FileAlerts {
     func askToSave(name: String?) -> SaveChoice {
