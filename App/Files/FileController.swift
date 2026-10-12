@@ -38,6 +38,8 @@ final class FileController {
     var recentSplits: [String] { settings.settings.recentSplits.paths }
     var recentLayouts: [String] { settings.settings.recentLayouts.paths }
 
+    private static let attemptRunning = "an attempt is in progress"
+
     /// The path as `app.toml` and the log hold it.
     private func standard(_ url: URL) -> String { url.standardizedFileURL.path }
 
@@ -61,11 +63,15 @@ final class FileController {
             let url = URL(filePath: path)
             do {
                 let run = try SplitsFile.load(url)
-                if content.setRun(run) {
+                switch content.setRun(run) {
+                case .replaced:
                     splitsPath = url.standardizedFileURL.path
-                    log.record(.app, "Opened splits \(LogText.escaped(standard(url)))")
-                } else {
+                    log.record(.app, "Opened splits \(standard(url))")
+                case .noSegments:
                     failedToReopen(url, error: .notSplits)
+                case .attemptInProgress:
+                    // Nothing runs at launch; were it so, the attempt stays.
+                    log.record(.error, "Couldn't open \(standard(url)): \(Self.attemptRunning)")
                 }
             } catch {
                 failedToReopen(url, error: error)
@@ -76,7 +82,7 @@ final class FileController {
             do {
                 let layout = try LayoutFile.load(url)
                 window.showLayout(layout, path: url.standardizedFileURL.path)
-                log.record(.app, "Opened layout \(LogText.escaped(standard(url)))")
+                log.record(.app, "Opened layout \(standard(url))")
             } catch {
                 failedToReopen(url, error: error)
             }
@@ -88,7 +94,7 @@ final class FileController {
         window.notices.show("Couldn't reopen \"\(name)\": \(error.reason(file: name))")
         log.record(
             .error,
-            "Couldn't open \(LogText.escaped(standard(url))): \(error.reason(file: name))")
+            "Couldn't open \(standard(url)): \(error.reason(file: name))")
     }
 
     // MARK: Splits
@@ -114,8 +120,18 @@ final class FileController {
             failedToOpen(url, error: error)
             return
         }
-        guard content.setRun(run) else {
+        switch content.setRun(run) {
+        case .replaced:
+            break
+        case .noSegments:
             failedToOpen(url, error: .notSplits)
+            return
+        case .attemptInProgress:
+            // An attempt started while the picker or an alert was open, such as by a server.
+            // It isn't a file problem, so no alert about the file: a notice says why.
+            let name = url.lastPathComponent
+            window.notices.show("Couldn't open \"\(name)\": \(Self.attemptRunning)")
+            log.record(.error, "Couldn't open \(standard(url)): \(Self.attemptRunning)")
             return
         }
         let path = url.standardizedFileURL.path
@@ -124,7 +140,7 @@ final class FileController {
             $0.lastSplitsPath = path
             $0.recentSplits.add(path)
         }
-        log.record(.app, "Opened splits \(LogText.escaped(path))")
+        log.record(.app, "Opened splits \(path)")
         openLinkedLayout()
     }
 
@@ -136,6 +152,7 @@ final class FileController {
         case .defaultLayout:
             window.showLayout(Layout.defaultLayout(lang), path: nil)
             settings.update { $0.lastLayoutPath = nil }
+            log.record(.app, "Opened the default layout")
         case .path(let linked):
             // A relative link resolves against the working directory, so it fails with a notice.
             let url = URL(filePath: linked)
@@ -148,7 +165,7 @@ final class FileController {
                         + error.reason(file: name))
                 log.record(
                     .error,
-                    "Couldn't open \(LogText.escaped(standard(url))): \(error.reason(file: name))")
+                    "Couldn't open \(standard(url)): \(error.reason(file: name))")
             }
         }
     }
@@ -187,14 +204,18 @@ final class FileController {
             return false
         }
         content.markSaved(text)
-        log.record(.app, "Saved splits to \(LogText.escaped(standard(url)))")
+        log.record(.app, "Saved splits to \(standard(url))")
         return true
     }
 
     /// Close Splits: back to the new run, keeping the layout.
     func closeSplits() {
         guard canReplaceRun, confirmUnsavedChanges() else { return }
-        guard content.setRun(TimerContent.defaultRun()) else { return }
+        guard content.setRun(TimerContent.defaultRun()) == .replaced else {
+            window.notices.show("Couldn't close the splits: \(Self.attemptRunning)")
+            log.record(.error, "Couldn't close the splits: \(Self.attemptRunning)")
+            return
+        }
         splitsPath = nil
         settings.update { $0.lastSplitsPath = nil }
         log.record(.app, "Closed splits")
@@ -239,7 +260,7 @@ final class FileController {
             $0.lastLayoutPath = path
             $0.recentLayouts.add(path)
         }
-        log.record(.app, "Opened layout \(LogText.escaped(path))")
+        log.record(.app, "Opened layout \(path)")
     }
 
     func saveLayoutAs() {
@@ -260,7 +281,7 @@ final class FileController {
             $0.lastLayoutPath = path
             $0.recentLayouts.add(path)
         }
-        log.record(.app, "Saved layout to \(LogText.escaped(path))")
+        log.record(.app, "Saved layout to \(path)")
     }
 
     // MARK: Recent files
@@ -280,11 +301,11 @@ final class FileController {
         alerts.showLoadFailed(error, file: name)
         log.record(
             .error,
-            "Couldn't open \(LogText.escaped(standard(url))): \(error.reason(file: name))")
+            "Couldn't open \(standard(url)): \(error.reason(file: name))")
     }
 
     private func failedToSave(_ url: URL, reason: String) {
         alerts.showSaveFailed(reason: reason, file: url.lastPathComponent)
-        log.record(.error, "Couldn't save \(LogText.escaped(standard(url))): \(reason)")
+        log.record(.error, "Couldn't save \(standard(url)): \(reason)")
     }
 }

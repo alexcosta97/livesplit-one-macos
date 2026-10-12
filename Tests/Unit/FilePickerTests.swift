@@ -51,12 +51,16 @@ import Testing
         #expect(unified.entries.first?.message.contains("open layout") == true)
     }
 
-    @Test func aScriptedPathIsEscapedInTheLog() throws {
-        let (picker, unified, _) = try makePicker(["rel\nforged line"])
+    @Test func aScriptedPathIsEscapedInTheLogFile() throws {
+        let (picker, _, folder) = try makePicker(["rel\nforged line"])
         #expect(picker.fileToOpen(.splits) == nil)
-        let message = try #require(unified.entries.first { $0.category == .error }?.message)
-        #expect(message.contains("rel\\nforged line"))
-        #expect(!message.contains("\n"))
+        let name = try #require(
+            try FileManager.default.contentsOfDirectory(atPath: folder.url.path)
+                .first { $0.hasSuffix(".log") })
+        let text = try folder.read(name)
+        #expect(text.contains(#"isn't absolute"#))
+        #expect(text.contains(#"rel\nforged line"#))
+        #expect(text.filter { $0 == "\n" }.count == 1)
     }
 
     @Test func aLaunchArgumentListsTheAnswers() throws {

@@ -32,7 +32,7 @@ private final class QuestionCount: Sendable {
             directory: folder.url.appending(path: "config", directoryHint: .isDirectory))
         let screen = CGRect(x: 0, y: 0, width: 1440, height: 875)
         window = TimerWindowController(
-            content: content, settings: settings, screens: [screen], mainScreen: screen,
+            content: content, settings: settings, screens: { [screen] }, mainScreen: { screen },
             notices: NoticeQueue(schedule: { _, _ in }))
     }
 
@@ -185,6 +185,21 @@ private final class QuestionCount: Sendable {
         #expect(content.phase == .notRunning)
         // The reset made the run modified, so it asked about it.
         #expect(alerts.asked.count == 1)
+    }
+
+    /// The log names what sent the reset: quitting, not a menu the user never used.
+    @Test(.timeLimit(.minutes(1))) func theResetQuitSendsIsLoggedAsFromQuitting() async throws {
+        let flow = makeFlow(answering: .no)
+        _ = await run(.splitOrStart, on: runnerInUse!)
+        alerts.choices = [.dontSave]
+        _ = await quit(flow)
+        let logs = folder.url.appending(path: "runner-logs", directoryHint: .isDirectory)
+        let names = try FileManager.default.contentsOfDirectory(atPath: logs.path)
+            .filter { $0.hasSuffix(".log") }
+        let text = try String(
+            contentsOf: logs.appending(path: try #require(names.first)), encoding: .utf8)
+        #expect(text.contains("Reset from quitting"))
+        #expect(!text.contains("Reset from the menu"))
     }
 
     @Test(.timeLimit(.minutes(1))) func theResetQuestionIsAskedForNewBestTimes() async {

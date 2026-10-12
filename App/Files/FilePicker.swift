@@ -108,7 +108,7 @@ final class ScriptedFilePicker: FilePicker {
         guard !answers.isEmpty else {
             log.record(
                 .error,
-                "No scripted file answer left for \"\(LogText.escaped(question))\"; cancelling")
+                "No scripted file answer left for \"\(question)\"; cancelling")
             return nil
         }
         guard let path = answers.removeFirst() else { return nil }
@@ -116,7 +116,7 @@ final class ScriptedFilePicker: FilePicker {
         guard path.hasPrefix("/") else {
             log.record(
                 .error,
-                "Scripted file answer \"\(LogText.escaped(path))\" isn't absolute; cancelling")
+                "Scripted file answer \"\(path)\" isn't absolute; cancelling")
             return nil
         }
         return URL(filePath: path)

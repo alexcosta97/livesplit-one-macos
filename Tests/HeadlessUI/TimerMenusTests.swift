@@ -23,13 +23,13 @@ import Testing
     init() throws {
         let run = Run()
         run.pushSegment(Segment("Time"))
-        #expect(content.setRun(run))
+        #expect(content.setRun(run) == .replaced)
         folder = try TemporaryFolder()
         settings = SettingsStore(
             directory: folder.url.appending(path: "config", directoryHint: .isDirectory))
         let screen = CGRect(x: 0, y: 0, width: 1440, height: 875)
         window = TimerWindowController(
-            content: content, settings: settings, screens: [screen], mainScreen: screen,
+            content: content, settings: settings, screens: { [screen] }, mainScreen: { screen },
             notices: NoticeQueue(schedule: { _, _ in }))
         let log = Log(directory: folder.url.appending(path: "logs"), unified: unified)
         files = FileController(

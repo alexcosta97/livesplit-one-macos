@@ -108,7 +108,7 @@ import Testing
 
     @Test func aNewRunReplacesTheOldOneAndOpensUnmodified() throws {
         let content = TimerContent(lang: 0)
-        #expect(content.setRun(try SplitsFile.load(Fixtures.url("GameTime.lss"))))
+        #expect(content.setRun(try SplitsFile.load(Fixtures.url("GameTime.lss"))) == .replaced)
         #expect(content.withRun { Int($0.len()) } > 1)
         #expect(!content.hasUnsavedChanges)
     }
@@ -167,8 +167,37 @@ import Testing
         // A new `Run` has no segments, and `SplitsFile.load` would reject such a file.
         let empty = Run()
         #expect(empty.len() == 0)
-        #expect(!content.setRun(empty))
+        #expect(content.setRun(empty) == .noSegments)
         #expect(content.withRun { Int($0.len()) } == before)
+    }
+
+    /// The check is made under the lock that replaces the run, in every phase but not running.
+    @Test func aRunIsntReplacedWhileAnAttemptIsInProgress() throws {
+        let content = TimerContent(lang: 0)
+        let sink = EventSink(timer: content.timer, report: { _ in }, decideReset: { .save })
+        _ = sink.handleCommand(#"{"command":"splitOrStart"}"#)
+        #expect(content.phase == .running)
+        let before = content.lssText()
+        let other = try SplitsFile.load(Fixtures.url("GameTime.lss"))
+        #expect(content.setRun(other) == .attemptInProgress)
+        #expect(content.setRun(Run()) == .attemptInProgress)
+        #expect(content.phase == .running)
+        #expect(content.withRun { Int($0.len()) } == 1)
+
+        _ = sink.handleCommand(#"{"command":"pause"}"#)
+        #expect(content.phase == .paused)
+        #expect(
+            content.setRun(try SplitsFile.load(Fixtures.url("GameTime.lss"))) == .attemptInProgress)
+
+        _ = sink.handleCommand(#"{"command":"resume"}"#)
+        _ = sink.handleCommand(#"{"command":"splitOrStart"}"#)
+        #expect(content.phase == .ended)
+        #expect(
+            content.setRun(try SplitsFile.load(Fixtures.url("GameTime.lss"))) == .attemptInProgress)
+        _ = before
+
+        _ = sink.handleCommand(#"{"command":"reset","saveAttempt":true}"#)
+        #expect(content.setRun(try SplitsFile.load(Fixtures.url("GameTime.lss"))) == .replaced)
     }
 
     /// GameTime.lss with a `<LayoutPath>` element added, loaded as a run.

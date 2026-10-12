@@ -6,6 +6,8 @@ import Synchronization
 enum CommandSource: String, Sendable {
     case menu = "the menu"
     case keyboard = "the keyboard"
+    /// The reset that quitting sends for an attempt in progress (spec §7.1).
+    case quit = "quitting"
 }
 
 /// Runs the menus' and the keyboard's commands through the app's one event-reporting command

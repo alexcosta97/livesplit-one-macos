@@ -13,6 +13,8 @@ final class FakeFilePicker: FilePicker {
         var directory: URL?
     }
 
+    /// Runs as a picker opens, as when something happens while it is on screen.
+    var whileOpen: (() -> Void)?
     var openAnswers: [URL?]
     var saveAnswers: [URL?]
     private(set) var opens: [String] = []
@@ -32,6 +34,7 @@ final class FakeFilePicker: FilePicker {
 
     func fileToOpen(_ kind: FileKind) -> URL? {
         opens.append(kindName(kind))
+        whileOpen?()
         return openAnswers.isEmpty ? nil : openAnswers.removeFirst()
     }
 
@@ -44,6 +47,8 @@ final class FakeFilePicker: FilePicker {
 @MainActor
 final class FakeFileAlerts: FileAlerts {
     var choices: [SaveChoice]
+    /// Runs as the question is on screen.
+    var whileAsking: (() -> Void)?
     private(set) var asked: [String?] = []
     private(set) var loadFailures: [(error: FileLoadError, file: String)] = []
     private(set) var saveFailures: [(reason: String, file: String)] = []
@@ -54,6 +59,7 @@ final class FakeFileAlerts: FileAlerts {
 
     func askToSave(name: String?) -> SaveChoice {
         asked.append(name)
+        whileAsking?()
         return choices.isEmpty ? .cancel : choices.removeFirst()
     }
 
@@ -81,7 +87,7 @@ final class FakeFileAlerts: FileAlerts {
             directory: folder.url.appending(path: "config", directoryHint: .isDirectory))
         let screen = CGRect(x: 0, y: 0, width: 1440, height: 875)
         window = TimerWindowController(
-            content: content, settings: settings, screens: [screen], mainScreen: screen,
+            content: content, settings: settings, screens: { [screen] }, mainScreen: { screen },
             notices: NoticeQueue(schedule: { _, _ in }))
         log = Log(
             directory: folder.url.appending(path: "logs", directoryHint: .isDirectory),
@@ -234,6 +240,68 @@ final class FakeFileAlerts: FileAlerts {
         #expect(runLength() > 1)
     }
 
+    @Test func aLinkToTheDefaultLayoutIsLogged() throws {
+        let controller = makeController(
+            picker: FakeFilePicker(open: [try LinkedSplits.write(linking: "?default", in: folder)]))
+        controller.openSplits()
+        #expect(logged(.app).contains("Opened the default layout"))
+    }
+
+    /// Spec §7.1: the app never changes the link a run holds.
+    @Test func openingAndSavingLayoutsAndSplitsLeaveTheLinkAlone() throws {
+        let linked = Fixtures.url("TextShadow.ls1l").path
+        let url = try LinkedSplits.write(linking: linked, in: folder)
+        let other = Fixtures.url("Dark.lsl")
+        let saved = folder.url.appending(path: "Copy.ls1l")
+        let picker = FakeFilePicker(open: [url, other], save: [saved])
+        let controller = makeController(picker: picker)
+        controller.openSplits()
+        #expect(content.linkedLayout == .path(linked))
+
+        controller.openLayout()
+        #expect(window.layoutPath == standard(other))
+        #expect(content.linkedLayout == .path(linked))
+        controller.saveLayoutAs()
+        #expect(content.linkedLayout == .path(linked))
+
+        makeUnsaved()
+        #expect(controller.saveSplits())
+        #expect(content.linkedLayout == .path(linked))
+        let text = try folder.read("Linked.lss")
+        #expect(text.contains("<LayoutPath>\(linked)</LayoutPath>"))
+    }
+
+    /// An attempt can start while the picker is open (a server command), and the file chosen
+    /// then isn't opened over it.
+    @Test func anAttemptStartedWhileThePickerWasOpenIsntDropped() throws {
+        let url = try copy("GameTime.lss", as: "Splits.lss")
+        let picker = FakeFilePicker(open: [url])
+        picker.whileOpen = { [self] in startTimer() }
+        let alerts = FakeFileAlerts()
+        let controller = makeController(picker: picker, alerts: alerts)
+        controller.openSplits()
+        #expect(content.phase == .running)
+        #expect(runLength() == 1)
+        #expect(controller.splitsPath == nil)
+        #expect(settings.settings.lastSplitsPath == nil)
+        // Not reported as a file that isn't splits.
+        #expect(alerts.loadFailures.isEmpty)
+        #expect(window.notices.current == "Couldn't open \"Splits.lss\": an attempt is in progress")
+        #expect(
+            logged(.error).contains("Couldn't open \(standard(url)): an attempt is in progress"))
+    }
+
+    @Test func anAttemptStartedWhileTheSaveQuestionWasOpenKeepsTheSplitsOpen() throws {
+        makeUnsaved()
+        let alerts = FakeFileAlerts(choices: [.dontSave])
+        alerts.whileAsking = { [self] in startTimer() }
+        let controller = makeController(alerts: alerts)
+        controller.closeSplits()
+        #expect(content.phase == .running)
+        #expect(logged(.error).contains("Couldn't close the splits: an attempt is in progress"))
+        #expect(window.notices.current == "Couldn't close the splits: an attempt is in progress")
+    }
+
     @Test func aLinkToAMissingLayoutKeepsTheLayoutAndShowsANotice() throws {
         let layout = Fixtures.url("TextShadow.ls1l")
         let missing = folder.url.appending(path: "Gone.ls1l")
@@ -277,15 +345,49 @@ final class FakeFileAlerts: FileAlerts {
         #expect(alerts.loadFailures.isEmpty)
     }
 
+    /// The day's log file as written on disk.
+    private func logFileText() throws -> String {
+        let logs = folder.url.appending(path: "logs", directoryHint: .isDirectory)
+        let names = try FileManager.default.contentsOfDirectory(atPath: logs.path)
+            .filter { $0.hasSuffix(".log") }
+        #expect(names.count == 1)
+        return try String(contentsOf: logs.appending(path: names[0]), encoding: .utf8)
+    }
+
     @Test func aLinkWithNewlinesCantForgeLogLines() throws {
         let link = "/tmp/x\n12:00:00.000  APP  Opened splits /forged"
         let url = try LinkedSplits.write(linking: link, in: folder)
         let controller = makeController(picker: FakeFilePicker(open: [url]))
         controller.openSplits()
-        let errors = logged(.error)
+        let text = try logFileText()
+        let lines = text.split(separator: "\n", omittingEmptySubsequences: false).dropLast()
+        // Every line starts with a time and a tag: nothing was forged.
+        #expect(
+            lines.allSatisfy {
+                $0.range(of: #"^\d\d:\d\d:\d\d\.\d{3}  [A-Z]+  "#, options: .regularExpression)
+                    != nil
+            })
+        #expect(
+            !lines.contains { $0.contains("  APP  Opened splits /forged") && $0.hasPrefix("12:00") }
+        )
+        let errors = lines.filter { $0.contains("  ERROR  ") }
         #expect(errors.count == 1)
-        #expect(!errors[0].contains("\n"))
-        #expect(errors[0].contains("\\n12:00:00.000"))
+        #expect(errors[0].contains(#"/tmp/x\n12:00:00.000"#))
+    }
+
+    /// Spec §12.2: a line break is written `\n` and a backslash `\\`, once, in the path and
+    /// in macOS's reason, which names the file too.
+    @Test func aPathWithALineBreakAndABackslashIsEscapedOncePerSpec() throws {
+        let link = "/tmp/a\\b\nc.ls1l"
+        let url = try LinkedSplits.write(linking: link, in: folder)
+        let controller = makeController(picker: FakeFilePicker(open: [url]))
+        controller.openSplits()
+        let text = try logFileText()
+        let line = try #require(
+            text.split(separator: "\n").first { $0.contains("  ERROR  Couldn't open") })
+        #expect(line.contains(#"Couldn't open /tmp/a\\b\nc.ls1l"#), "\(line)")
+        #expect(!line.contains(#"\\\\"#), "\(line)")
+        #expect(!line.contains(#"\\n"#), "\(line)")
     }
 
     // MARK: 3. Save splits

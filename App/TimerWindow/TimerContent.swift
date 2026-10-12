@@ -68,20 +68,38 @@ final class TimerContent {
         markChanged()
     }
 
-    /// Times with `run` from now on. `false` (and nothing changes) for a run with no segments.
+    /// What `setRun(_:)` did.
+    enum SetRunResult: Equatable {
+        /// The timer times with the run from now on.
+        case replaced
+        /// The run has no segments, which a timer can't use. Nothing changed.
+        case noSegments
+        /// An attempt is running, paused or finished and not reset. Nothing changed.
+        case attemptInProgress
+    }
+
+    /// Times with `run` from now on, unless an attempt is in progress or `run` has no segments.
     ///
-    /// Only while no attempt is in progress: `Timer.setRun` resets without keeping the attempt's
-    /// times. Callers enforce it (Open Splits and Close Splits are disabled outside `notRunning`).
-    /// It takes the timer's write lock on the main thread, so don't call it while a command
-    /// waits on the reset question; it runs only from menu actions, which a modal alert blocks.
+    /// The phase is checked under the same write lock that replaces the run, so an attempt
+    /// that starts while a file picker or alert was open (a server command can start one) is
+    /// never dropped: `Timer.setRun` resets without keeping the attempt's times. Callers still
+    /// check `FileController.canReplaceRun` first to skip the picker. It takes the write lock
+    /// on the main thread, so don't call it while a command waits on the reset question; it
+    /// runs only from menu actions, which a modal alert blocks.
     @discardableResult
-    func setRun(_ run: Run) -> Bool {
-        var rejected = false
-        timer.writeWith { rejected = $0.setRun(run) != nil }
-        guard !rejected else { return false }
+    func setRun(_ run: Run) -> SetRunResult {
+        var result = SetRunResult.replaced
+        timer.writeWith { timer in
+            guard timer.currentPhase() == TimerPhase.notRunning.rawValue else {
+                result = .attemptInProgress
+                return
+            }
+            if timer.setRun(run) != nil { result = .noSegments }
+        }
+        guard result == .replaced else { return result }
         imageCache.collect()
         markChanged()
-        return true
+        return .replaced
     }
 
     /// Runs `body` on the timer's run, under the read lock.
@@ -161,7 +179,7 @@ final class TimerContent {
     }
 }
 
-/// Which layout a run asks for (spec §7.2).
+/// Which layout a run asks for (spec §7.1).
 enum LinkedLayoutTarget: Equatable {
     /// The run links no layout.
     case none

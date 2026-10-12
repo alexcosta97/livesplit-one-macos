@@ -36,7 +36,7 @@ final class QuitFlow {
             return files.confirmUnsavedChanges() ? .terminateNow : .terminateCancel
         }
         pending = true
-        runner.run(.reset, from: .menu) { result in
+        runner.run(.reset, from: .quit) { result in
             // `nil` is a reset dropped behind the reset question; an error includes *Don't
             // Reset*. A reset that found no attempt, because a queued one ran first, has
             // nothing left to ask about, so quitting goes on.
