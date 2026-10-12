@@ -52,6 +52,10 @@ targets:
         LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
         NSPrincipalClass: NSApplication
         NSHighResolutionCapable: true
+        # The user chooses the server, and `ws://` is unencrypted (spec §8.1,
+        # §13), so App Transport Security can't list the hosts allowed.
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: true
         NSLocalNetworkUsageDescription: >-
           LiveSplit One connects to the timer server you choose, such as
           livesplit-asr-bridge on another computer.
