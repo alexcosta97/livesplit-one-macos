@@ -263,11 +263,25 @@ import Testing
         let frame = CGRect(x: 100, y: 200, width: 250, height: 400)
         #expect(controller.window.frame == frame)
 
-        // The new layout's first frame brings a size hint; the saved frame wins.
+        // The new layout's first frame is dropped of its size hint; the saved frame stays.
+        var hints = 0
+        let fit = try #require(controller.timerView.onSizeHint)
+        controller.timerView.onSizeHint = {
+            hints += 1
+            fit($0)
+        }
         let drawn = controller.timerView.framesDrawn
         settle(controller)
         #expect(controller.timerView.framesDrawn == drawn + 1)
+        #expect(hints == 0)
         #expect(controller.window.frame == frame)
+
+        // Control: a layout of another height with no saved frame does give a hint on its first
+        // frame, so the drop above is what kept the window still, not a renderer that gave none.
+        controller.showLayout(Layout.defaultLayout(0), path: "/layouts/unsaved.lsl")
+        settle(controller)
+        #expect(hints == 1)
+        #expect(controller.window.frame.size != frame.size)
     }
 
     @Test func aLayoutWithNoSavedFrameKeepsTheSizeUntilTheHintThenSavesIt() throws {
@@ -322,6 +336,23 @@ import Testing
         try await Task.sleep(for: .milliseconds(800))
 
         #expect(store.settings.frame(forLayout: "/layouts/dark.lsl") == other)
+    }
+
+    @Test func aMovePendingAtAdoptionIsSavedUnderTheOldPathAndTheNewOneHoldsIt() throws {
+        let folder = try TemporaryFolder()
+        let store = SettingsStore(directory: folder.url)
+        let controller = makeController(store)
+        controller.showLayout(try dark(), path: "/layouts/old.lsl")
+        let moved = CGRect(x: 70, y: 80, width: 310, height: 520)
+        controller.window.setFrame(moved, display: false)
+        controller.windowDidMove(Notification(name: NSWindow.didMoveNotification))
+        #expect(store.settings.frame(forLayout: "/layouts/old.lsl") == nil)
+
+        controller.adoptLayoutPath("/layouts/new.lsl")
+
+        let expected = WindowPlacement.windowFrame(moved)
+        #expect(store.settings.frame(forLayout: "/layouts/old.lsl") == expected)
+        #expect(store.settings.frame(forLayout: "/layouts/new.lsl") == expected)
     }
 
     @Test func adoptingAPathSavesTheCurrentFrameUnderItAndLaterFramesGoThere() throws {

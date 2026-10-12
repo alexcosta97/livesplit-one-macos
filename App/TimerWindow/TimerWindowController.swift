@@ -93,7 +93,7 @@ final class TimerWindowController: NSObject, NSWindowDelegate {
     }
 
     /// After Save Layout As…, the window's layout is the new file: saves the current frame under
-    /// its path, and the frame pending under the old one first.
+    /// its path. A move pending at that point is saved under the old path first.
     func adoptLayoutPath(_ path: String) {
         saveFrameIfPending()
         layoutPath = path
