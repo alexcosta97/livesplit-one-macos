@@ -38,7 +38,7 @@
 - Allowed commit and pull request title types: `feat`, `fix`, `perf`, `refactor`, `docs`, `test`, `build`, `ci`, `style`, `chore` (CONTRIBUTING.md).
 - Swift is formatted with `swift format` using `.swift-format` (4 spaces, 100 columns) and must pass `swift format lint --strict`. Generated Swift is never linted.
 - Action versions: `actions/checkout@v7`, `Swatinem/rust-cache@v2`, `jdx/mise-action@v4`, `actions/upload-artifact@v7`, `actions/download-artifact@v8`, `amannn/action-semantic-pull-request@v6`, `wagoid/commitlint-github-action@v6` (as in livesplit-asr-bridge). Since issue #36, every action is pinned to a full commit SHA with the exact version as a comment, and Renovate updates the pins (spec §15); the tags above are the versions the plan was written against. Tool versions live only in `mise.toml`; Rust comes only from `rust-toolchain.toml`.
-- CI jobs run on `macos-latest` (spec §15), except `commitlint` and `pr-title`, and the release jobs that only run git-cliff and `gh`, which run on `ubuntu-latest`.
+- CI jobs run on `xcode-27` (spec §15), except `commitlint` and `pr-title`, and the release jobs that only run git-cliff and `gh`, which run on `ubuntu-latest`.
 - Every commit is signed and follows Conventional Commits; branches are `<type>/<short-description>`; each task is one pull request that links its issue (`Closes #N`, or `Part of #N` when a later task closes it). The implementer stops after opening the pull request: only the maintainer merges.
 - Pull request descriptions follow `.github/pull_request_template.md`: the issue, what changed and why, how it was tested (the commands run and their results), and the checklist ticked. Write it to a file outside the repository (`PR_BODY=$(mktemp)`) and pass it with `--body-file "$PR_BODY"`.
 
@@ -2338,7 +2338,7 @@ Stop here. The maintainer merges.
 Key facts:
 - **Build once, test from it:** `setup` runs `xcodebuild build-for-testing` and passes `Build/Products` (the app, the test bundles and the `.xctestrun` file) to `test` and `e2e`, which run `xcodebuild test-without-building -xctestrun …`. `upload-artifact` doesn't keep file permissions, so the products travel as a tar.
 - **What is cached:** Swatinem/rust-cache caches `~/.cargo` and `core/target`, as in livesplit-asr-bridge, with one key shared by every job, saved by `setup` only. Xcode's DerivedData isn't cached between runs: a fresh checkout gives every file a new modification time, so Xcode would rebuild the Swift anyway; sharing the test build covers "build the app once".
-- **Xcode is chosen explicitly:** `macos-latest` is the macOS 26 arm64 image, whose newest and default Xcode is 26.6 (runner image 20260907; Xcode 27 isn't on it yet, see `actions/runner-images`, `images/macos/macos-26-arm64-Readme.md`). The setup action selects `/Applications/Xcode_$XCODE_VERSION.app`, so a change of the image's default can't silently change the build. Moving to Xcode 27 is a one-line change to `XCODE_VERSION` once an image ships it. 26.6 is also the oldest Xcode the project supports locally.
+- **Xcode is chosen explicitly:** `xcode-27` is the macOS 26 arm64 image, whose newest and default Xcode is 26.6 (runner image 20260907; Xcode 27 isn't on it yet, see `actions/runner-images`, `images/macos/macos-26-arm64-Readme.md`). The setup action selects `/Applications/Xcode_$XCODE_VERSION.app`, so a change of the image's default can't silently change the build. Moving to Xcode 27 is a one-line change to `XCODE_VERSION` once an image ships it. 26.6 is also the oldest Xcode the project supports locally.
 - **Rust comes from `rust-toolchain.toml`:** GitHub's macOS runners have rustup, and `rustup toolchain install` with no argument installs what the file names, including the `x86_64-apple-darwin` target for `build`. `dtolnay/rust-toolchain` isn't used.
 - **On push to `main`** only `setup` runs, which builds and saves the Rust cache that pull requests restore (spec §15).
 - **Required checks:** the existing ruleset `24807167` has `deletion`, `non_fast_forward`, `required_linear_history`, `required_signatures` and `pull_request` (squash only, conversations resolved). Rulesets are replaced as a whole, so Step 8 sends every existing rule plus `required_status_checks`. `15368` is the GitHub Actions app's id (`gh api apps/github-actions --jq .id`).
@@ -2482,7 +2482,7 @@ jobs:
   # read its base branch's caches, not other pull requests' (spec §15).
   setup:
     name: setup
-    runs-on: macos-latest
+    runs-on: xcode-27
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
@@ -2515,7 +2515,7 @@ jobs:
     name: lint
     needs: setup
     if: ${{ !cancelled() && github.event_name == 'pull_request' }}
-    runs-on: macos-latest
+    runs-on: xcode-27
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
@@ -2527,7 +2527,7 @@ jobs:
     name: test
     needs: setup
     if: ${{ !cancelled() && github.event_name == 'pull_request' }}
-    runs-on: macos-latest
+    runs-on: xcode-27
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
@@ -2546,7 +2546,7 @@ jobs:
     name: e2e
     needs: setup
     if: ${{ !cancelled() && github.event_name == 'pull_request' }}
-    runs-on: macos-latest
+    runs-on: xcode-27
     steps:
       - uses: actions/download-artifact@v8
         with:
@@ -2562,7 +2562,7 @@ jobs:
     name: build
     needs: setup
     if: ${{ !cancelled() && github.event_name == 'pull_request' }}
-    runs-on: macos-latest
+    runs-on: xcode-27
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
@@ -3030,7 +3030,7 @@ permissions:
 jobs:
   package:
     name: package
-    runs-on: macos-latest
+    runs-on: xcode-27
     steps:
       - uses: actions/checkout@v7
         with:

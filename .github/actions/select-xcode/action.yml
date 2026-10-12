@@ -13,7 +13,7 @@ runs:
     - name: Select Xcode
       shell: bash
       env:
-        XCODE_VERSION: '26.6'
+        XCODE_VERSION: "27.0"
       run: |
         app="/Applications/Xcode_${XCODE_VERSION}.app"
         if [ ! -d "$app" ]; then

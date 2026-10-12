@@ -742,7 +742,7 @@ These follow livesplit-asr-bridge (its spec sections 13 and 14, and its
   stops `v*` tags being moved or deleted. Creating them isn't restricted:
   GitHub doesn't let the GitHub Actions app bypass a ruleset in a personal
   repository, so restricting creation would block the release workflow.
-- **CI** on pull requests, on `macos-latest` runners because Xcode needs them:
+- **CI** on pull requests, on `xcode-27` runners because Xcode needs them:
   - `setup`: builds `core/` and the app with its tests once, hands the test
     build to `test` and `e2e`, and saves the Cargo cache (Xcode's DerivedData
     isn't cached: a fresh checkout invalidates it);

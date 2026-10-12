@@ -10,7 +10,7 @@ options:
   preGenCommand: scripts/build-core.sh --bindings-only
 settings:
   base:
-    SWIFT_VERSION: "5.0"
+    SWIFT_VERSION: "6.0"
     # The CLiveSplitCore module, and the Rust libraries its module map links.
     SWIFT_INCLUDE_PATHS: $(SRCROOT)/LiveSplitCore/CLiveSplitCore/include
     LIBRARY_SEARCH_PATHS: $(SRCROOT)/LiveSplitCore/lib
