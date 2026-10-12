@@ -24,13 +24,15 @@ struct SystemUnifiedLog: UnifiedLogSink {
 
     func send(_ entry: LogEntry) {
         guard let logger = loggers[entry.category] else { return }
+        // Escaped as in the file, so a path can't forge lines in Console.app either.
+        let message = entry.escapedMessage
         // Public, or Console.app shows <private> instead of the message. The messages hold
         // file paths and server addresses, nothing secret (spec §13).
         if entry.category == .error {
-            logger.error("\(entry.message, privacy: .public)")
+            logger.error("\(message, privacy: .public)")
         } else {
             // Not .info: Console.app hides info and debug messages by default.
-            logger.notice("\(entry.message, privacy: .public)")
+            logger.notice("\(message, privacy: .public)")
         }
     }
 }

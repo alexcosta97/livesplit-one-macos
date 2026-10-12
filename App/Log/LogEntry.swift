@@ -17,8 +17,11 @@ struct LogEntry: Equatable, Sendable {
         let clock = String(
             format: "%02d:%02d:%02d.%03d", parts.hour ?? 0, parts.minute ?? 0, parts.second ?? 0,
             Int(milliseconds % 1000))
-        return "\(clock)  \(category.tag)  \(Self.escaped(message))\n"
+        return "\(clock)  \(category.tag)  \(escapedMessage)\n"
     }
+
+    /// The message as every sink gets it, the file and the unified log alike.
+    var escapedMessage: String { Self.escaped(message) }
 
     /// `message` on one line, safe for a log, in this one place for every message. A path from a
     /// splits file, `app.toml` or a script can't be trusted, and macOS's reasons name the file:
