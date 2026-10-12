@@ -29,7 +29,7 @@ private func appInfo() throws -> [String: Any] {
         #expect(try #require(reason).contains("livesplit-asr-bridge"))
     }
 
-    /// Plain `ws://` to any host the user enters, not only IP addresses (spec §8.1).
+    /// Plain `ws://` to any server the user enters, such as a Tailscale address (spec §8.1).
     @Test func allowsUnencryptedConnectionsToAnyServer() throws {
         let security = try appInfo()["NSAppTransportSecurity"] as? [String: Any]
         #expect(security?["NSAllowsArbitraryLoads"] as? Bool == true)

@@ -459,14 +459,13 @@ Every change is saved at once and shows in the menus.
   address, reads differently from a refused one (macOS's reason, such as
   *Could not connect to the server.*).
 - `Info.plist` sets `NSAllowsArbitraryLoads` under
-  `NSAppTransportSecurity`. Without it, App Transport Security refuses a
-  `ws://` URL whose host is a name rather than an IP address, such as a
-  Tailscale MagicDNS name, with "The resource could not be loaded because
-  the App Transport Security policy requires the use of a secure
-  connection". The user chooses the server, so the hosts can't be listed,
-  and `NSAllowsLocalNetworking` would make macOS ignore
-  `NSAllowsArbitraryLoads` while covering only `.local` and unqualified
-  names.
+  `NSAppTransportSecurity`. Without it, App Transport Security refused
+  `ws://` to the gaming PC's Tailscale address (`100.x.x.x`) with "The
+  resource could not be loaded because the App Transport Security policy
+  requires the use of a secure connection", while `127.0.0.1` worked (#14).
+  The user chooses the server, so the hosts can't be listed, and
+  `NSAllowsLocalNetworking` would make macOS ignore `NSAllowsArbitraryLoads`
+  while covering only local names.
 - `Info.plist` contains `NSLocalNetworkUsageDescription`, so macOS asks for
   local network access the first time the app connects to another machine.
   Until access is allowed, URLSession fails with "The Internet connection
