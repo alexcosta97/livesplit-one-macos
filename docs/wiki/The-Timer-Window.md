@@ -41,7 +41,7 @@ While the timer isn't running, the app redraws the window only when something ch
 
 ## What it shows at first
 
-At first, the window shows LiveSplit One's default layout and a run with one segment, **Time**.
+The first time, the window shows LiveSplit One's default layout and a run with one segment, **Time**. After you open splits or a layout, the app reopens them at launch: see [Splits and Layouts](Splits-and-Layouts#what-opens-at-launch).
 
 The layout's own words, such as **Previous Segment**, are in your Mac's language when LiveSplit One has it, and in English otherwise.
 
@@ -53,3 +53,5 @@ Short messages sometimes appear over the bottom of the timer, for 4 seconds each
 |---|---|
 | **Couldn't read the settings, so the defaults are used. The old file is app.toml.bad.** | The settings file was damaged, so the app started with the default settings and kept the old file. See [Troubleshooting](Troubleshooting#the-settings-were-reset). |
 | **Couldn't read the settings, so the defaults are used and changes aren't saved.** | The settings file couldn't be read, nor set aside. The app won't save settings until it restarts, so the file isn't overwritten. See [Troubleshooting](Troubleshooting#changes-to-the-settings-arent-saved). |
+| **Couldn't reopen "&lt;name&gt;": &lt;reason&gt;** | The splits or layout you had open last time couldn't be opened at launch, so the default layout or a new run is shown. See [Troubleshooting](Troubleshooting#a-file-didnt-reopen-at-launch). |
+| **Couldn't open the layout "&lt;name&gt;" these splits use: &lt;reason&gt;** | The splits you opened name a layout that couldn't be opened, so the layout you had stays. See [Splits and Layouts](Splits-and-Layouts#layouts-that-splits-use). |
