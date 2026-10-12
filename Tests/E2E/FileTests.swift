@@ -140,23 +140,39 @@ final class FileTests: XCTestCase {
         XCTAssertTrue(after.contains("TextShadow.ls1l"), after)
     }
 
+    /// How many times `text` is in the log files.
+    @MainActor
+    private func waitForLog(_ text: String, count: Int, _ e2e: E2EApp) {
+        let deadline = Date().addingTimeInterval(10)
+        var found = 0
+        while Date() < deadline {
+            let log = e2e.logText(containing: text, timeout: 1) ?? ""
+            found = log.components(separatedBy: text).count - 1
+            if found >= count { return }
+        }
+        XCTFail("the log holds \"\(text)\" \(found) times, not \(count)")
+    }
+
+    /// Quitting with an attempt in progress goes through AppKit's `.terminateLater`: the reset
+    /// question first, then the question about unsaved changes (spec §7.1).
     @MainActor
     func testUnsavedChangesAreAskedAboutOnQuit() {
-        let e2e = launched(picks: ["GameTime.lss", "saved:Saved.lss"])
-        openSplits(e2e)
+        let e2e = launched(picks: ["saved:Saved.lss"])
         choose("timer-save-splits-as", e2e)
-        XCTAssertNotNil(e2e.logText(containing: "Saved.lss"))
+        waitForLog("Saved splits to", e2e)
 
-        // GameTime.lss has 13 segments: one Start and 13 Splits finish an attempt.
-        split(14, e2e)
-        control("reset", e2e)
-        if alertButton("Yes", e2e).waitForExistence(timeout: 5) {
-            alertButton("Yes", e2e).click()
-        }
+        // The default run has one segment: Start, then Split, ends the attempt.
+        split(2, e2e)
+        waitForLog("Start/Split from the keyboard", count: 2, e2e)
 
         e2e.app.typeKey("q", modifierFlags: .command)
+        let yes = alertButton("Yes", e2e)
+        XCTAssertTrue(yes.waitForExistence(timeout: 5), "quitting didn't ask the reset question")
+        yes.click()
+        waitForLog("Reset from quitting", e2e)
+
         let cancel = alertButton("Cancel", e2e)
-        XCTAssertTrue(cancel.waitForExistence(timeout: 5), "quitting didn't ask")
+        XCTAssertTrue(cancel.waitForExistence(timeout: 5), "quitting didn't ask about changes")
         cancel.click()
         XCTAssertTrue(cancel.waitForNonExistence(timeout: 5))
         XCTAssertEqual(e2e.app.state, .runningForeground)
@@ -169,11 +185,8 @@ final class FileTests: XCTestCase {
 
         let text = try? String(contentsOf: e2e.savedFile("Saved.lss"), encoding: .utf8)
         XCTAssertNotNil(text, "Saved.lss wasn't written")
-        // GameTime.lss has attempts up to id 1788 and an attempt count of 1958: the new attempt
-        // takes the next id and the count goes up by one.
-        XCTAssertTrue(text?.contains("<Attempt id=\"1789\"") == true, "no new attempt in Saved.lss")
-        XCTAssertTrue(
-            text?.contains("<AttemptCount>1959<") == true, "the attempt count is the same")
+        XCTAssertTrue(text?.contains("<Attempt id=\"1\"") == true, "no attempt in Saved.lss")
+        XCTAssertTrue(text?.contains("<AttemptCount>1<") == true, "the attempt count isn't 1")
     }
 
     @MainActor
