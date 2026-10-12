@@ -48,6 +48,7 @@ import Testing
         let settings = try #require(delegate.settings)
         defer {
             settings.update { $0.resetSavesBestTimes = nil }
+            delegate.settingsChanged()  // The host's runner too.
             delegate.settingsWindow?.close()
         }
         settings.update { $0.resetSavesBestTimes = nil }
