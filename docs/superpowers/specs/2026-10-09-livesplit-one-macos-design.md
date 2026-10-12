@@ -304,7 +304,10 @@ Quit                   ⌘Q
 ```
 
 - Items that can't be used are disabled, not hidden: Edit Splits while the
-  timer is running, Undo Split with nothing to undo, and so on.
+  timer is running, Undo Split with nothing to undo, and so on. Open Splits
+  (and its recent files) and Close Splits are disabled while an attempt is in
+  progress, running, paused or finished and not yet reset, since replacing
+  the run would drop the attempt.
 - **Start/Split** reads *Start* while the timer isn't running and *Split*
   otherwise. **Pause** reads *Resume* while the timer is paused. The Control
   items show their first shortcut that a menu can show (section 7.2) while the
@@ -317,13 +320,14 @@ Quit                   ⌘Q
 - **The menu bar** has the same commands, in the menus macOS apps use:
   - *LiveSplit One*: About, Settings… (⌘,), Hide (⌘H), Hide Others (⌥⌘H),
     Show All, Quit (⌘Q).
+  - *File*: Open Splits, Save Splits (⌘S), Save Splits As… (⇧⌘S), Close
+    Splits, then Open Layout and Save Layout As…, as in the right-click menu.
   - *Control* and *Compare Against*, as in the right-click menu.
   - *Window*: Close (⌘W, for the Settings window; the timer window has no
     close button), Minimize (⌘M), Always on Top.
   - *Help*: Open Log Folder.
 
-  The Files, Connect and Edit Splits items are added to both menus by their
-  issues.
+  The Connect and Edit Splits items are added to both menus by their issues.
 - **Compare Against** lists the run's comparisons, including custom ones, with
   a tick on the current one, and the timing method below a separator.
 - **Save Layout As…** saves LiveSplit One's `.ls1l` format, the only layout
@@ -340,7 +344,16 @@ Quit                   ⌘Q
   file name.
 - **Unsaved splits:** opening other splits, Close Splits and Quit ask
   *Save / Don't Save / Cancel* when the run has unsaved changes. A finished or
-  reset attempt counts as a change, as in LiveSplit.
+  reset attempt counts as a change, as in LiveSplit. Quitting with an attempt
+  in progress first resets it, as LiveSplit does when it closes, so the
+  attempt is kept in the splits' history and asked about like any other
+  change; that reset follows the rule below for new best times.
+- **Linked layouts:** splits saved by LiveSplit can name a layout. Opening
+  such splits from the menu opens that layout too, or the default layout when
+  the link is to it. If the layout can't be opened, the current one stays and
+  an overlay notice names the file. At launch the last layout is reopened
+  instead, since it is the one that was showing. The app never changes the
+  link; the splits editor (section 9) does.
 - **Reset with new best times:** what a Reset after beating some best times
   does is a setting, `reset_saves_best_times` (section 11), changed in the
   Settings window (section 7.3): *Ask*, *Update them* or *Keep the old ones*.
@@ -350,10 +363,14 @@ Quit                   ⌘Q
   isn't saved. A reset from the server follows the same rule: when its command
   says whether to save the attempt, the app doesn't ask; when it doesn't, the
   setting decides, and if it is *Ask* the server gets its reply once the user
-  answers (section 5.3). The question comes with #12; until then, *Ask*
-  updates the best times, livesplit-core's own default.
-- A file that fails to load shows an alert with livesplit-core's reason. The
-  current splits and layout stay as they were.
+  answers (section 5.3). Menu and keyboard commands that were waiting behind
+  the question, such as a Space pressed just after Reset, are dropped and
+  logged once it closes, so a stray key doesn't start a new attempt.
+- A file that fails to load shows an alert. It gives macOS's reason when the
+  file can't be read (missing, no permission), and otherwise says the file
+  isn't splits, or a layout, that the app can read: livesplit-core's parsers
+  don't say why a file didn't parse. The current splits and layout stay as
+  they were.
 - A failed save shows an alert, and the run stays marked unsaved.
 - File dialogs go through a `FilePicker` protocol (section 14.2).
 
@@ -491,7 +508,7 @@ Every change is saved at once and shows in the menus.
 
 | Situation | Behaviour |
 |---|---|
-| Splits or layout fail to parse | Alert with livesplit-core's reason; the current splits and layout are unchanged |
+| Splits or layout fail to load | Alert with macOS's reason if the file can't be read, else that it isn't splits or a layout the app reads; the current splits and layout are unchanged |
 | Last splits or layout missing at launch | Default layout or empty run, plus an overlay notice naming the file |
 | A save fails | Alert with the reason; the splits stay marked unsaved |
 | Can't connect | Overlay notice with macOS's reason; menu back to Connect to Server…; logged as an error |
@@ -660,7 +677,11 @@ under 10 % E2E.
   temporary folder too, so test runs never touch the developer's own files.
 - **File dialogs:** the app opens `NSOpenPanel` and `NSSavePanel` through a
   `FilePicker` protocol. E2E runs switch to a scripted picker that answers with
-  a file or a cancel, as a user would. The types and starting folder the app
+  a file or a cancel, as a user would: the launch argument
+  `-LSOPickedFiles '<JSON array>'` lists the answers in order, each an
+  absolute path or `null` for a cancel. Only Debug builds read it. The files
+  E2E tests open are in the E2E test bundle, which the app can read; the
+  files they save go in the run's temporary folder. The types and starting folder the app
   asks for are checked by lower-level tests.
 - The fake server from the integration tests runs in the test process, and the
   app connects to it on `127.0.0.1`.
@@ -907,7 +928,7 @@ three):
   Files, Connect and Edit Splits items are added by their issues.
 - #12 Files: open and save splits, open layout, Save Layout As, recents,
   unsaved-changes and reset prompts (the reset prompt saves its answer,
-  section 7.1), reopen on launch.
+  section 7.1), linked layouts, reopen on launch. Planned in #58.
 - #14 Connect to Server: sheet, client, events to the server, status,
   automatic reconnection.
 - #15 Splits editor.
@@ -922,6 +943,10 @@ three):
   a whole-wiki pass, Troubleshooting.
 
 Later:
+
+- Opening files by dropping them on the timer window, and from Finder
+  (*Open With*, double-click), with document types in the app's
+  `Info.plist`. The first version opens files from its menus only (#58).
 
 - #19 Global hotkeys, set in the Settings window (section 7.3).
   livesplit-core's hotkey system supports macOS, and needs Accessibility or
