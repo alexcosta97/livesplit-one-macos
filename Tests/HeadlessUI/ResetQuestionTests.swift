@@ -33,31 +33,43 @@ import Testing
     @Test(.timeLimit(.minutes(1))) func otherMainActorWorkRunsWhileTheAlertIsOpen() async {
         let ran = Mutex<[String]>([])
         let answered = Mutex(false)
-        let answer = await withCheckedContinuation {
-            (done: CheckedContinuation<ResetAnswer, Never>) in
-            DispatchQueue.global().async {
-                // Closes the alert, as an answer would, after the probes had time to run.
-                DispatchQueue.main.async {
-                    let closing = Timer(timeInterval: 0.5, repeats: false) { _ in
+        let result = Mutex<ResetAnswer?>(nil)
+        let finished = DispatchSemaphore(value: 0)
+        DispatchQueue.global().async {
+            DispatchQueue.main.async {
+                // Closes the alert, as an answer would, once the probes had time to run and the
+                // alert is open, trying again until it is closed.
+                let start = Date()
+                let closing = Timer(timeInterval: 0.05, repeats: true) { timer in
+                    if answered.withLock({ $0 }) {
+                        timer.invalidate()
+                    } else if Date().timeIntervalSince(start) > 0.5, NSApp.modalWindow != nil {
                         MainActor.assumeIsolated { NSApp.abortModal() }
                     }
-                    RunLoop.main.add(closing, forMode: .common)
                 }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                    ran.withLock { if !answered.withLock({ $0 }) { $0.append("queue") } }
-                }
-                Task { @MainActor in
-                    try? await Task.sleep(for: .milliseconds(200))
-                    ran.withLock { if !answered.withLock({ $0 }) { $0.append("task") } }
-                }
-                let answer = CommandRunner.waitOnMain { ResetQuestion.ask() }
-                answered.withLock { $0 = true }
-                done.resume(returning: answer)
+                RunLoop.main.add(closing, forMode: .common)
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                ran.withLock { if !answered.withLock({ $0 }) { $0.append("queue") } }
+            }
+            Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(200))
+                ran.withLock { if !answered.withLock({ $0 }) { $0.append("task") } }
+            }
+            let answer = CommandRunner.waitOnMain { ResetQuestion.ask() }
+            answered.withLock { $0 = true }
+            result.withLock { $0 = answer }
+            finished.signal()
+        }
+        // A deadline, not a cancellation: a hang can't stall the suite.
+        let completed = await withCheckedContinuation { (done: CheckedContinuation<Bool, Never>) in
+            DispatchQueue.global().async {
+                done.resume(returning: finished.wait(timeout: .now() + 20) == .success)
             }
         }
-        #expect(answer == .dontReset)
+        #expect(completed)
+        #expect(result.withLock { $0 } == .dontReset)
         // Both ran before the question was answered, not after.
-        #expect(
-            ran.withLock { $0 } == ["queue", "task"] || ran.withLock { $0 } == ["task", "queue"])
+        #expect(Set(ran.withLock { $0 }) == ["queue", "task"])
     }
 }

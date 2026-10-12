@@ -302,29 +302,30 @@ import Testing
         #expect(phase(timer) == .running)
     }
 
-    /// The epoch moves as soon as the question is answered, on the main actor: a command sent
-    /// from the main thread right after `ask` returns, such as a shortcut handled when the alert
-    /// closes, isn't dropped.
+    /// The epoch moves as soon as the question is answered, on the main actor, not later on the
+    /// command's thread: a command sent right after the answer, such as a shortcut handled when
+    /// the alert closes, isn't dropped. The command's thread is held once the answer is back, so
+    /// the command is queued before it could have moved the epoch itself.
     @Test(.timeLimit(.minutes(1))) func aCommandSentRightAfterTheAnswerRuns() async {
         let timer = makeTimer(segments: 2)
-        let (replies, replied) = AsyncStream.makeStream(of: String?.self)
-        let runnerBox = Mutex<CommandRunner?>(nil)
-        let runner = makeRunner(
-            timer,
-            ask: {
-                // Queued on the main actor behind this call, so it runs once `ask` has returned.
-                Task { @MainActor in
-                    runnerBox.withLock { $0 }?.run(.undoSplit, from: .keyboard) {
-                        replied.yield($0)
-                    }
-                }
-                return .dontReset
+        let (reached, reachedSignal) = AsyncStream.makeStream(of: Void.self)
+        let gate = DispatchSemaphore(value: 0)
+        let runner = CommandRunner(
+            timer: timer, resetSavesBestTimes: nil, log: log, changed: {},
+            ask: { .dontReset }, remember: { _ in },
+            answered: {
+                reachedSignal.yield()
+                gate.wait()
             })
-        runnerBox.withLock { $0 = runner }
         _ = await run(runner, .splitOrStart)
         try? await Task.sleep(for: .milliseconds(10))
         _ = await run(runner, .splitOrStart)
-        _ = await run(runner, .reset)
+        let (replies, replied) = AsyncStream.makeStream(of: String?.self)
+        runner.run(.reset, from: .menu) { _ in }
+        var arrived = reached.makeAsyncIterator()
+        await arrived.next()
+        runner.run(.undoSplit, from: .keyboard) { replied.yield($0) }
+        gate.signal()
         var iterator = replies.makeAsyncIterator()
         let reply = await iterator.next()
         #expect(reply != .some(nil))

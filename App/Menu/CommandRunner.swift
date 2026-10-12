@@ -22,11 +22,14 @@ final class CommandRunner: Sendable {
     /// `changed` runs on the main actor after each command and each event, so the window shows
     /// the change at once (`TimerContent.markChanged()`). `ask` shows the reset question, on the
     /// main actor; `remember` stores the answer to *Yes* or *No* as the setting (spec §7.1).
+    /// `answered` is called on the command's thread once the answer is back, so tests can hold
+    /// that thread there.
     init(
         timer: SharedTimerRef, resetSavesBestTimes: Bool?, log: Log = .shared,
         changed: @escaping @MainActor @Sendable () -> Void,
         ask: @escaping @MainActor @Sendable () -> ResetAnswer = { ResetQuestion.ask() },
-        remember: @escaping @MainActor @Sendable (Bool) -> Void
+        remember: @escaping @MainActor @Sendable (Bool) -> Void,
+        answered: @escaping @Sendable () -> Void = {}
     ) {
         let preference = ResetPreference(resetSavesBestTimes)
         let epoch = Epoch()
@@ -50,6 +53,7 @@ final class CommandRunner: Sendable {
                     epoch.bump()
                     return answer
                 }
+                answered()
                 switch answer {
                 case .yes:
                     // Set here as well, so a reset right after doesn't ask again before the
@@ -74,17 +78,19 @@ final class CommandRunner: Sendable {
     /// runs a modal loop, and while one main queue block runs no other main queue block does, so
     /// from a `Task` every other main-actor job, such as the window being told of a change, waits
     /// until the question is answered. A run loop block is no main queue block, so those jobs
-    /// keep running.
+    /// keep running. That also means another alert, or this question again, could open over an
+    /// open question; that is accepted.
     static func waitOnMain<T: Sendable>(_ body: @escaping @MainActor @Sendable () -> T) -> T {
         precondition(!Thread.isMainThread)
         let result = Mutex<T?>(nil)
         let done = DispatchSemaphore(value: 0)
-        RunLoop.main.perform(inModes: [.common]) {
+        // The CF calls are thread-safe; `RunLoop` isn't documented to be.
+        CFRunLoopPerformBlock(CFRunLoopGetMain(), CFRunLoopMode.commonModes.rawValue) {
             let value = MainActor.assumeIsolated { body() }
             result.withLock { $0 = value }
             done.signal()
         }
-        CFRunLoopWakeUp(RunLoop.main.getCFRunLoop())
+        CFRunLoopWakeUp(CFRunLoopGetMain())
         done.wait()
         return result.withLock { $0! }
     }
