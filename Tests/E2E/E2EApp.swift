@@ -17,10 +17,30 @@ final class E2EApp {
     var configFolder: URL { root.appending(path: "Config", directoryHint: .isDirectory) }
     var timerWindow: XCUIElement { app.windows["timer-window"] }
 
-    func launch() {
+    /// A file in the E2E bundle's fixtures, which the app can read. The runner can't create
+    /// files, so the tests open these and the app writes the copies.
+    func fixture(_ name: String) -> URL {
+        Bundle(for: E2EApp.self).resourceURL!
+            .appending(path: "Fixtures", directoryHint: .isDirectory)
+            .appending(path: name, directoryHint: .notDirectory)
+    }
+
+    /// A file the app saves in the run's folder.
+    func savedFile(_ name: String) -> URL {
+        root.appending(path: name, directoryHint: .notDirectory)
+    }
+
+    /// Launches the app. `pickedFiles` are the answers the file pickers give, in order: an
+    /// absolute path, or `nil` to cancel (spec §14.2).
+    func launch(pickedFiles: [String?] = []) {
         app.launchArguments += [
             "-LSOLogDirectory", logFolder.path, "-LSOConfigDirectory", configFolder.path,
         ]
+        if !pickedFiles.isEmpty {
+            let json = try! JSONSerialization.data(
+                withJSONObject: pickedFiles.map { $0 as Any? ?? NSNull() })
+            app.launchArguments += ["-LSOPickedFiles", String(decoding: json, as: UTF8.self)]
+        }
         app.launch()
     }
 
