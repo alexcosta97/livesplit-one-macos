@@ -120,6 +120,7 @@ targets:
       - Tests/Unit/Support/TemporaryFolder.swift
       - Tests/Unit/Support/KeyEvents.swift
       - Tests/Unit/Support/Fixtures.swift
+      - Tests/Unit/Support/RecordingUnifiedLog.swift
       - path: Tests/Fixtures
         type: folder
         buildPhase: resources
