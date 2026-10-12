@@ -1,6 +1,6 @@
 import AppKit
 
-/// What the user chose when asked about unsaved changes (spec §7.3).
+/// What the user chose when asked about unsaved changes (spec §7.1).
 enum SaveChoice: Sendable { case save, dontSave, cancel }
 
 /// The alerts files raise (spec §7, §10). A protocol so the model can be tested without

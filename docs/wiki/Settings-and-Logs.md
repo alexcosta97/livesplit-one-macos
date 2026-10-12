@@ -21,7 +21,7 @@ The Settings window, with two shortcuts for Start/Split.
 
 **When a reset has new best times** decides what **Reset** does after an attempt beat some of your best times:
 
-- **Ask**: the app asks each time, with **Yes**, **No** and **Don't Reset**. Choosing **Yes** or **No** also changes this setting to **Update them** or **Keep the old ones**, so it asks once: see [Splits and Layouts](Splits-and-Layouts#reset-with-new-best-times).
+- **Ask**: the app asks, with **Yes**, **No** and **Don't Reset**. Choosing **Yes** or **No** also changes this setting to **Update them** or **Keep the old ones**, so it asks only once: see [Splits and Layouts](Splits-and-Layouts#reset-with-new-best-times).
 - **Update them**: the attempt's best times replace the old ones.
 - **Keep the old ones**: the attempt is reset and your best times stay as they were.
 

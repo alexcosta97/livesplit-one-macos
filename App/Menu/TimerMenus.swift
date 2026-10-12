@@ -271,7 +271,9 @@ final class TimerMenus: NSObject, NSMenuDelegate, NSMenuItemValidation {
 
     // MARK: Validation and updates
 
-    /// Gives a Control item its title and enabled state from the timer (spec §7).
+    /// Gives a Control item its title and enabled state from the timer, and enables the Files
+    /// items that replace the run (Open Splits' items, Close Splits) only while no attempt is in
+    /// progress (spec §7).
     func validateMenuItem(_ item: NSMenuItem) -> Bool {
         switch item.action {
         case #selector(runControlCommand(_:)):

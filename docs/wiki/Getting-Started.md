@@ -2,7 +2,7 @@ This walks you from opening the app for the first time to saving your first run.
 
 ## 1. Open the app
 
-Open **LiveSplit One**. The window has no title bar and shows only the timer: LiveSplit One's default layout, and a run with one segment, **Time**. Everything else is in the right-click menu. See [The Timer Window](The-Timer-Window).
+Open **LiveSplit One for macOS**. The window has no title bar and shows only the timer: LiveSplit One's default layout, and a run with one segment, **Time**. Everything else is in the right-click menu. See [The Timer Window](The-Timer-Window).
 
 ## 2. Open your splits
 

@@ -23,14 +23,14 @@ An item that can't be used right now is greyed out.
 
 ## Files
 
-**Open Splits** and **Open Layout** each open a list: **Open…**, then the recent files, the newest first, and **Clear Menu** below them. **Open Splits**, its recent files and **Close Splits** are greyed out while an attempt is running, paused or finished and not reset yet. What each item does, and the format each file uses, is in [Splits and Layouts](Splits-and-Layouts).
+**Open Splits** and **Open Layout** each open a list: **Open…**, then the recent files, the newest first, and **Clear Menu** below them. **Open Splits**, its recent files, its **Clear Menu** and **Close Splits** are greyed out while an attempt is running, paused or finished and not reset yet. What each item does, and the format each file uses, is in [Splits and Layouts](Splits-and-Layouts).
 
 ## Control
 
 | Item | What it does | Greyed out |
 |---|---|---|
 | **Start**, or **Split** while the timer runs | Starts the timer, or ends the current segment. | While paused, and once the run has ended. |
-| **Reset** | Ends the attempt and stops the timer. If the attempt beat some of your best times, they're updated unless you chose otherwise: see [Splits and Layouts](Splits-and-Layouts#reset-with-new-best-times). | Before the timer starts. |
+| **Reset** | Ends the attempt and stops the timer. If the attempt beat some of your best times, the app asks whether to update them, or does what you chose in Settings: see [Splits and Layouts](Splits-and-Layouts#reset-with-new-best-times). | Before the timer starts. |
 | **Undo Split** | Goes back to the previous segment, or reopens the last one after the run ended. | Before the first split. |
 | **Skip Split** | Moves to the next segment without a time for this one. | On the last segment, and when the timer isn't running or paused. |
 | **Pause**, or **Resume** while paused | Pauses or resumes the timer. | When the timer isn't running or paused. |
