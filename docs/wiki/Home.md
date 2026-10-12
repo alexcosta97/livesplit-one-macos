@@ -14,7 +14,8 @@ It is made for two-PC setups: a gaming PC runs the game and [livesplit-asr-bridg
 
 ## More
 
-- [The Timer Window](The-Timer-Window): moving and resizing the window, and the notices it shows.
+- [The Timer Window](The-Timer-Window): moving and resizing the window, Always on Top, keyboard shortcuts, and the notices it shows.
+- [The Menu](The-Menu): every command in the right-click menu and the menu bar.
 - [Settings and Logs](Settings-and-Logs): where the app keeps its settings and logs.
 - [Troubleshooting](Troubleshooting): what you see, why, and what to do.
 - [Upcoming Changes](Upcoming-Changes): documentation for changes not yet released.

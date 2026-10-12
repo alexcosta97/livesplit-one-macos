@@ -75,6 +75,9 @@ final class SettingsStore {
         do {
             let settings = try Settings.decode(Data(contentsOf: file))
             log.record(.app, "Read the settings from \(file.path)")
+            for problem in settings.shortcuts.dropped {
+                log.record(.error, "Ignored a shortcut in \(file.path): \(problem)")
+            }
             return (settings, .loaded)
         } catch let error as CocoaError where error.code == .fileReadNoSuchFile {
             // The file went away between the check and the read.

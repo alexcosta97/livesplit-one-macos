@@ -1,12 +1,12 @@
 import AppKit
 
 /// The timer window (spec §6): borderless, moved by dragging anywhere in it, resized from its
-/// edges.
+/// edges. Minimize (⌘M) works on it, though it has no title bar.
 final class TimerWindow: NSWindow {
     init(contentRect: CGRect) {
         super.init(
-            contentRect: contentRect, styleMask: [.borderless, .resizable], backing: .buffered,
-            defer: false)
+            contentRect: contentRect, styleMask: [.borderless, .resizable, .miniaturizable],
+            backing: .buffered, defer: false)
         // For the Window menu, Mission Control and accessibility; it has no title bar to show it.
         title = "LiveSplit One"
         setAccessibilityIdentifier("timer-window")

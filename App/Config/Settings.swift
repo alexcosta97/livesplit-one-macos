@@ -15,6 +15,11 @@ struct Settings: Codable, Equatable, Sendable {
     var alwaysOnTop = false
     /// The last URL used in Connect to Server (spec §8.1).
     var lastServerURL: String?
+    /// What a reset with new best times does (spec §7.1): `true` updates them, `false` keeps
+    /// the old ones, and `nil` asks.
+    var resetSavesBestTimes: Bool?
+    /// The Control commands' keyboard shortcuts (spec §7.2).
+    var shortcuts = Shortcuts()
 
     /// The defaults, used when there is no file.
     init() {}
@@ -72,6 +77,8 @@ struct Settings: Codable, Equatable, Sendable {
         case defaultLayoutFrame = "default_layout_window"
         case alwaysOnTop = "always_on_top"
         case lastServerURL = "last_server_url"
+        case resetSavesBestTimes = "reset_saves_best_times"
+        case shortcuts
     }
 
     /// Every key is optional, so a file from an older version, or edited by hand, still reads.
@@ -95,6 +102,9 @@ struct Settings: Codable, Equatable, Sendable {
         ).flatMap { $0.isUsable ? $0 : nil }
         alwaysOnTop = try container.decodeIfPresent(Bool.self, forKey: .alwaysOnTop) ?? false
         lastServerURL = try container.decodeIfPresent(String.self, forKey: .lastServerURL)
+        resetSavesBestTimes = try container.decodeIfPresent(
+            Bool.self, forKey: .resetSavesBestTimes)
+        shortcuts = try container.decodeIfPresent(Shortcuts.self, forKey: .shortcuts) ?? Shortcuts()
     }
 
     func encode(to encoder: any Encoder) throws {
@@ -107,6 +117,11 @@ struct Settings: Codable, Equatable, Sendable {
         try container.encodeIfPresent(defaultLayoutFrame, forKey: .defaultLayoutFrame)
         try container.encode(alwaysOnTop, forKey: .alwaysOnTop)
         try container.encodeIfPresent(lastServerURL, forKey: .lastServerURL)
+        try container.encodeIfPresent(resetSavesBestTimes, forKey: .resetSavesBestTimes)
+        // No table at all while every command has its defaults.
+        if !shortcuts.isDefault {
+            try container.encode(shortcuts, forKey: .shortcuts)
+        }
     }
 }
 

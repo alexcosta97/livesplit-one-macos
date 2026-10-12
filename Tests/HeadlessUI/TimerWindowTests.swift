@@ -29,12 +29,75 @@ import Testing
         let window = makeController(SettingsStore(directory: folder.url)).window
         #expect(window.styleMask.contains(.borderless))
         #expect(window.styleMask.contains(.resizable))
+        #expect(window.styleMask.contains(.miniaturizable))
         #expect(!window.styleMask.contains(.titled))
         #expect(window.isMovableByWindowBackground)
         #expect(window.canBecomeKey && window.canBecomeMain)
         #expect(window.accessibilityIdentifier() == "timer-window")
         #expect(window.title == "LiveSplit One")
         #expect(window.contentView?.accessibilityIdentifier() == "timer-layout")
+    }
+
+    /// The Window menu's Minimize (⌘M) is enabled for the timer window, though it has no title
+    /// bar. A borderless window that isn't miniaturizable disables it.
+    @Test func minimizeIsEnabledForTheWindow() throws {
+        let folder = try TemporaryFolder()
+        let window = makeController(SettingsStore(directory: folder.url)).window
+        let minimize = NSMenuItem(
+            title: "Minimize", action: #selector(NSWindow.miniaturize(_:)), keyEquivalent: "m")
+        #expect(window.validateMenuItem(minimize))
+
+        let plain = NSWindow(
+            contentRect: CGRect(x: 0, y: 0, width: 100, height: 100),
+            styleMask: [.borderless, .resizable], backing: .buffered, defer: false)
+        #expect(!plain.validateMenuItem(minimize))
+    }
+
+    /// The menus show the Control shortcuts only while the timer window is key (spec §7), so
+    /// the controller says when it becomes and stops being key.
+    @Test func theControllerSaysWhenTheWindowIsKey() throws {
+        let folder = try TemporaryFolder()
+        let controller = makeController(SettingsStore(directory: folder.url))
+        var changes: [Bool] = []
+        controller.onKeyChange = { changes.append($0) }
+        controller.windowDidBecomeKey(
+            Notification(name: NSWindow.didBecomeKeyNotification, object: controller.window))
+        #expect(changes == [true])
+        controller.windowDidResignKey(
+            Notification(name: NSWindow.didResignKeyNotification, object: controller.window))
+        #expect(changes == [true, false])
+    }
+
+    /// The app's wiring: menus that follow the timer window show the Control shortcuts while
+    /// it is key, and none once another window is.
+    @Test func menusFollowingTheWindowShowShortcutsOnlyWhileItIsKey() throws {
+        let folder = try TemporaryFolder()
+        let controller = makeController(SettingsStore(directory: folder.url))
+        let runner = CommandRunner(
+            timer: controller.content.timer, resetSavesBestTimes: nil,
+            log: Log(directory: folder.url), changed: {})
+        let menus = TimerMenus(
+            runner: runner, readState: { TimerMenuState.read(from: controller.content.timer) },
+            shortcuts: { Shortcuts() })
+        menus.follow(controller)
+        let controls = try [menus.mainMenu, menus.contextMenu].map { root in
+            try #require(root.items.first { $0.title == "Control" }?.submenu)
+        }
+        #expect(!controller.window.isKeyWindow)
+        #expect(controls.allSatisfy { $0.items.allSatisfy(\.keyEquivalent.isEmpty) })
+
+        controller.windowDidBecomeKey(
+            Notification(name: NSWindow.didBecomeKeyNotification, object: controller.window))
+        for control in controls {
+            #expect(control.items.map(\.keyEquivalent) == [" ", "\u{8}", "u", "s", "p", ""])
+        }
+
+        controller.windowDidResignKey(
+            Notification(name: NSWindow.didResignKeyNotification, object: controller.window))
+        for control in controls {
+            #expect(control.items.allSatisfy { $0.keyEquivalent.isEmpty })
+            #expect(control.items.allSatisfy { $0.keyEquivalentModifierMask == [] })
+        }
     }
 
     @Test func theWindowIsNotShownUntilAsked() throws {
