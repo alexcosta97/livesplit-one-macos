@@ -122,6 +122,24 @@ import Testing
                 == "00:00:01.254  APP  after\n")
     }
 
+    /// The unified log gets the escaped text, as the file does.
+    @Test func theUnifiedLogGetsTheEscapedMessage() throws {
+        let marker = "unified-escape-\(UUID().uuidString)"
+        SystemUnifiedLog().send(
+            LogEntry(time: Date(), category: .app, message: "\(marker) a\\b\nforged"))
+        let store = try OSLogStore(scope: .currentProcessIdentifier)
+        let predicate = NSPredicate(format: "subsystem == %@", SystemUnifiedLog.subsystem)
+        var found: OSLogEntryLog?
+        let deadline = Date().addingTimeInterval(2)
+        repeat {
+            found = try store.getEntries(matching: predicate)
+                .compactMap { $0 as? OSLogEntryLog }
+                .first { $0.composedMessage.hasPrefix(marker) }
+            if found == nil { Thread.sleep(forTimeInterval: 0.1) }
+        } while found == nil && Date() < deadline
+        #expect(found?.composedMessage == "\(marker) a\\\\b\\nforged")
+    }
+
     @Test func linesReachTheSystemUnifiedLog() throws {
         let marker = "unified-log-test-\(UUID().uuidString)"
         SystemUnifiedLog().send(LogEntry(time: Date(), category: .connection, message: marker))

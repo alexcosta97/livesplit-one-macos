@@ -1,5 +1,6 @@
 import Foundation
 import LiveSplitCore
+import Synchronization
 import Testing
 
 @testable import LiveSplitOne
@@ -24,14 +25,18 @@ import Testing
 
     private func makeRunner(
         _ timer: SharedTimer, resetSavesBestTimes: Bool? = nil,
-        changed: @escaping @MainActor @Sendable () -> Void = {}
+        changed: @escaping @MainActor @Sendable () -> Void = {},
+        ask: @escaping @MainActor @Sendable () -> ResetAnswer = { .yes },
+        remember: @escaping @MainActor @Sendable (Bool) -> Void = { _ in }
     ) -> CommandRunner {
         CommandRunner(
-            timer: timer, resetSavesBestTimes: resetSavesBestTimes, log: log, changed: changed)
+            timer: timer, resetSavesBestTimes: resetSavesBestTimes, log: log, changed: changed,
+            ask: ask, remember: remember)
     }
 
-    /// Runs `command` from the menu and returns the reply once it has run.
-    private func run(_ runner: CommandRunner, _ command: TimerCommand) async -> String {
+    /// Runs `command` from the menu and returns the reply once it has run, or nil if it was
+    /// dropped.
+    private func run(_ runner: CommandRunner, _ command: TimerCommand) async -> String? {
         await withCheckedContinuation { continuation in
             runner.run(command, from: .menu) { continuation.resume(returning: $0) }
         }
@@ -109,5 +114,220 @@ import Testing
         let runner = makeRunner(timer, resetSavesBestTimes: from)
         runner.setResetSavesBestTimes(to)
         #expect(await resetWithANewBestSegment(runner, timer) == keeps)
+    }
+
+    // MARK: The reset question
+
+    /// What the test's `ask` and `remember` saw, safe to read from any thread.
+    private final class Answers: Sendable {
+        private struct State {
+            var asked = 0
+            var remembered: [Bool] = []
+            var onMain: [Bool] = []
+            var left: [ResetAnswer] = []
+        }
+
+        private let state = Mutex(State())
+
+        init(_ answers: [ResetAnswer]) { state.withLock { $0.left = answers } }
+
+        var asked: Int { state.withLock { $0.asked } }
+        var remembered: [Bool] { state.withLock { $0.remembered } }
+        var askedOnMain: [Bool] { state.withLock { $0.onMain } }
+
+        func next() -> ResetAnswer {
+            state.withLock {
+                $0.asked += 1
+                $0.onMain.append(Thread.isMainThread)
+                return $0.left.isEmpty ? .dontReset : $0.left.removeFirst()
+            }
+        }
+
+        func remember(_ value: Bool) { state.withLock { $0.remembered.append(value) } }
+    }
+
+    private func makeRunner(
+        _ timer: SharedTimer, resetSavesBestTimes: Bool? = nil, answers: Answers,
+        ask: (@MainActor @Sendable () -> ResetAnswer)? = nil
+    ) -> CommandRunner {
+        makeRunner(
+            timer, resetSavesBestTimes: resetSavesBestTimes,
+            ask: ask ?? { answers.next() }, remember: { answers.remember($0) })
+    }
+
+    /// Starts and splits the default run, which has one segment and no times, so finishing it
+    /// beats every best time, then resets without saving the attempt: the reset asks.
+    private func finishThenReset(_ runner: CommandRunner, afterMilliseconds: Int = 10) async
+        -> String?
+    {
+        _ = await run(runner, .splitOrStart)
+        try? await Task.sleep(for: .milliseconds(afterMilliseconds))
+        _ = await run(runner, .splitOrStart)
+        return await run(runner, .reset)
+    }
+
+    /// Whether the attempt in progress has new best times, which is when a reset asks.
+    private func hasNewBestTimes(_ timer: SharedTimer) -> Bool {
+        var has = false
+        timer.readWith { has = $0.currentAttemptHasNewBestTimes() }
+        return has
+    }
+
+    /// Finishes a second, quicker attempt, which beats the first's times, and checks that a
+    /// reset now would ask, before resetting it.
+    private func resetASecondAttemptThatBeatsTheFirst(
+        _ runner: CommandRunner, _ timer: SharedTimer
+    ) async throws -> String? {
+        _ = await run(runner, .splitOrStart)
+        try await Task.sleep(for: .milliseconds(1))
+        _ = await run(runner, .splitOrStart)
+        try #require(hasNewBestTimes(timer))
+        return await run(runner, .reset)
+    }
+
+    private func hasBestTime(_ timer: SharedTimer) -> Bool {
+        var has = false
+        timer.readWith { has = $0.getRun().segment(0).personalBestSplitTime().realTime() != nil }
+        return has
+    }
+
+    @Test func askingAndYesKeepsTheAttemptAndRemembersIt() async throws {
+        let timer = makeTimer(segments: 1)
+        let answers = Answers([.yes])
+        let runner = makeRunner(timer, answers: answers)
+        // A slow first attempt, so the second one clearly beats it.
+        #expect(await finishThenReset(runner, afterMilliseconds: 50) == #"{"success":null}"#)
+        #expect(hasBestTime(timer))
+        await MainActor.run {}
+        #expect(answers.remembered == [true])
+        // The answer is in force at once: this reset would ask, if it weren't.
+        let second = try await resetASecondAttemptThatBeatsTheFirst(runner, timer)
+        #expect(second == #"{"success":null}"#)
+        #expect(answers.asked == 1)
+    }
+
+    @Test func askingAndNoDiscardsTheAttemptAndRemembersIt() async throws {
+        let timer = makeTimer(segments: 1)
+        let answers = Answers([.no])
+        let runner = makeRunner(timer, answers: answers)
+        #expect(await finishThenReset(runner) == #"{"success":null}"#)
+        #expect(!hasBestTime(timer))
+        await MainActor.run {}
+        #expect(answers.remembered == [false])
+        // The default run has no times, so the second attempt beats the first only if the
+        // first's were kept: a discarded one leaves it with new best times again.
+        let second = try await resetASecondAttemptThatBeatsTheFirst(runner, timer)
+        #expect(second == #"{"success":null}"#)
+        #expect(answers.asked == 1)
+    }
+
+    @Test func askingAndDontResetLeavesTheTimerRunningAndAsksAgain() async {
+        let timer = makeTimer(segments: 2)
+        let answers = Answers([.dontReset, .dontReset])
+        let runner = makeRunner(timer, answers: answers)
+        _ = await run(runner, .splitOrStart)
+        try? await Task.sleep(for: .milliseconds(10))
+        // The first of two segments is split: the attempt has a new best segment.
+        _ = await run(runner, .splitOrStart)
+        let reply = await run(runner, .reset)
+        #expect(reply == #"{"error":{"code":"RunnerDecidedAgainstReset"}}"#)
+        #expect(phase(timer) == .running)
+        await MainActor.run {}
+        #expect(answers.remembered.isEmpty)
+        _ = await run(runner, .reset)
+        #expect(answers.asked == 2)
+    }
+
+    @Test(arguments: [true, false])
+    func aSettingMeansNoQuestion(setting: Bool) async {
+        let timer = makeTimer(segments: 1)
+        let answers = Answers([])
+        let runner = makeRunner(timer, resetSavesBestTimes: setting, answers: answers)
+        #expect(await finishThenReset(runner) == #"{"success":null}"#)
+        #expect(answers.asked == 0)
+        #expect(hasBestTime(timer) == setting)
+    }
+
+    @Test func theQuestionIsAskedOnTheMainThread() async {
+        let answers = Answers([.yes])
+        let runner = makeRunner(makeTimer(segments: 1), answers: answers)
+        _ = await finishThenReset(runner)
+        #expect(answers.askedOnMain == [true])
+    }
+
+    @Test(.timeLimit(.minutes(1))) func commandsQueuedWhileItIsOpenAreDropped()
+        async
+    {
+        let timer = makeTimer(segments: 2)
+        let open = DispatchSemaphore(value: 0)
+        let answers = Answers([.dontReset])
+        let runner = makeRunner(
+            timer, answers: answers,
+            ask: {
+                open.wait()
+                return answers.next()
+            })
+        _ = await run(runner, .splitOrStart)
+        try? await Task.sleep(for: .milliseconds(10))
+        _ = await run(runner, .splitOrStart)
+        _ = await run(runner, .splitOrStart)
+        #expect(phase(timer) == .ended)
+
+        // The reset waits in `ask`; the split is queued behind it, then the question is answered.
+        // The sleeps only make it likely that `ask` is blocking when the split is sent;
+        // correctness doesn't depend on them: the split is behind the reset either way.
+        let (resets, resetDone) = AsyncStream.makeStream(of: String?.self)
+        let (splits, splitDone) = AsyncStream.makeStream(of: String?.self)
+        runner.run(.reset, from: .menu) { resetDone.yield($0) }
+        try? await Task.sleep(for: .milliseconds(100))
+        runner.run(.splitOrStart, from: .menu) { splitDone.yield($0) }
+        try? await Task.sleep(for: .milliseconds(100))
+        open.signal()
+        var resetReplies = resets.makeAsyncIterator()
+        var splitReplies = splits.makeAsyncIterator()
+        let resetReply = await resetReplies.next()
+        #expect(resetReply == #"{"error":{"code":"RunnerDecidedAgainstReset"}}"#)
+        let splitReply = await splitReplies.next()
+        #expect(splitReply == .some(nil))
+        #expect(
+            unified.entries.contains {
+                $0.category == .timer
+                    && $0.message
+                        == "Start/Split from the menu dropped: it waited behind the reset question"
+            })
+        #expect(phase(timer) == .ended)
+
+        // A command queued after the answer runs.
+        #expect(await run(runner, .undoSplit) != nil)
+        #expect(phase(timer) == .running)
+    }
+
+    /// The epoch moves as soon as the question is answered, on the main actor, not later on the
+    /// command's thread: a command sent right after the answer, such as a shortcut handled when
+    /// the alert closes, isn't dropped. The command's thread is held once the answer is back, so
+    /// the command is queued before it could have moved the epoch itself.
+    @Test(.timeLimit(.minutes(1))) func aCommandSentRightAfterTheAnswerRuns() async {
+        let timer = makeTimer(segments: 2)
+        let (reached, reachedSignal) = AsyncStream.makeStream(of: Void.self)
+        let gate = DispatchSemaphore(value: 0)
+        let runner = CommandRunner(
+            timer: timer, resetSavesBestTimes: nil, log: log, changed: {},
+            ask: { .dontReset }, remember: { _ in },
+            answered: {
+                reachedSignal.yield()
+                gate.wait()
+            })
+        _ = await run(runner, .splitOrStart)
+        try? await Task.sleep(for: .milliseconds(10))
+        _ = await run(runner, .splitOrStart)
+        let (replies, replied) = AsyncStream.makeStream(of: String?.self)
+        runner.run(.reset, from: .menu) { _ in }
+        var arrived = reached.makeAsyncIterator()
+        await arrived.next()
+        runner.run(.undoSplit, from: .keyboard) { replied.yield($0) }
+        gate.signal()
+        var iterator = replies.makeAsyncIterator()
+        let reply = await iterator.next()
+        #expect(reply != .some(nil))
     }
 }

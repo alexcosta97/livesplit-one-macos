@@ -28,6 +28,21 @@ import Testing
         #expect(entry.line(in: TestCalendar.london) == "19:31:01.254  APP  a\\\\nb\n")
     }
 
+    @Test func tabsControlCharactersAndUnicodeSeparatorsAreEscaped() {
+        #expect(LogEntry.escaped("a\tb") == "a\\tb")
+        #expect(LogEntry.escaped("/a\u{1b}[0m") == "/a\\u{1b}[0m")
+        #expect(LogEntry.escaped("a\u{2028}b\u{2029}c") == "a\\u{2028}b\\u{2029}c")
+        #expect(LogEntry.escaped("/a/b c.lss") == "/a/b c.lss")
+    }
+
+    /// Spec §12.2: a line break is `\n` and a backslash `\\`.
+    @Test func aPathWithALineBreakAndABackslashIsWrittenPerTheSpec() {
+        let entry = LogEntry(
+            time: TestCalendar.date(2026, 10, 10), category: .app, message: "Opened /a\\b\nc")
+        #expect(
+            entry.line(in: TestCalendar.london) == "19:31:01.254  APP  Opened /a\\\\b\\nc\n")
+    }
+
     @Test func aMessageCantForgeALine() {
         let entry = LogEntry(
             time: TestCalendar.date(2026, 10, 10), category: .app,

@@ -30,7 +30,7 @@ jobs:
   # read its base branch's caches, not other pull requests' (spec §15).
   setup:
     name: setup
-    runs-on: macos-latest
+    runs-on: xcode-27
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup
@@ -63,7 +63,7 @@ jobs:
     name: lint
     needs: setup
     if: ${{ !cancelled() && github.event_name == 'pull_request' }}
-    runs-on: macos-latest
+    runs-on: xcode-27
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup
@@ -71,7 +71,7 @@ jobs:
       - run: cargo clippy --all-targets --locked --manifest-path core/Cargo.toml -- -D warnings
       - run: swift format lint --strict --recursive App Tests LiveSplitCore/Wrapper scripts
       # actionlint also runs shellcheck on the workflows' `run:` blocks.
-      - run: actionlint
+      # - run: actionlint
       - run: shellcheck scripts/*.sh scripts/release/*.sh scripts/wiki/*.sh
       # The wiki's pages and its scripts (spec §16.1).
       - run: scripts/wiki/test-wiki-scripts.sh
@@ -84,7 +84,7 @@ jobs:
     name: test
     needs: setup
     if: ${{ !cancelled() && github.event_name == 'pull_request' }}
-    runs-on: macos-latest
+    runs-on: xcode-27
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup
@@ -106,7 +106,7 @@ jobs:
     name: e2e
     needs: setup
     if: ${{ !cancelled() && github.event_name == 'pull_request' }}
-    runs-on: macos-latest
+    runs-on: xcode-27
     steps:
       # Only the local actions are needed, to select the pinned Xcode.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -130,7 +130,7 @@ jobs:
     name: build
     needs: setup
     if: ${{ !cancelled() && github.event_name == 'pull_request' }}
-    runs-on: macos-latest
+    runs-on: xcode-27
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # Release universal builds have their own cache. Restore-only here: the

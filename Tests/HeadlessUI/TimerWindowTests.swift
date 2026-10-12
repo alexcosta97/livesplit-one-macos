@@ -1,4 +1,5 @@
 import AppKit
+import LiveSplitCore
 import Testing
 
 @testable import LiveSplitOne
@@ -14,12 +15,16 @@ import Testing
         for controller in opened { controller.window.contentView = nil }
     }
 
+    /// The screens the controllers see, which a test can change after launch.
+    private var screens: [CGRect] = []
+
     private func makeController(
         _ store: SettingsStore, notices: NoticeQueue = NoticeQueue(schedule: { _, _ in })
     ) -> TimerWindowController {
+        screens = [screen]
         let controller = TimerWindowController(
-            content: TimerContent(lang: 0), settings: store, screens: [screen],
-            mainScreen: screen, notices: notices)
+            content: TimerContent(lang: 0), settings: store, screens: { [unowned self] in screens },
+            mainScreen: { [unowned self] in screens.first ?? screen }, notices: notices)
         opened.append(controller)
         return controller
     }
@@ -72,13 +77,19 @@ import Testing
     /// it is key, and none once another window is.
     @Test func menusFollowingTheWindowShowShortcutsOnlyWhileItIsKey() throws {
         let folder = try TemporaryFolder()
-        let controller = makeController(SettingsStore(directory: folder.url))
+        let store = SettingsStore(directory: folder.url)
+        let controller = makeController(store)
         let runner = CommandRunner(
             timer: controller.content.timer, resetSavesBestTimes: nil,
-            log: Log(directory: folder.url), changed: {})
+            log: Log(directory: folder.url), changed: {},
+            remember: { _ in })
+        let files = FileController(
+            content: controller.content, window: controller, settings: store,
+            picker: FakeFilePicker(), alerts: FakeFileAlerts(), lang: 0,
+            log: Log(directory: folder.url))
         let menus = TimerMenus(
             runner: runner, readState: { TimerMenuState.read(from: controller.content.timer) },
-            shortcuts: { Shortcuts() })
+            shortcuts: { Shortcuts() }, files: files)
         menus.follow(controller)
         let controls = try [menus.mainMenu, menus.contextMenu].map { root in
             try #require(root.items.first { $0.title == "Control" }?.submenu)
@@ -236,5 +247,196 @@ import Testing
         let saved = try folder.read("app.toml")
         controller.saveFrameIfPending()
         #expect(try folder.read("app.toml") == saved)
+    }
+
+    // MARK: Switching layouts
+
+    private func dark() throws -> Layout {
+        try LayoutFile.load(Fixtures.url("Dark.lsl"))
+    }
+
+    private func settle(_ controller: TimerWindowController) {
+        // The first frame of the layout in the window's current size.
+        controller.timerView.drawFrame()
+    }
+
+    @Test func aLayoutWithASavedFrameOpensInItAndASizeHintDoesNotMoveIt() throws {
+        let folder = try TemporaryFolder()
+        let store = SettingsStore(directory: folder.url)
+        let saved = WindowFrame(x: 100, y: 200, width: 250, height: 400)
+        store.update { $0.setFrame(saved, forLayout: "/layouts/dark.lsl") }
+        let controller = makeController(store)
+        settle(controller)
+
+        controller.showLayout(try dark(), path: "/layouts/dark.lsl")
+        #expect(controller.layoutPath == "/layouts/dark.lsl")
+        let frame = CGRect(x: 100, y: 200, width: 250, height: 400)
+        #expect(controller.window.frame == frame)
+
+        // The new layout's first frame is dropped of its size hint; the saved frame stays.
+        var hints = 0
+        let fit = try #require(controller.timerView.onSizeHint)
+        controller.timerView.onSizeHint = {
+            hints += 1
+            fit($0)
+        }
+        let drawn = controller.timerView.framesDrawn
+        settle(controller)
+        #expect(controller.timerView.framesDrawn == drawn + 1)
+        #expect(hints == 0)
+        #expect(controller.window.frame == frame)
+
+        // Control: a layout of another height with no saved frame does give a hint on its first
+        // frame, so the drop above is what kept the window still, not a renderer that gave none.
+        controller.showLayout(Layout.defaultLayout(0), path: "/layouts/unsaved.lsl")
+        settle(controller)
+        #expect(hints == 1)
+        #expect(controller.window.frame.size != frame.size)
+    }
+
+    /// Spec §6: a saved frame no screen shows enough of is not used; the window goes in the
+    /// middle of the main screen.
+    @Test func aSavedFrameOffEveryScreenCentresTheWindowOnTheMainScreen() throws {
+        let folder = try TemporaryFolder()
+        let store = SettingsStore(directory: folder.url)
+        store.update {
+            $0.setFrame(
+                WindowFrame(x: 5000, y: 4000, width: 250, height: 400),
+                forLayout: "/layouts/dark.lsl")
+        }
+        let controller = makeController(store)
+        controller.window.setFrame(CGRect(x: 60, y: 70, width: 333, height: 444), display: false)
+
+        controller.showLayout(try dark(), path: "/layouts/dark.lsl")
+
+        #expect(
+            controller.window.frame
+                == WindowPlacement.centred(WindowPlacement.defaultSize, on: screen))
+        #expect(screen.contains(controller.window.frame))
+    }
+
+    /// A display unplugged after launch: the frame was on screen at launch, and isn't now.
+    @Test func screensThatChangedSinceLaunchAreUsedWhenALayoutIsShown() throws {
+        let folder = try TemporaryFolder()
+        let store = SettingsStore(directory: folder.url)
+        let second = CGRect(x: 1440, y: 0, width: 1920, height: 1080)
+        store.update {
+            $0.setFrame(
+                WindowFrame(x: 1700, y: 100, width: 250, height: 400),
+                forLayout: "/layouts/dark.lsl")
+            $0.setFrame(
+                WindowFrame(x: 1700, y: 100, width: 250, height: 400),
+                forLayout: "/layouts/other.lsl")
+        }
+        let controller = makeController(store)
+        screens = [screen, second]
+        controller.showLayout(try dark(), path: "/layouts/dark.lsl")
+        #expect(controller.window.frame == CGRect(x: 1700, y: 100, width: 250, height: 400))
+
+        screens = [screen]  // The second display is gone.
+        controller.showLayout(try dark(), path: "/layouts/other.lsl")
+        #expect(
+            controller.window.frame
+                == WindowPlacement.centred(WindowPlacement.defaultSize, on: screen))
+    }
+
+    @Test func aLayoutWithNoSavedFrameKeepsTheSizeUntilTheHintThenSavesIt() throws {
+        let folder = try TemporaryFolder()
+        let store = SettingsStore(directory: folder.url)
+        let controller = makeController(store)
+        controller.window.setFrame(CGRect(x: 60, y: 70, width: 333, height: 444), display: false)
+        settle(controller)
+
+        controller.showLayout(try dark(), path: "/layouts/dark.lsl")
+        #expect(controller.window.frame == CGRect(x: 60, y: 70, width: 333, height: 444))
+        #expect(store.settings.frame(forLayout: "/layouts/dark.lsl") == nil)
+
+        settle(controller)
+        let fitted = controller.window.frame
+        #expect(fitted.size != CGSize(width: 333, height: 444))
+        #expect(fitted.minX == 60 && fitted.maxY == 514)
+        #expect(
+            store.settings.frame(forLayout: "/layouts/dark.lsl")
+                == WindowPlacement.windowFrame(fitted))
+    }
+
+    @Test func aMovePendingUnderTheOldLayoutIsSavedUnderTheOldPath() async throws {
+        let folder = try TemporaryFolder()
+        let store = SettingsStore(directory: folder.url)
+        let controller = makeController(store)
+        let moved = CGRect(x: 50, y: 60, width: 300, height: 500)
+        controller.window.setFrame(moved, display: false)
+        controller.windowDidMove(Notification(name: NSWindow.didMoveNotification))
+        #expect(store.settings.frame(forLayout: nil) == nil)
+
+        controller.showLayout(try dark(), path: "/layouts/dark.lsl")
+
+        #expect(store.settings.frame(forLayout: nil) == WindowPlacement.windowFrame(moved))
+        #expect(store.settings.frame(forLayout: "/layouts/dark.lsl") == nil)
+        // And nothing is saved under the new path later.
+        try await Task.sleep(for: .milliseconds(800))
+        #expect(store.settings.frame(forLayout: "/layouts/dark.lsl") == nil)
+    }
+
+    @Test func restoringAFrameLeavesNoSavePending() async throws {
+        let folder = try TemporaryFolder()
+        let store = SettingsStore(directory: folder.url)
+        let saved = WindowFrame(x: 100, y: 200, width: 250, height: 400)
+        store.update { $0.setFrame(saved, forLayout: "/layouts/dark.lsl") }
+        let controller = makeController(store)
+
+        controller.showLayout(try dark(), path: "/layouts/dark.lsl")
+        // A save pending from the restore would overwrite this.
+        let other = WindowFrame(x: 1, y: 2, width: 3, height: 4)
+        store.update { $0.setFrame(other, forLayout: "/layouts/dark.lsl") }
+        try await Task.sleep(for: .milliseconds(800))
+
+        #expect(store.settings.frame(forLayout: "/layouts/dark.lsl") == other)
+    }
+
+    @Test func aMovePendingAtAdoptionIsSavedUnderTheOldPathAndTheNewOneHoldsIt() throws {
+        let folder = try TemporaryFolder()
+        let store = SettingsStore(directory: folder.url)
+        let controller = makeController(store)
+        controller.showLayout(try dark(), path: "/layouts/old.lsl")
+        let moved = CGRect(x: 70, y: 80, width: 310, height: 520)
+        controller.window.setFrame(moved, display: false)
+        controller.windowDidMove(Notification(name: NSWindow.didMoveNotification))
+        #expect(store.settings.frame(forLayout: "/layouts/old.lsl") == nil)
+
+        controller.adoptLayoutPath("/layouts/new.lsl")
+
+        let expected = WindowPlacement.windowFrame(moved)
+        #expect(store.settings.frame(forLayout: "/layouts/old.lsl") == expected)
+        #expect(store.settings.frame(forLayout: "/layouts/new.lsl") == expected)
+    }
+
+    @Test func adoptingAPathSavesTheCurrentFrameUnderItAndLaterFramesGoThere() throws {
+        let folder = try TemporaryFolder()
+        let store = SettingsStore(directory: folder.url)
+        let controller = makeController(store)
+        controller.showLayout(try dark(), path: "/layouts/old.lsl")
+        let moved = CGRect(x: 70, y: 80, width: 310, height: 520)
+        controller.window.setFrame(moved, display: false)
+        controller.saveFrame()
+        #expect(store.settings.frame(forLayout: "/layouts/new.lsl") == nil)
+
+        controller.adoptLayoutPath("/layouts/new.lsl")
+
+        #expect(controller.layoutPath == "/layouts/new.lsl")
+        #expect(
+            store.settings.frame(forLayout: "/layouts/new.lsl")
+                == WindowPlacement.windowFrame(moved))
+
+        // From here on the window's frames are the new file's, and the old one keeps its own.
+        let later = CGRect(x: 20, y: 30, width: 320, height: 530)
+        controller.window.setFrame(later, display: false)
+        controller.saveFrame()
+        #expect(
+            store.settings.frame(forLayout: "/layouts/new.lsl")
+                == WindowPlacement.windowFrame(later))
+        #expect(
+            store.settings.frame(forLayout: "/layouts/old.lsl")
+                == WindowPlacement.windowFrame(moved))
     }
 }

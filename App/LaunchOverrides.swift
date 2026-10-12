@@ -21,6 +21,29 @@ enum LaunchOverrides {
                 ?? testHostDirectory("Config", environment: ProcessInfo.processInfo.environment)
         }
 
+        static let pickedFilesArgument = "-LSOPickedFiles"
+
+        /// The answers the scripted file picker gives, if a test chose them (spec §14.2).
+        static var pickedFiles: [String?]? {
+            pickedFiles(in: ProcessInfo.processInfo.arguments)
+        }
+
+        /// The JSON array after `-LSOPickedFiles`: each answer an absolute path, or `null` for
+        /// a cancel. `nil` when absent, or when it isn't such an array, which is logged.
+        static func pickedFiles(in arguments: [String], log: Log = .shared) -> [String?]? {
+            guard let index = arguments.firstIndex(of: pickedFilesArgument),
+                index + 1 < arguments.count
+            else { return nil }
+            do {
+                return try JSONDecoder().decode(
+                    [String?].self, from: Data(arguments[index + 1].utf8))
+            } catch {
+                log.record(
+                    .error, "Ignoring \(pickedFilesArgument), which isn't a JSON array: \(error)")
+                return nil
+            }
+        }
+
         /// The absolute folder after `argument`, as in `-LSOLogDirectory /private/tmp/x`.
         static func directory(after argument: String, in arguments: [String]) -> URL? {
             guard let index = arguments.firstIndex(of: argument), index + 1 < arguments.count
@@ -40,5 +63,6 @@ enum LaunchOverrides {
     #else
         static var logDirectory: URL? { nil }
         static var configDirectory: URL? { nil }
+        static var pickedFiles: [String?]? { nil }
     #endif
 }

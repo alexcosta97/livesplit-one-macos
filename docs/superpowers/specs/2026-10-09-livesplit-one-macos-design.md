@@ -260,7 +260,12 @@ Each addition gets Rust unit tests in `core/`.
   centred on the main screen instead, since it has no title bar to drag it back
   with. A saved frame larger than the screen it is most on is shrunk to fit
   that screen, keeping its top-left corner unless that would leave part of it
-  off the screen.
+  off the screen. The screens are those at the moment the frame is used, also
+  when a layout is opened: a frame saved for it that no screen shows enough of
+  any more, as when a display was unplugged, puts the window in the middle of
+  the main screen at the default size, and the layout's size hint then resizes
+  it from its top-left corner as usual. A layout with no saved frame leaves the
+  window where it is.
 - **Always on Top** is a menu toggle, remembered between launches.
 - **On launch** the app reopens the last splits and layout and the window
   position. If a file is missing or no longer loads, it uses livesplit-core's
@@ -308,6 +313,9 @@ Quit                   ⌘Q
   (and its recent files) and Close Splits are disabled while an attempt is in
   progress, running, paused or finished and not yet reset, since replacing
   the run would drop the attempt.
+- **Recent files** are listed by file name, most recent first, with the full
+  path as the tooltip. Two with the same name in different folders add the
+  parent folder's name, such as `Splits.lss — Races`.
 - **Start/Split** reads *Start* while the timer isn't running and *Split*
   otherwise. **Pause** reads *Resume* while the timer is paused. The Control
   items show their first shortcut that a menu can show (section 7.2) while the
@@ -418,7 +426,7 @@ Opened with Settings… (⌘,). One window, with two sections:
   on the current keyboard. **+** records the next key press, Esc or leaving
   the window cancels recording, and × removes a shortcut. A shortcut that
   another command uses isn't added, and the row says which command has it.
-  ⌘Q, ⌘H, ⌥⌘H, ⌘M, ⌘, and ⌘W can't be recorded. **Restore Defaults** puts
+  ⌘Q, ⌘H, ⌥⌘H, ⌘M, ⌘, ⌘W, ⌘S and ⇧⌘S can't be recorded. **Restore Defaults** puts
   back section 7.2's defaults.
 
 Every change is saved at once and shows in the menus.
@@ -623,7 +631,10 @@ Same rules as livesplit-asr-bridge:
   message, as in livesplit-asr-bridge:
   `19:31:01.254  CONNECTION  Connected to 192.168.1.20`. The tags are
   `ERROR`, `CONNECTION`, `TIMER` and `APP`. Line breaks in a message are
-  written as `\n` (and a backslash as `\\`), so each entry is one line.
+  written as `\n` (and a backslash as `\\`), so each entry is one line; tabs
+  are `\t`, and any other control character, and U+2028 and U+2029, is
+  `\u{1b}` with its code. The message is escaped once, in one place, whatever
+  it holds, a file's path and macOS's reason for not reading it included.
 - Files older than 7 days are deleted at launch and at each daily rotation.
 - A per-day size cap of 50 MB. Past it, only errors are written, and one line
   records that the cap was reached.
@@ -731,7 +742,7 @@ These follow livesplit-asr-bridge (its spec sections 13 and 14, and its
   stops `v*` tags being moved or deleted. Creating them isn't restricted:
   GitHub doesn't let the GitHub Actions app bypass a ruleset in a personal
   repository, so restricting creation would block the release workflow.
-- **CI** on pull requests, on `macos-latest` runners because Xcode needs them:
+- **CI** on pull requests, on `xcode-27` runners because Xcode needs them:
   - `setup`: builds `core/` and the app with its tests once, hands the test
     build to `test` and `e2e`, and saves the Cargo cache (Xcode's DerivedData
     isn't cached: a fresh checkout invalidates it);

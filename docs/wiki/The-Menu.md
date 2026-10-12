@@ -5,8 +5,14 @@ The right-click menu, with Control open.
 
 | Item | What it does |
 |---|---|
+| **Open Splits** | Opens splits from a file or the recent files, below. |
+| **Save Splits** (⌘S) | Saves the splits to their file. |
+| **Save Splits As…** (⇧⌘S) | Saves the splits to a file you choose. |
+| **Close Splits** | Goes back to a new run, with the layout kept. |
 | **Control** | The timer's commands, below. |
 | **Compare Against** | The comparison the timer shows, and Real Time or Game Time, below. |
+| **Open Layout** | Opens a layout from a file or the recent files, below. |
+| **Save Layout As…** | Saves the layout to a `.ls1l` file you choose. |
 | **Always on Top** | Keeps the timer window above other apps' windows. A tick shows when it's on. The app remembers it. |
 | **Settings…** | Opens the Settings window. See [Settings and Logs](Settings-and-Logs#the-settings-window). |
 | **Open Log Folder** | Opens the folder with the app's logs in Finder. See [Settings and Logs](Settings-and-Logs#logs). |
@@ -15,12 +21,16 @@ The right-click menu, with Control open.
 
 An item that can't be used right now is greyed out.
 
+## Files
+
+**Open Splits** and **Open Layout** each open a list: **Open…**, then the recent files, the newest first, and **Clear Menu** below them. **Open Splits**, its recent files, its **Clear Menu** and **Close Splits** are greyed out while an attempt is running, paused or finished and not reset yet. What each item does, and the format each file uses, is in [Splits and Layouts](Splits-and-Layouts).
+
 ## Control
 
 | Item | What it does | Greyed out |
 |---|---|---|
 | **Start**, or **Split** while the timer runs | Starts the timer, or ends the current segment. | While paused, and once the run has ended. |
-| **Reset** | Ends the attempt and stops the timer. If the attempt beat some of your best times, they're updated unless you chose otherwise in [Settings](Settings-and-Logs#the-settings-window). | Before the timer starts. |
+| **Reset** | Ends the attempt and stops the timer. If the attempt beat some of your best times, the app asks whether to update them, or does what you chose in Settings: see [Splits and Layouts](Splits-and-Layouts#reset-with-new-best-times). | Before the timer starts. |
 | **Undo Split** | Goes back to the previous segment, or reopens the last one after the run ended. | Before the first split. |
 | **Skip Split** | Moves to the next segment without a time for this one. | On the last segment, and when the timer isn't running or paused. |
 | **Pause**, or **Resume** while paused | Pauses or resumes the timer. | When the timer isn't running or paused. |
@@ -37,6 +47,7 @@ Lists your run's comparisons, your own first, then **Personal Best**, **Best Seg
 The menu bar has the same commands, in the places Mac apps keep them:
 
 - **LiveSplit One**: **About LiveSplit One for macOS**, **Settings…** (⌘,), **Hide LiveSplit One for macOS** (⌘H), **Hide Others** (⌥⌘H), **Show All**, **Quit LiveSplit One for macOS** (⌘Q).
+- **File**: **Open Splits**, **Save Splits** (⌘S), **Save Splits As…** (⇧⌘S), **Close Splits**, then **Open Layout** and **Save Layout As…**, as above.
 - **Control** and **Compare Against**, as above.
 - **Window**: **Close** (⌘W, for the Settings window), **Minimize** (⌘M), **Always on Top**.
 - **Help**: **Open Log Folder**.

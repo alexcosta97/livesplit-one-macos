@@ -166,6 +166,18 @@ import Testing
             ])
     }
 
+    @Test func theSaveShortcutsAreDroppedAndLogged() throws {
+        let settings = try decode(
+            "[shortcuts]\nreset = [\"Meta+s\", \"Backspace\"]\npause = [\"Shift+Meta+s\"]\n")
+        #expect(settings.shortcuts.shortcuts(for: .reset) == [Shortcut("Backspace")!])
+        #expect(settings.shortcuts.shortcuts(for: .pause) == [])
+        #expect(
+            settings.shortcuts.dropped == [
+                #""Meta+s" for reset: the app keeps it for its menus"#,
+                #""Shift+Meta+s" for pause: the app keeps it for its menus"#,
+            ])
+    }
+
     @Test func aDefaultThatAnEarlierCommandHasIsDropped() throws {
         let settings = try decode("[shortcuts]\nstart_split = [\"u\"]\n")
         #expect(settings.shortcuts.shortcuts(for: .startSplit) == [Shortcut("u")!])

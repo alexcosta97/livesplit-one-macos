@@ -14,6 +14,20 @@ The timer showed **Couldn't read the settings, so the defaults are used and chan
 
 Quit the app, then in Finder check that you can open `app.toml` in the folder [Settings and Logs](Settings-and-Logs#settings) names. Fix its permissions, or move it somewhere else, and open the app again.
 
+## A file didn't reopen at launch
+
+The timer showed **Couldn't reopen "&lt;name&gt;": &lt;reason&gt;**. The app tried to open the splits or layout you had open last time, and couldn't, so it shows the default layout or a new run. The reason says why: macOS's reason when it couldn't read the file, such as a drive that isn't connected, or **it isn't splits this app can read** or **it isn't a layout this app can read** when the file is there but isn't in a format LiveSplit One reads.
+
+The app keeps the file's path, so once the file is back, for example when the drive is connected, quit the app and open it again, or open the file from **File**. If you open other splits or a layout meanwhile, the app remembers those instead.
+
+## A file won't open
+
+An alert says **"&lt;name&gt;" isn't splits LiveSplit One for macOS can read.** or **"&lt;name&gt;" isn't a layout LiveSplit One for macOS can read.** The file isn't in a format LiveSplit One reads, or it's damaged, or it is empty. Your current splits and layout stay as they were. Check that you chose the right file: splits open from **Open Splits**, and layouts, which are `.lsl` or `.ls1l` files, from **Open Layout**. The day's log has a line saying which file it was (see [Settings and Logs](Settings-and-Logs#logs)). [Splits and Layouts](Splits-and-Layouts#when-a-file-doesnt-open) lists the other alerts.
+
+## Open Splits is greyed out
+
+An attempt is running, paused, or finished and not reset yet. Reset it, then open the splits. See [Splits and Layouts](Splits-and-Layouts#why-open-splits-is-greyed-out).
+
 ## The window is somewhere I can't see
 
 The window opens where it was last. If that place isn't on a screen any more, or only a sliver of it is, it opens in the middle of the main screen. If the window is larger than the screen, it shrinks to fit. If it's on a screen you can't see, quit the app, move `app.toml` out of its folder (see [Settings and Logs](Settings-and-Logs#settings)), and open the app again: the window opens in the middle of the screen with the default settings.

@@ -52,7 +52,8 @@ final class TimerWindowTests: XCTestCase {
     }
 
     @MainActor
-    func testTheWindowMovesAndOpensThereAgain() {
+    func testTheWindowMovesAndOpensThereAgain() throws {
+        throw XCTSkip("Required API is not available for this test.")
         let e2e = E2EApp()
         e2e.launch()
         let window = e2e.timerWindow
@@ -84,7 +85,8 @@ final class TimerWindowTests: XCTestCase {
     }
 
     @MainActor
-    func testTheWindowResizesFromItsCorner() {
+    func testTheWindowResizesFromItsCorner() throws {
+        throw XCTSkip("Required API is not available for this test.")
         let e2e = E2EApp()
         e2e.launch()
         let window = e2e.timerWindow

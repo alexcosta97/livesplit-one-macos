@@ -9,6 +9,11 @@ public struct RenderedFrame: Sendable {
     /// The layout's natural size in pixels, after its height changed (spec §5.2).
     public let sizeHint: CGSize?
 
+    public init(image: CGImage?, sizeHint: CGSize?) {
+        self.image = image
+        self.sizeHint = sizeHint
+    }
+
     /// No new image and no hint.
     public static let nothing = RenderedFrame(image: nil, sizeHint: nil)
 }

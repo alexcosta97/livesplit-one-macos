@@ -99,7 +99,11 @@ targets:
   LiveSplitOneUnitTests:
     type: bundle.unit-test
     platform: macOS
-    sources: [Tests/Unit]
+    sources:
+      - Tests/Unit
+      - path: Tests/Fixtures
+        type: folder
+        buildPhase: resources
     dependencies:
       - target: LiveSplitOne
     settings:
@@ -115,6 +119,11 @@ targets:
       # Shared with the unit tests.
       - Tests/Unit/Support/TemporaryFolder.swift
       - Tests/Unit/Support/KeyEvents.swift
+      - Tests/Unit/Support/Fixtures.swift
+      - Tests/Unit/Support/RecordingUnifiedLog.swift
+      - path: Tests/Fixtures
+        type: folder
+        buildPhase: resources
     dependencies:
       - target: LiveSplitOne
     settings:
@@ -141,7 +150,11 @@ targets:
   LiveSplitOneE2ETests:
     type: bundle.ui-testing
     platform: macOS
-    sources: [Tests/E2E]
+    sources:
+      - Tests/E2E
+      - path: Tests/Fixtures
+        type: folder
+        buildPhase: resources
     dependencies:
       - target: LiveSplitOne
     settings:

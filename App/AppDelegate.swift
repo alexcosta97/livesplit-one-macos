@@ -15,8 +15,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private(set) var runner: CommandRunner?
     /// The menu bar and the right-click menu (spec §7).
     private(set) var menus: TimerMenus?
-    private var settingsWindow: SettingsWindowController?
+    /// Opens, saves and closes splits and layouts (spec §7).
+    private(set) var files: FileController?
+    private(set) var settingsWindow: SettingsWindowController?
     private var shortcutKeys: ShortcutKeys?
+    /// Decides whether the app may quit (spec §7.1).
+    private var quitFlow: QuitFlow?
 
     static func main() {
         let app = NSApplication.shared
@@ -40,32 +44,43 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         let timerWindow = TimerWindowController.make(content: content, settings: settings)
         let runner = CommandRunner(
             timer: content.timer, resetSavesBestTimes: settings.settings.resetSavesBestTimes,
-            changed: { [weak content] in content?.markChanged() })
+            changed: { [weak content] in content?.markChanged() },
+            remember: { [weak self] in self?.rememberResetAnswer($0) })
+        let files = FileController(
+            content: content, window: timerWindow, settings: settings,
+            picker: SystemFilePicker.make(), alerts: SystemFileAlerts())
         let menus = TimerMenus(
             runner: runner, readState: { TimerMenuState.read(from: content.timer) },
-            shortcuts: { settings.settings.shortcuts })
+            shortcuts: { settings.settings.shortcuts }, files: files)
         NSApp.mainMenu = menus.mainMenu
         NSApp.windowsMenu = menus.windowMenu
         NSApp.helpMenu = menus.helpMenu
         timerWindow.timerView.menu = menus.contextMenu
         self.runner = runner
         self.menus = menus
+        self.files = files
         let shortcutKeys = ShortcutKeys(
             window: timerWindow.window, shortcuts: { settings.settings.shortcuts },
             perform: { [weak menus] in menus?.perform($0, from: .keyboard) })
         shortcutKeys.install()
         self.shortcutKeys = shortcutKeys
-        timerWindow.window.makeKeyAndOrderFront(nil)
-        // After making it key, which can happen at once: `follow` reads whether it is key now.
-        menus.follow(timerWindow)
-        if let notice = LaunchNotices.settings(settings.loadOutcome) {
-            timerWindow.notices.show(notice)
+        self.quitFlow = QuitFlow(content: content, runner: runner, files: files)
+        files.launch(settingsOutcome: settings.loadOutcome) {
+            timerWindow.window.makeKeyAndOrderFront(nil)
+            // After making it key, which can happen at once: `follow` reads whether it is key.
+            menus.follow(timerWindow)
         }
         self.timerWindow = timerWindow
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         true
+    }
+
+    /// Quit (spec §7.1): resets an attempt in progress, then asks about unsaved changes.
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard let quitFlow else { return .terminateNow }
+        return quitFlow.shouldTerminate { NSApp.reply(toApplicationShouldTerminate: $0) }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -111,6 +126,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         controller.showWindow(sender)
         controller.window?.makeKeyAndOrderFront(sender)
         NSApp.activate()
+    }
+
+    /// After *Yes* or *No* in the reset question: remembers it as the setting (spec §7.1).
+    func rememberResetAnswer(_ saves: Bool) {
+        settings?.update { $0.resetSavesBestTimes = saves }
+        settingsChanged()
+        // An open Settings window shows the setting as it is now (keeping a recording going).
+        settingsWindow?.content.reload()
     }
 
     /// After the Settings window saves a change: the command queue gets the reset setting, and
