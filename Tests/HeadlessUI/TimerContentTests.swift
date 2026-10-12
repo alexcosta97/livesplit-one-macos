@@ -161,9 +161,34 @@ import Testing
         #expect(content.render(pixelWidth: 300, pixelHeight: 500).sizeHint != nil)
     }
 
-    @Test func theLinkedLayoutIsRead() {
+    @Test func aRunWithNoSegmentsIsRefusedAndNothingChanges() {
+        let content = TimerContent(lang: 0)
+        let before = content.withRun { Int($0.len()) }
+        // A new `Run` has no segments, and `SplitsFile.load` would reject such a file.
+        let empty = Run()
+        #expect(empty.len() == 0)
+        #expect(!content.setRun(empty))
+        #expect(content.withRun { Int($0.len()) } == before)
+    }
+
+    /// GameTime.lss with a `<LayoutPath>` element added, loaded as a run.
+    private func run(linking layoutPath: String) throws -> Run {
+        var text = try String(contentsOf: Fixtures.url("GameTime.lss"), encoding: .utf8)
+        let open = try #require(text.range(of: "<Run version=\"1.6.0\">"))
+        text.insert(contentsOf: "<LayoutPath>\(layoutPath)</LayoutPath>", at: open.upperBound)
+        let url = FileManager.default.temporaryDirectory
+            .appending(path: "linked-\(UUID().uuidString).lss")
+        try text.write(to: url, atomically: true, encoding: .utf8)
+        defer { try? FileManager.default.removeItem(at: url) }
+        return try SplitsFile.load(url)
+    }
+
+    @Test func theLinkedLayoutIsRead() throws {
         let content = TimerContent(lang: 0)
         #expect(content.linkedLayout == .none)
-        // Task 6's tests cover a path link, written at test time.
+        content.setRun(try run(linking: "/Users/runner/Layouts/Dark.lsl"))
+        #expect(content.linkedLayout == .path("/Users/runner/Layouts/Dark.lsl"))
+        content.setRun(try run(linking: "?default"))
+        #expect(content.linkedLayout == .defaultLayout)
     }
 }

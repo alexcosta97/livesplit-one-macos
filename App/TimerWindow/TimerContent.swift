@@ -69,6 +69,11 @@ final class TimerContent {
     }
 
     /// Times with `run` from now on. `false` (and nothing changes) for a run with no segments.
+    ///
+    /// Only while no attempt is in progress: `Timer.setRun` resets without keeping the attempt's
+    /// times. Callers enforce it (Open Splits and Close Splits are disabled outside `notRunning`).
+    /// It takes the timer's write lock on the main thread, so don't call it while a command
+    /// waits on the reset question; it runs only from menu actions, which a modal alert blocks.
     @discardableResult
     func setRun(_ run: Run) -> Bool {
         var rejected = false
@@ -86,6 +91,7 @@ final class TimerContent {
         return result
     }
 
+    /// The timer's phase, read under the read lock.
     var phase: TimerPhase {
         var phase = TimerPhase.notRunning
         timer.readWith { phase = TimerPhase(rawValue: $0.currentPhase()) ?? .notRunning }
@@ -99,7 +105,9 @@ final class TimerContent {
     func lssText() -> String { withRun { $0.saveAsLss() } }
 
     /// After `text` was written: marks the run saved, unless it changed since (a server command
-    /// can change it meanwhile).
+    /// can change it meanwhile). Like `setRun`, it takes the write lock on the main thread, so
+    /// it must not run while a command waits on the reset question; only menu actions call it,
+    /// and a modal alert blocks them.
     func markSaved(_ text: String) {
         timer.writeWith { timer in
             if timer.getRun().saveAsLss() == text { timer.markAsUnmodified() }
