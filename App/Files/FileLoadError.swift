@@ -46,6 +46,23 @@ enum FileLoadError: Error, Equatable, Sendable {
     private static let tooLarge = "It's too large to be a splits or layout file."
     private static let notRegular = "It isn't a regular file."
 
+    /// macOS's words for a file that couldn't be opened, such as "The file “x” couldn't be
+    /// opened because there is no such file.", built from `errno` as Foundation words its own
+    /// read errors, without a second open of the path (which could block on a pipe).
+    private static func reason(forOpenError code: Int32, path: String) -> String {
+        let cocoa: CocoaError.Code =
+            switch code {
+            case ENOENT, ENOTDIR: .fileReadNoSuchFile
+            case EACCES, EPERM: .fileReadNoPermission
+            default: .fileReadUnknown
+            }
+        let underlying = NSError(domain: NSPOSIXErrorDomain, code: Int(code))
+        return NSError(
+            domain: NSCocoaErrorDomain, code: cocoa.rawValue,
+            userInfo: [NSFilePathErrorKey: path, NSUnderlyingErrorKey: underlying]
+        ).localizedDescription
+    }
+
     /// The contents of the regular file `url` (symlinks resolved), read no further than `limit`
     /// bytes: a file that grows after the size check can't take more memory than that.
     ///
@@ -56,11 +73,7 @@ enum FileLoadError: Error, Equatable, Sendable {
         let resolved = url.resolvingSymlinksInPath()
         let descriptor = open(resolved.path, O_RDONLY | O_NONBLOCK | O_CLOEXEC)
         guard descriptor >= 0 else {
-            let code = errno
-            // macOS's own words for it, such as for a missing file or no permission.
-            do { _ = try FileHandle(forReadingFrom: resolved) } catch { throw error }
-            throw FileLoadError.unreadable(
-                NSError(domain: NSPOSIXErrorDomain, code: Int(code)).localizedDescription)
+            throw FileLoadError.unreadable(reason(forOpenError: errno, path: resolved.path))
         }
         let handle = FileHandle(fileDescriptor: descriptor, closeOnDealloc: true)
         defer { try? handle.close() }
