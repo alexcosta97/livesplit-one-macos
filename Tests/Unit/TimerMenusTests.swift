@@ -23,7 +23,8 @@ import Testing
         folder = try TemporaryFolder()
         runner = CommandRunner(
             timer: timer, resetSavesBestTimes: nil,
-            log: Log(directory: folder.url, unified: unified), changed: {})
+            log: Log(directory: folder.url, unified: unified), changed: {},
+            remember: { _ in })
     }
 
     /// Waits until every command sent so far has run: the runner's queue is serial, so a

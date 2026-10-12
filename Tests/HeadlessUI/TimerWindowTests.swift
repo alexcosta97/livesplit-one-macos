@@ -76,7 +76,8 @@ import Testing
         let controller = makeController(SettingsStore(directory: folder.url))
         let runner = CommandRunner(
             timer: controller.content.timer, resetSavesBestTimes: nil,
-            log: Log(directory: folder.url), changed: {})
+            log: Log(directory: folder.url), changed: {},
+            remember: { _ in })
         let menus = TimerMenus(
             runner: runner, readState: { TimerMenuState.read(from: controller.content.timer) },
             shortcuts: { Shortcuts() })

@@ -40,7 +40,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         let timerWindow = TimerWindowController.make(content: content, settings: settings)
         let runner = CommandRunner(
             timer: content.timer, resetSavesBestTimes: settings.settings.resetSavesBestTimes,
-            changed: { [weak content] in content?.markChanged() })
+            changed: { [weak content] in content?.markChanged() },
+            remember: { [weak self] in self?.rememberResetAnswer($0) })
         let menus = TimerMenus(
             runner: runner, readState: { TimerMenuState.read(from: content.timer) },
             shortcuts: { settings.settings.shortcuts })
@@ -111,6 +112,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         controller.showWindow(sender)
         controller.window?.makeKeyAndOrderFront(sender)
         NSApp.activate()
+    }
+
+    /// After *Yes* or *No* in the reset question: remembers it as the setting (spec §7.1).
+    func rememberResetAnswer(_ saves: Bool) {
+        settings?.update { $0.resetSavesBestTimes = saves }
+        settingsChanged()
     }
 
     /// After the Settings window saves a change: the command queue gets the reset setting, and
