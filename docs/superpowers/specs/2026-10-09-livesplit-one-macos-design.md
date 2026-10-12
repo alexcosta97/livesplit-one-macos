@@ -436,9 +436,14 @@ Every change is saved at once and shows in the menus.
 ### 8.1 Connecting
 
 - **Connect to Server…** opens a sheet on the timer window with a URL field,
-  prefilled with the last URL used, and Connect and Cancel buttons. A URL
-  without a scheme gets `ws://`. A URL that isn't `ws://` or `wss://` is
-  rejected in the sheet with a reason.
+  prefilled with the last URL used, and Connect and Cancel buttons. Connect is
+  the default button and is disabled while the field is empty; Esc is Cancel.
+  A URL without a scheme gets `ws://`. The sheet stays open and says why
+  below the field when the URL can't be used: **Use a ws:// or wss:// address.**
+  for another scheme, **Enter the server's address.** when it has no host.
+  Connect saves the URL as typed, trimmed of spaces, before connecting.
+- `<host>` in the menu, notices and log is the URL's host, with `:<port>` when
+  the URL names a port, such as `192.168.1.20:9087`.
 - The client is `URLSessionWebSocketTask`, and sends no `Origin` header:
   `URLSessionWebSocketTask` adds none, and livesplit-asr-bridge doesn't check
   it (it accepts with tungstenite's `accept_async`). A native client
@@ -449,23 +454,37 @@ Every change is saved at once and shows in the menus.
   address the same client got no answer at all, most likely because the
   home firewall drops the connection, so that is a network setting, not a
   client one.
+- An attempt that gets no handshake within 10 s fails with **The server
+  didn't answer within 10 seconds.**, so a dropped connection, as on that LAN
+  address, reads differently from a refused one (macOS's reason, such as
+  *Could not connect to the server.*).
 - `Info.plist` contains `NSLocalNetworkUsageDescription`, so macOS asks for
   local network access the first time the app connects to another machine.
   Until access is allowed, URLSession fails with "The Internet connection
   appears to be offline" (`NSURLErrorNotConnectedToInternet`), as seen in
-  #7. The app says local network access is needed, and where to allow it,
-  instead of showing that message.
+  #7. The app gives instead the reason **LiveSplit One for macOS needs local
+  network access. Allow it in System Settings › Privacy & Security › Local
+  Network.**
 
 ### 8.2 Messages
 
-- Each text message from the server goes to `handle_command` (section 5.3) on a
-  serial background queue. Replies are sent back in the order the messages
-  arrived, as LiveSplit One does.
+- Each text message from the server goes to `handle_command` (section 5.3) on
+  the connection's own serial background queue, not the menus' (section 7), so
+  a server command reaches the sink while a menu's reset waits for its
+  question and gets `Busy`, as in LiveSplit One. Replies are sent back in the
+  order the messages arrived, as LiveSplit One does. A reply to a message
+  from a connection that has since closed is dropped, never sent on a newer
+  one.
 - A binary message gets `{"Err":{"code":"InvalidCommand"}}`, as in LiveSplit
   One.
 - Every event from the command sink, whatever started it, is encoded with
   `encode_event` and sent to the server while connected. That way the bridge's
-  tracked timer state is always right, including for splits made locally.
+  tracked timer state is always right, including for splits made locally. An
+  event caused by a server message is sent before that message's reply, as
+  LiveSplit One does. Events while not connected are dropped, not queued.
+- While connected the app sends a WebSocket ping every 10 s. No pong within
+  10 s counts as a lost connection (section 8.3), so a server that vanished,
+  such as a PC that went to sleep, is noticed.
 
 ### 8.3 Status and reconnection
 
@@ -474,19 +493,22 @@ Every change is saved at once and shows in the menus.
 | Not connected | Connect to Server… | none |
 | Connecting | Disconnect from `<host>` | none |
 | Connected | Disconnect from `<host>` | "Connected to `<host>`" |
-| Couldn't connect, first attempt | Connect to Server… | "Couldn't connect to `<host>`: `<reason from macOS>`" |
+| Couldn't connect, first attempt | Connect to Server… | "Couldn't connect to `<host>`: `<reason>`" |
 | Lost connection, retrying | Disconnect from `<host>` | "Lost connection to `<host>`, retrying…" |
 
 - **Automatic reconnection.** This differs from LiveSplit One. If a connection
   that was open closes without the user choosing Disconnect, the app retries
   after 1 s, then 2, 4, 8, 16 and 30 s, and every 30 s after that, until it
-  reconnects or the user chooses Disconnect. A failed first attempt does not
-  retry, since the URL may be wrong.
-- After reconnecting the notice says "Connected to `<host>`" again.
+  reconnects or the user chooses Disconnect. A retry that fails shows no
+  notice; it is logged. A failed first attempt does not retry, since the URL
+  may be wrong.
+- After reconnecting the notice says "Connected to `<host>`" again, and the
+  next loss starts again from 1 s.
 - **Disconnect** closes the socket with a normal close code and stops any
-  retries.
+  retries. Quitting does the same.
 - The last URL is saved in `app.toml`. The app does not reconnect on launch;
   the user chooses Connect to Server.
+- The menu bar has the same item in the File menu, below Save Layout As….
 
 ## 9. Splits editor
 
@@ -611,8 +633,8 @@ only stores their paths.
 | Category | Contents |
 |---|---|
 | Errors | File load and save failures, connection failures, unexpected states |
-| Connection | Connecting, connected, disconnected, retries, each command received and its reply, each event sent |
-| Timer | Timer actions and their source (menu, keyboard, server), run and layout changes |
+| Connection | Connecting, connected, disconnected, retries, each command received and its reply, each event sent. Server commands are logged here, not under Timer |
+| Timer | Timer actions from the menu and keyboard and their source, run and layout changes |
 | App | Launch, version, settings read and written, files opened and saved |
 
 A game time set right after another is still applied and answered, but only
@@ -941,7 +963,7 @@ three):
   unsaved-changes and reset prompts (the reset prompt saves its answer,
   section 7.1), linked layouts, reopen on launch. Planned in #58.
 - #14 Connect to Server: sheet, client, events to the server, status,
-  automatic reconnection.
+  automatic reconnection. Planned in #63.
 - #15 Splits editor.
 - #18 E2E harness and suite (section 14.2), filled in alongside #11–#17:
   each issue adds its own flows from section 14.3, and #18 closes when they
