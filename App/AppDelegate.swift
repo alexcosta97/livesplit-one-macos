@@ -17,7 +17,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private(set) var menus: TimerMenus?
     /// Opens, saves and closes splits and layouts (spec §7).
     private(set) var files: FileController?
-    private var settingsWindow: SettingsWindowController?
+    private(set) var settingsWindow: SettingsWindowController?
     private var shortcutKeys: ShortcutKeys?
     /// Decides whether the app may quit (spec §7.1).
     private var quitFlow: QuitFlow?
@@ -132,6 +132,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     func rememberResetAnswer(_ saves: Bool) {
         settings?.update { $0.resetSavesBestTimes = saves }
         settingsChanged()
+        // An open Settings window shows the setting as it is now (keeping a recording going).
+        settingsWindow?.content.reload()
     }
 
     /// After the Settings window saves a change: the command queue gets the reset setting, and

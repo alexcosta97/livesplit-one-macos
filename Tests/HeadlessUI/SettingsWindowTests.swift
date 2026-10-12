@@ -42,6 +42,26 @@ import Testing
         try #require(find("shortcut-recorder", in: controller.view))
     }
 
+    /// Answering the reset question changes the setting; a Settings window that is open shows it.
+    @Test func anOpenSettingsWindowShowsTheAnswerToTheResetQuestion() throws {
+        let delegate = try #require(NSApplication.shared.delegate as? AppDelegate)
+        let settings = try #require(delegate.settings)
+        defer {
+            settings.update { $0.resetSavesBestTimes = nil }
+            delegate.settingsWindow?.close()
+        }
+        settings.update { $0.resetSavesBestTimes = nil }
+        delegate.showSettings(nil)
+        let content = try #require(delegate.settingsWindow?.content)
+        let popUp: NSPopUpButton = try #require(find("reset-best-times", in: content.view))
+        #expect(popUp.titleOfSelectedItem == "Ask")
+
+        delegate.rememberResetAnswer(false)
+        #expect(popUp.titleOfSelectedItem == "Keep the old ones")
+        delegate.rememberResetAnswer(true)
+        #expect(popUp.titleOfSelectedItem == "Update them")
+    }
+
     @Test func theResetChoiceStartsAtAskAndSavesEachChoice() throws {
         let controller = makeController()
         let popUp: NSPopUpButton = try #require(find("reset-best-times", in: controller.view))
