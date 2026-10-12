@@ -41,10 +41,15 @@ final class CommandRunner: Sendable {
             // Runs on the command's thread, which waits for the answer (spec §5.3).
             decideReset: {
                 if let saves = preference.value { return saves ? .save : .discard }
-                let answer = Self.waitOnMain(ask)
-                // Commands that waited behind the question are dropped (spec §7.1); ones sent
-                // from now on run.
-                epoch.bump()
+                // Commands queued before the answer waited behind the question and are dropped
+                // (spec §7.1). The epoch moves on the main actor, as soon as the question is
+                // answered, so a command sent from then on, such as a shortcut handled right
+                // after the alert closes, runs.
+                let answer = Self.waitOnMain {
+                    let answer = ask()
+                    epoch.bump()
+                    return answer
+                }
                 switch answer {
                 case .yes:
                     // Set here as well, so a reset right after doesn't ask again before the
@@ -64,17 +69,22 @@ final class CommandRunner: Sendable {
 
     /// Runs `body` on the main actor and waits for it on this thread, which is never the main
     /// thread: commands run on the command queue.
-    private static func waitOnMain<T: Sendable>(_ body: @escaping @MainActor @Sendable () -> T)
-        -> T
-    {
+    ///
+    /// `body` runs from a run loop block, not a `Task` or a main queue block: the reset question
+    /// runs a modal loop, and while one main queue block runs no other main queue block does, so
+    /// from a `Task` every other main-actor job, such as the window being told of a change, waits
+    /// until the question is answered. A run loop block is no main queue block, so those jobs
+    /// keep running.
+    static func waitOnMain<T: Sendable>(_ body: @escaping @MainActor @Sendable () -> T) -> T {
         precondition(!Thread.isMainThread)
         let result = Mutex<T?>(nil)
         let done = DispatchSemaphore(value: 0)
-        Task { @MainActor in
-            let value = body()
+        RunLoop.main.perform(inModes: [.common]) {
+            let value = MainActor.assumeIsolated { body() }
             result.withLock { $0 = value }
             done.signal()
         }
+        CFRunLoopWakeUp(RunLoop.main.getCFRunLoop())
         done.wait()
         return result.withLock { $0! }
     }

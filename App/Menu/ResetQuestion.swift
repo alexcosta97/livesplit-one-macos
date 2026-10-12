@@ -1,7 +1,7 @@
 import AppKit
 
 /// What the user chose in the reset question.
-enum ResetAnswer: Sendable {
+enum ResetAnswer: Sendable, Equatable {
     case yes, no, dontReset
 }
 
@@ -22,7 +22,13 @@ enum ResetQuestion {
 
     /// Runs the alert app-modal and returns the answer.
     static func ask() -> ResetAnswer {
-        switch alert().runModal() {
+        answer(for: alert().runModal())
+    }
+
+    /// The answer for the response `runModal()` returned. Anything but *Yes* or *No*, such as
+    /// the alert being aborted, doesn't reset: that is the safe answer.
+    static func answer(for response: NSApplication.ModalResponse) -> ResetAnswer {
+        switch response {
         case .alertFirstButtonReturn: .yes
         case .alertSecondButtonReturn: .no
         default: .dontReset

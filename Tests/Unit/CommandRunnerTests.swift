@@ -139,7 +139,7 @@ import Testing
             state.withLock {
                 $0.asked += 1
                 $0.onMain.append(Thread.isMainThread)
-                return $0.left.removeFirst()
+                return $0.left.isEmpty ? .dontReset : $0.left.removeFirst()
             }
         }
 
@@ -157,10 +157,31 @@ import Testing
 
     /// Starts and splits the default run, which has one segment and no times, so finishing it
     /// beats every best time, then resets without saving the attempt: the reset asks.
-    private func finishThenReset(_ runner: CommandRunner) async -> String? {
+    private func finishThenReset(_ runner: CommandRunner, afterMilliseconds: Int = 10) async
+        -> String?
+    {
         _ = await run(runner, .splitOrStart)
-        try? await Task.sleep(for: .milliseconds(10))
+        try? await Task.sleep(for: .milliseconds(afterMilliseconds))
         _ = await run(runner, .splitOrStart)
+        return await run(runner, .reset)
+    }
+
+    /// Whether the attempt in progress has new best times, which is when a reset asks.
+    private func hasNewBestTimes(_ timer: SharedTimer) -> Bool {
+        var has = false
+        timer.readWith { has = $0.currentAttemptHasNewBestTimes() }
+        return has
+    }
+
+    /// Finishes a second, quicker attempt, which beats the first's times, and checks that a
+    /// reset now would ask, before resetting it.
+    private func resetASecondAttemptThatBeatsTheFirst(
+        _ runner: CommandRunner, _ timer: SharedTimer
+    ) async throws -> String? {
+        _ = await run(runner, .splitOrStart)
+        try await Task.sleep(for: .milliseconds(1))
+        _ = await run(runner, .splitOrStart)
+        try #require(hasNewBestTimes(timer))
         return await run(runner, .reset)
     }
 
@@ -170,39 +191,48 @@ import Testing
         return has
     }
 
-    @Test func askingAndYesKeepsTheAttemptAndRemembersIt() async {
+    @Test func askingAndYesKeepsTheAttemptAndRemembersIt() async throws {
         let timer = makeTimer(segments: 1)
         let answers = Answers([.yes])
         let runner = makeRunner(timer, answers: answers)
-        #expect(await finishThenReset(runner) == #"{"success":null}"#)
+        // A slow first attempt, so the second one clearly beats it.
+        #expect(await finishThenReset(runner, afterMilliseconds: 50) == #"{"success":null}"#)
         #expect(hasBestTime(timer))
+        await MainActor.run {}
         #expect(answers.remembered == [true])
-        // The answer is in force at once, before the main actor remembers it.
-        #expect(await finishThenReset(runner) == #"{"success":null}"#)
+        // The answer is in force at once: this reset would ask, if it weren't.
+        let second = try await resetASecondAttemptThatBeatsTheFirst(runner, timer)
+        #expect(second == #"{"success":null}"#)
         #expect(answers.asked == 1)
     }
 
-    @Test func askingAndNoDiscardsTheAttemptAndRemembersIt() async {
+    @Test func askingAndNoDiscardsTheAttemptAndRemembersIt() async throws {
         let timer = makeTimer(segments: 1)
         let answers = Answers([.no])
         let runner = makeRunner(timer, answers: answers)
         #expect(await finishThenReset(runner) == #"{"success":null}"#)
         #expect(!hasBestTime(timer))
+        await MainActor.run {}
         #expect(answers.remembered == [false])
-        #expect(await finishThenReset(runner) == #"{"success":null}"#)
+        // The default run has no times, so the second attempt beats the first only if the
+        // first's were kept: a discarded one leaves it with new best times again.
+        let second = try await resetASecondAttemptThatBeatsTheFirst(runner, timer)
+        #expect(second == #"{"success":null}"#)
         #expect(answers.asked == 1)
     }
 
     @Test func askingAndDontResetLeavesTheTimerRunningAndAsksAgain() async {
-        let timer = makeTimer(segments: 1)
+        let timer = makeTimer(segments: 2)
         let answers = Answers([.dontReset, .dontReset])
         let runner = makeRunner(timer, answers: answers)
         _ = await run(runner, .splitOrStart)
         try? await Task.sleep(for: .milliseconds(10))
+        // The first of two segments is split: the attempt has a new best segment.
         _ = await run(runner, .splitOrStart)
         let reply = await run(runner, .reset)
         #expect(reply == #"{"error":{"code":"RunnerDecidedAgainstReset"}}"#)
-        #expect(phase(timer) == .ended)
+        #expect(phase(timer) == .running)
+        await MainActor.run {}
         #expect(answers.remembered.isEmpty)
         _ = await run(runner, .reset)
         #expect(answers.asked == 2)
@@ -244,6 +274,8 @@ import Testing
         #expect(phase(timer) == .ended)
 
         // The reset waits in `ask`; the split is queued behind it, then the question is answered.
+        // The sleeps only make it likely that `ask` is blocking when the split is sent;
+        // correctness doesn't depend on them: the split is behind the reset either way.
         let (resets, resetDone) = AsyncStream.makeStream(of: String?.self)
         let (splits, splitDone) = AsyncStream.makeStream(of: String?.self)
         runner.run(.reset, from: .menu) { resetDone.yield($0) }
@@ -268,5 +300,33 @@ import Testing
         // A command queued after the answer runs.
         #expect(await run(runner, .undoSplit) != nil)
         #expect(phase(timer) == .running)
+    }
+
+    /// The epoch moves as soon as the question is answered, on the main actor: a command sent
+    /// from the main thread right after `ask` returns, such as a shortcut handled when the alert
+    /// closes, isn't dropped.
+    @Test(.timeLimit(.minutes(1))) func aCommandSentRightAfterTheAnswerRuns() async {
+        let timer = makeTimer(segments: 2)
+        let (replies, replied) = AsyncStream.makeStream(of: String?.self)
+        let runnerBox = Mutex<CommandRunner?>(nil)
+        let runner = makeRunner(
+            timer,
+            ask: {
+                // Queued on the main actor behind this call, so it runs once `ask` has returned.
+                Task { @MainActor in
+                    runnerBox.withLock { $0 }?.run(.undoSplit, from: .keyboard) {
+                        replied.yield($0)
+                    }
+                }
+                return .dontReset
+            })
+        runnerBox.withLock { $0 = runner }
+        _ = await run(runner, .splitOrStart)
+        try? await Task.sleep(for: .milliseconds(10))
+        _ = await run(runner, .splitOrStart)
+        _ = await run(runner, .reset)
+        var iterator = replies.makeAsyncIterator()
+        let reply = await iterator.next()
+        #expect(reply != .some(nil))
     }
 }
