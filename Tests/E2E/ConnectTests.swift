@@ -101,8 +101,10 @@ final class ConnectTests: XCTestCase {
         let disconnect = menuItem("timer-connect", e2e)
         XCTAssertEqual(disconnect.title, "Disconnect from \(host)")
         disconnect.click()
-        let closed = await server.wait { server.normalCloses == 1 }
-        XCTAssertTrue(closed, "the server saw no normal close")
+        // The close code is checked by URLSessionWebSocketTests: here URLSession can reset the
+        // connection right after its close frame, and the server's read then fails with it.
+        let closed = await server.wait { server.openConnections == 0 }
+        XCTAssertTrue(closed, "the server's connection is still open")
         XCTAssertEqual(menuItem("timer-connect", e2e).title, "Connect to Server…")
         e2e.app.typeKey(.escape, modifierFlags: [])
         let settings = e2e.settingsText(containing: "last_server_url")
