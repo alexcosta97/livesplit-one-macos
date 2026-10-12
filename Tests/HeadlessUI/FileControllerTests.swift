@@ -288,13 +288,6 @@ final class FakeFileAlerts: FileAlerts {
         #expect(errors[0].contains("\\n12:00:00.000"))
     }
 
-    @Test func loggablePathsEscapeControlCharacters() {
-        #expect(FileController.loggable("/a/b.lss") == "/a/b.lss")
-        #expect(FileController.loggable("/a\nb\r\tc") == "/a\\nb\\r\\tc")
-        #expect(FileController.loggable("/a\\b") == "/a\\\\b")
-        #expect(FileController.loggable("/a\u{1b}[0m") == "/a\\u{1b}[0m")
-    }
-
     // MARK: 3. Save splits
 
     @Test func savingWritesTheFileAndMarksTheRunSaved() throws {

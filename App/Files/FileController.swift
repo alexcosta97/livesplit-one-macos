@@ -38,27 +38,6 @@ final class FileController {
     var recentSplits: [String] { settings.settings.recentSplits.paths }
     var recentLayouts: [String] { settings.settings.recentLayouts.paths }
 
-    /// `path` for a log line. A path from a splits file or `app.toml` can't be trusted, so
-    /// control characters, line breaks included, are written escaped and can't forge a line.
-    static func loggable(_ path: String) -> String {
-        var result = ""
-        for scalar in path.unicodeScalars {
-            switch scalar {
-            case "\\": result += "\\\\"
-            case "\n": result += "\\n"
-            case "\r": result += "\\r"
-            case "\t": result += "\\t"
-            default:
-                if scalar.properties.generalCategory == .control {
-                    result += "\\u{" + String(scalar.value, radix: 16) + "}"
-                } else {
-                    result.unicodeScalars.append(scalar)
-                }
-            }
-        }
-        return result
-    }
-
     /// The path as `app.toml` and the log hold it.
     private func standard(_ url: URL) -> String { url.standardizedFileURL.path }
 
@@ -73,7 +52,7 @@ final class FileController {
                 let run = try SplitsFile.load(url)
                 if content.setRun(run) {
                     splitsPath = url.standardizedFileURL.path
-                    log.record(.app, "Opened splits \(Self.loggable(standard(url)))")
+                    log.record(.app, "Opened splits \(LogText.escaped(standard(url)))")
                 } else {
                     failedToReopen(url, error: .notSplits)
                 }
@@ -86,7 +65,7 @@ final class FileController {
             do {
                 let layout = try LayoutFile.load(url)
                 window.showLayout(layout, path: url.standardizedFileURL.path)
-                log.record(.app, "Opened layout \(Self.loggable(standard(url)))")
+                log.record(.app, "Opened layout \(LogText.escaped(standard(url)))")
             } catch {
                 failedToReopen(url, error: error)
             }
@@ -98,7 +77,7 @@ final class FileController {
         window.notices.show("Couldn't reopen \"\(name)\": \(error.reason(file: name))")
         log.record(
             .error,
-            "Couldn't open \(Self.loggable(standard(url))): \(error.reason(file: name))")
+            "Couldn't open \(LogText.escaped(standard(url))): \(error.reason(file: name))")
     }
 
     // MARK: Splits
@@ -134,7 +113,7 @@ final class FileController {
             $0.lastSplitsPath = path
             $0.recentSplits.add(path)
         }
-        log.record(.app, "Opened splits \(Self.loggable(path))")
+        log.record(.app, "Opened splits \(LogText.escaped(path))")
         openLinkedLayout()
     }
 
@@ -158,7 +137,7 @@ final class FileController {
                         + error.reason(file: name))
                 log.record(
                     .error,
-                    "Couldn't open \(Self.loggable(standard(url))): \(error.reason(file: name))")
+                    "Couldn't open \(LogText.escaped(standard(url))): \(error.reason(file: name))")
             }
         }
     }
@@ -197,7 +176,7 @@ final class FileController {
             return false
         }
         content.markSaved(text)
-        log.record(.app, "Saved splits to \(Self.loggable(standard(url)))")
+        log.record(.app, "Saved splits to \(LogText.escaped(standard(url)))")
         return true
     }
 
@@ -249,7 +228,7 @@ final class FileController {
             $0.lastLayoutPath = path
             $0.recentLayouts.add(path)
         }
-        log.record(.app, "Opened layout \(Self.loggable(path))")
+        log.record(.app, "Opened layout \(LogText.escaped(path))")
     }
 
     func saveLayoutAs() {
@@ -270,7 +249,7 @@ final class FileController {
             $0.lastLayoutPath = path
             $0.recentLayouts.add(path)
         }
-        log.record(.app, "Saved layout to \(Self.loggable(path))")
+        log.record(.app, "Saved layout to \(LogText.escaped(path))")
     }
 
     // MARK: Recent files
@@ -290,11 +269,11 @@ final class FileController {
         alerts.showLoadFailed(error, file: name)
         log.record(
             .error,
-            "Couldn't open \(Self.loggable(standard(url))): \(error.reason(file: name))")
+            "Couldn't open \(LogText.escaped(standard(url))): \(error.reason(file: name))")
     }
 
     private func failedToSave(_ url: URL, reason: String) {
         alerts.showSaveFailed(reason: reason, file: url.lastPathComponent)
-        log.record(.error, "Couldn't save \(Self.loggable(standard(url))): \(reason)")
+        log.record(.error, "Couldn't save \(LogText.escaped(standard(url))): \(reason)")
     }
 }

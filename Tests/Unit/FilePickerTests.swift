@@ -51,6 +51,14 @@ import Testing
         #expect(unified.entries.first?.message.contains("open layout") == true)
     }
 
+    @Test func aScriptedPathIsEscapedInTheLog() throws {
+        let (picker, unified, _) = try makePicker(["rel\nforged line"])
+        #expect(picker.fileToOpen(.splits) == nil)
+        let message = try #require(unified.entries.first { $0.category == .error }?.message)
+        #expect(message.contains("rel\\nforged line"))
+        #expect(!message.contains("\n"))
+    }
+
     @Test func aLaunchArgumentListsTheAnswers() throws {
         let arguments = ["/Applications/LiveSplit One.app", "-LSOPickedFiles", #"["/a", null]"#]
         let log = Log(directory: try TemporaryFolder().url, unified: RecordingUnifiedLog())

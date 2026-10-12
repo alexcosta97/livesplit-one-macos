@@ -98,13 +98,17 @@ final class ScriptedFilePicker: FilePicker {
     private func answer(_ question: String) -> URL? {
         asked.append(question)
         guard !answers.isEmpty else {
-            log.record(.error, "No scripted file answer left for \"\(question)\"; cancelling")
+            log.record(
+                .error,
+                "No scripted file answer left for \"\(LogText.escaped(question))\"; cancelling")
             return nil
         }
         guard let path = answers.removeFirst() else { return nil }
         // Answers are absolute paths (spec §14.2); a relative one would depend on the cwd.
         guard path.hasPrefix("/") else {
-            log.record(.error, "Scripted file answer \"\(path)\" isn't absolute; cancelling")
+            log.record(
+                .error,
+                "Scripted file answer \"\(LogText.escaped(path))\" isn't absolute; cancelling")
             return nil
         }
         return URL(filePath: path)

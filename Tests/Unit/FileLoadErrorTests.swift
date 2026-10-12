@@ -18,7 +18,7 @@ import Testing
         return url
     }
 
-    @Test func aDeviceIsntRead() {
+    @Test(.timeLimit(.minutes(1))) func aDeviceIsntRead() {
         let url = URL(filePath: "/dev/zero")
         #expect(throws: FileLoadError.unreadable("It isn't a regular file.")) {
             try SplitsFile.load(url)
@@ -28,7 +28,7 @@ import Testing
         }
     }
 
-    @Test func aPipeIsntReadAndDoesntHang() throws {
+    @Test(.timeLimit(.minutes(1))) func aPipeIsntReadAndDoesntHang() throws {
         let url = try fifo()
         #expect(throws: FileLoadError.unreadable("It isn't a regular file.")) {
             try SplitsFile.load(url)
@@ -38,7 +38,7 @@ import Testing
         }
     }
 
-    @Test func aLinkToAPipeIsntRead() throws {
+    @Test(.timeLimit(.minutes(1))) func aLinkToAPipeIsntRead() throws {
         let link = folder.url.appending(path: "link.lss")
         try FileManager.default.createSymbolicLink(at: link, withDestinationURL: try fifo())
         #expect(throws: FileLoadError.unreadable("It isn't a regular file.")) {
@@ -62,6 +62,15 @@ import Testing
         try handle.close()
         #expect(throws: FileLoadError.unreadable("It's too large to be a splits or layout file.")) {
             try SplitsFile.load(url)
+        }
+    }
+
+    @Test func theReadItselfIsBounded() throws {
+        let url = folder.url.appending(path: "Grown.lss")
+        try Data(count: 11).write(to: url)
+        #expect(try FileLoadError.readBounded(url, limit: 11).count == 11)
+        #expect(throws: FileLoadError.unreadable("It's too large to be a splits or layout file.")) {
+            try FileLoadError.readBounded(url, limit: 10)
         }
     }
 

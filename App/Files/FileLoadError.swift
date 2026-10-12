@@ -35,19 +35,31 @@ enum FileLoadError: Error, Equatable, Sendable {
     /// and splits name their layout, so the path can't be trusted.
     static func read(_ url: URL) throws(FileLoadError) -> Data {
         do {
-            let values = try url.resolvingSymlinksInPath()
-                .resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey])
+            let resolved = url.resolvingSymlinksInPath()
+            let values = try resolved.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey])
             guard values.isRegularFile == true else {
                 throw FileLoadError.unreadable("It isn't a regular file.")
             }
             if let size = values.fileSize, size > sizeLimit {
-                throw FileLoadError.unreadable("It's too large to be a splits or layout file.")
+                throw FileLoadError.unreadable(tooLarge)
             }
-            return try Data(contentsOf: url)
+            return try readBounded(resolved, limit: sizeLimit)
         } catch let error as FileLoadError {
             throw error
         } catch {
             throw .unreadable(error.localizedDescription)
         }
+    }
+
+    private static let tooLarge = "It's too large to be a splits or layout file."
+
+    /// The contents of `url`, read no further than `limit` bytes: a file that grows after the
+    /// size check can't take more memory than that.
+    static func readBounded(_ url: URL, limit: Int) throws -> Data {
+        let handle = try FileHandle(forReadingFrom: url)
+        defer { try? handle.close() }
+        let data = try handle.read(upToCount: limit + 1) ?? Data()
+        guard data.count <= limit else { throw FileLoadError.unreadable(tooLarge) }
+        return data
     }
 }
