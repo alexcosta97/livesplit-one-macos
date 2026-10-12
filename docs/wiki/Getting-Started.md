@@ -40,10 +40,19 @@ Press ⌘S, or choose **Save Splits** in the **File** menu. If the splits came f
 
 Quit with ⌘Q. The app asks to save changes, if there are any. The next time you open the app, it reopens the same splits and layout, with the window where you left it.
 
-<!-- #14 adds connecting to livesplit-asr-bridge -->
+## 7. Connect to livesplit-asr-bridge
+
+If your game runs on another computer with [livesplit-asr-bridge](https://github.com/alexcosta97/livesplit-asr-bridge), let it drive the timer:
+
+1. Start the bridge on the gaming PC.
+2. Right-click the timer and choose **Connect to Server…**.
+3. Type the gaming PC's address and the bridge's port, such as `192.168.1.20:9087`, and click **Connect**.
+
+The timer shows **Connected to 192.168.1.20:9087**, and the auto splitter now starts and splits the timer. The first time, macOS asks to allow local network access: choose **Allow**. [Connecting to a Server](Connecting-to-a-Server) says which address to use and what happens when the connection drops.
 
 ## Next
 
 - [The Menu](The-Menu): every command in the menus.
 - [Splits and Layouts](Splits-and-Layouts): everything about files.
+- [Connecting to a Server](Connecting-to-a-Server): everything about the bridge.
 - [Settings and Logs](Settings-and-Logs): changing keys and what the app remembers.

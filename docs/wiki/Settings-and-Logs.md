@@ -6,7 +6,7 @@ The app keeps its settings in one file:
 
 Your splits and layouts stay wherever you keep them; the app only stores where they are.
 
-It holds the paths of the splits and layout you last opened, the recent files of each, the window's position and size for each layout, **Always on Top**, what a reset with new best times does (`reset_saves_best_times`), and any keyboard shortcuts you changed. The file is created the first time a setting changes, for example when you open a file, answer the question about best times, or open a layout whose size sets the window's size, and rewritten each time one does. After you move or resize the window, it's written once, when you stop, not on every step. If a file the app reopens at launch can't be opened, the file is left as it is, so that the file reopens the next time it can. It is a [TOML](https://toml.io) text file, so you can read it, but quit the app before editing it: the app reads it only when it starts, and rewrites it when a setting changes.
+It holds the paths of the splits and layout you last opened, the recent files of each, the window's position and size for each layout, **Always on Top**, what a reset with new best times does (`reset_saves_best_times`), the last server address you connected to (`last_server_url`), and any keyboard shortcuts you changed. The file is created the first time a setting changes, for example when you open a file, answer the question about best times, or open a layout whose size sets the window's size, and rewritten each time one does. After you move or resize the window, it's written once, when you stop, not on every step. If a file the app reopens at launch can't be opened, the file is left as it is, so that the file reopens the next time it can. It is a [TOML](https://toml.io) text file, so you can read it, but quit the app before editing it: the app reads it only when it starts, and rewrites it when a setting changes.
 
 If the app can't read the file, for example after a mistake while editing it, it starts with the default settings and keeps the old file next to it as `app.toml.bad`, so nothing is lost. Each time this happens, the previous `app.toml.bad` is replaced. If the app can't keep the old file either, for example because the folder is read-only, it leaves the file as it is and doesn't save setting changes until it restarts.
 
@@ -44,7 +44,7 @@ The app records what it does in log files, one per day:
 
 - Files older than 7 days are deleted when the app starts and when a new day's file begins.
 - Once a day's file reaches 50 MB, only errors are written to it until the next day, after one line saying so.
-- Each line starts with the time, to the millisecond, and what the line is about: **ERROR**, **CONNECTION** (connecting to a server, its commands and the app's replies), **TIMER** (timer actions and where they came from) or **APP** (the app starting, settings, files opened and saved).
+- Each line starts with the time, to the millisecond, and what the line is about: **ERROR**, **CONNECTION** (connecting to a server, disconnecting and retries, each command it sends with the app's reply, and each change to the timer sent to it; when a server sends the game time many times in a row, only the first is logged), **TIMER** (timer actions and where they came from) or **APP** (the app starting, settings, files opened and saved).
 
 For example:
 
