@@ -25,7 +25,7 @@ final class SocketRecorder: Sendable {
     private func append(_ line: String) { lines.withLock { $0.append(line) } }
 
     /// Waits until a line satisfies `matches`, up to `timeout` seconds. Returns whether one did.
-    func wait(timeout: TimeInterval = 10, for matches: (String) -> Bool) async -> Bool {
+    func wait(timeout: TimeInterval = 10, for matches: @Sendable (String) -> Bool) async -> Bool {
         let deadline = Date().addingTimeInterval(timeout)
         while !all.contains(where: matches) {
             guard Date() < deadline else { return false }

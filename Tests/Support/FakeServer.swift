@@ -98,7 +98,7 @@ final class FakeServer: @unchecked Sendable {
     }
 
     /// Waits until `condition` holds, up to `timeout` seconds. Returns whether it did.
-    func wait(timeout: TimeInterval = 10, until condition: () -> Bool) async -> Bool {
+    func wait(timeout: TimeInterval = 10, until condition: @Sendable () -> Bool) async -> Bool {
         let deadline = Date().addingTimeInterval(timeout)
         while !condition() {
             guard Date() < deadline else { return false }
@@ -109,14 +109,10 @@ final class FakeServer: @unchecked Sendable {
 
     /// Waits for a received message that `matches`, and returns it.
     func waitForMessage(
-        timeout: TimeInterval = 10, where matches: (String) -> Bool
+        timeout: TimeInterval = 10, where matches: @Sendable (String) -> Bool
     ) async -> String? {
-        var found: String?
-        _ = await wait(timeout: timeout) {
-            found = messages.first(where: matches)
-            return found != nil
-        }
-        return found
+        _ = await wait(timeout: timeout) { self.messages.contains(where: matches) }
+        return messages.first(where: matches)
     }
 
     /// Waits until a connection is open. Returns whether one is.
