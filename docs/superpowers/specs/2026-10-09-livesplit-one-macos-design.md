@@ -262,9 +262,10 @@ Each addition gets Rust unit tests in `core/`.
   that screen, keeping its top-left corner unless that would leave part of it
   off the screen. The screens are those at the moment the frame is used, also
   when a layout is opened: a frame saved for it that no screen shows enough of
-  any more, as when a display was unplugged, centres the window on the main
-  screen at the default size. A layout with no saved frame leaves the window
-  where it is.
+  any more, as when a display was unplugged, puts the window in the middle of
+  the main screen at the default size, and the layout's size hint then resizes
+  it from its top-left corner as usual. A layout with no saved frame leaves the
+  window where it is.
 - **Always on Top** is a menu toggle, remembered between launches.
 - **On launch** the app reopens the last splits and layout and the window
   position. If a file is missing or no longer loads, it uses livesplit-core's
