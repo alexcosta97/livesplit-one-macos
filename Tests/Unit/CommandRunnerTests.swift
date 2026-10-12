@@ -331,3 +331,63 @@ import Testing
         #expect(reply != .some(nil))
     }
 }
+
+/// The sink's events, as the server client is told of them (spec §8.2).
+@Suite struct CommandRunnerEventTests {
+    private let folder: TemporaryFolder
+    private let log: Log
+
+    init() throws {
+        folder = try TemporaryFolder()
+        log = Log(directory: folder.url, unified: RecordingUnifiedLog())
+    }
+
+    /// Collects events from whatever thread reports them.
+    private final class Events: Sendable {
+        private let stored = Mutex<[TimerEvent]>([])
+        var all: [TimerEvent] { stored.withLock { $0 } }
+        func append(_ event: TimerEvent) { stored.withLock { $0.append(event) } }
+    }
+
+    private func makeRunner(_ events: Events) -> (CommandRunner, SharedTimer) {
+        let run = Run()
+        run.pushSegment(Segment("Time"))
+        let timer = LiveSplitCore.Timer(run)!.intoShared()
+        let runner = CommandRunner(
+            timer: timer, resetSavesBestTimes: nil, log: log, changed: {}, remember: { _ in })
+        runner.observeEvents { events.append($0) }
+        return (runner, timer)
+    }
+
+    private func run(_ runner: CommandRunner, _ command: TimerCommand) async -> String? {
+        await withCheckedContinuation { continuation in
+            runner.run(command, from: .menu) { continuation.resume(returning: $0) }
+        }
+    }
+
+    @Test func aMenuCommandsEventIsReportedOnce() async {
+        let events = Events()
+        let (runner, _) = makeRunner(events)
+        _ = await run(runner, .splitOrStart)
+        #expect(events.all == [.started])
+    }
+
+    @Test func aRejectedCommandReportsNothing() async {
+        let events = Events()
+        let (runner, _) = makeRunner(events)
+        #expect(await run(runner, .pause) == #"{"error":{"code":"NoRunInProgress"}}"#)
+        #expect(events.all.isEmpty)
+    }
+
+    @Test func aCommandSentStraightToTheSinkFromAnotherThreadIsReportedToo() async {
+        let events = Events()
+        let (runner, _) = makeRunner(events)
+        let reply = await withCheckedContinuation { continuation in
+            DispatchQueue(label: "test.server").async {
+                continuation.resume(returning: runner.sink.handleCommand(#"{"command":"start"}"#))
+            }
+        }
+        #expect(reply == #"{"success":null}"#)
+        #expect(events.all == [.started])
+    }
+}
