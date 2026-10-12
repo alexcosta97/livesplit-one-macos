@@ -35,15 +35,7 @@ enum FileLoadError: Error, Equatable, Sendable {
     /// and splits name their layout, so the path can't be trusted.
     static func read(_ url: URL) throws(FileLoadError) -> Data {
         do {
-            let resolved = url.resolvingSymlinksInPath()
-            let values = try resolved.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey])
-            guard values.isRegularFile == true else {
-                throw FileLoadError.unreadable("It isn't a regular file.")
-            }
-            if let size = values.fileSize, size > sizeLimit {
-                throw FileLoadError.unreadable(tooLarge)
-            }
-            return try readBounded(resolved, limit: sizeLimit)
+            return try readBounded(url, limit: sizeLimit)
         } catch let error as FileLoadError {
             throw error
         } catch {
@@ -52,12 +44,35 @@ enum FileLoadError: Error, Equatable, Sendable {
     }
 
     private static let tooLarge = "It's too large to be a splits or layout file."
+    private static let notRegular = "It isn't a regular file."
 
-    /// The contents of `url`, read no further than `limit` bytes: a file that grows after the
-    /// size check can't take more memory than that.
+    /// The contents of the regular file `url` (symlinks resolved), read no further than `limit`
+    /// bytes: a file that grows after the size check can't take more memory than that.
+    ///
+    /// The file is opened without blocking and then checked through the descriptor, so a file
+    /// swapped for a pipe between a check and the open can't hold the app up: a pipe is refused
+    /// by its type before anything is read.
     static func readBounded(_ url: URL, limit: Int) throws -> Data {
-        let handle = try FileHandle(forReadingFrom: url)
+        let resolved = url.resolvingSymlinksInPath()
+        let descriptor = open(resolved.path, O_RDONLY | O_NONBLOCK | O_CLOEXEC)
+        guard descriptor >= 0 else {
+            let code = errno
+            // macOS's own words for it, such as for a missing file or no permission.
+            do { _ = try FileHandle(forReadingFrom: resolved) } catch { throw error }
+            throw FileLoadError.unreadable(
+                NSError(domain: NSPOSIXErrorDomain, code: Int(code)).localizedDescription)
+        }
+        let handle = FileHandle(fileDescriptor: descriptor, closeOnDealloc: true)
         defer { try? handle.close() }
+        var info = stat()
+        guard fstat(descriptor, &info) == 0 else {
+            throw FileLoadError.unreadable(
+                NSError(domain: NSPOSIXErrorDomain, code: Int(errno)).localizedDescription)
+        }
+        guard (info.st_mode & S_IFMT) == S_IFREG else {
+            throw FileLoadError.unreadable(notRegular)
+        }
+        guard Int64(info.st_size) <= Int64(limit) else { throw FileLoadError.unreadable(tooLarge) }
         let data = try handle.read(upToCount: limit + 1) ?? Data()
         guard data.count <= limit else { throw FileLoadError.unreadable(tooLarge) }
         return data

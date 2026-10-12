@@ -8,8 +8,12 @@ enum SplitsFile {
         let data = try FileLoadError.read(url)
         guard !data.isEmpty else { throw .notSplits }
         let result = data.withUnsafeBytes { bytes in
-            // The path lets LiveSplit's relative image paths load.
-            Run.parse(UnsafeMutableRawPointer(mutating: bytes.baseAddress), bytes.count, url.path)
+            // No path: with one, livesplit-core would also open the files WSplit, SplitterZ,
+            // FaceSplit and LibreSplit splits name for their icons (any path, read without
+            // limit: "/dev/zero" or a pipe would hang the main thread), and TimeSplitTracker's
+            // "-RunLog.txt". So icons of those formats and TimeSplitTracker's attempt history
+            // aren't loaded; the splits and times are.
+            Run.parse(UnsafeMutableRawPointer(mutating: bytes.baseAddress), bytes.count, "")
         }
         guard result.parsedSuccessfully() else { throw .notSplits }
         let run = result.unwrap()
