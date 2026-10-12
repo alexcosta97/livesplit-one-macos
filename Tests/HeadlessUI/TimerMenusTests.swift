@@ -530,6 +530,24 @@ import Testing
         #expect(try filesEnabled(menus) == [idle, idle])
     }
 
+    /// AppKit shows the items `menuNeedsUpdate` adds without validating them, so they must be
+    /// enabled or not as they are filled in: the end-to-end test found Open… looking enabled
+    /// while an attempt ran.
+    @Test func theRecentItemsAreFilledInDisabledWhileAnAttemptRuns() throws {
+        let menus = makeMenus()
+        settings.update { $0.recentSplits.add("/tmp/first.lss") }
+        startAttempt()
+        let busy = try opened("Open Splits", in: menus.contextMenu, menus)
+            .filter { !$0.isSeparatorItem }
+        #expect(busy.count == 3)  // Open…, the recent file, Clear Menu
+        #expect(busy.allSatisfy { !$0.isEnabled })
+
+        send("reset")
+        let idle = try opened("Open Splits", in: menus.contextMenu, menus)
+            .filter { !$0.isSeparatorItem }
+        #expect(idle.allSatisfy { $0.isEnabled })
+    }
+
     @Test func theOpenSplitsParentStaysEnabledSoItsSubmenuOpens() throws {
         let menus = makeMenus()
         startAttempt()

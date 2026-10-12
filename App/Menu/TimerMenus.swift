@@ -329,6 +329,10 @@ final class TimerMenus: NSObject, NSMenuDelegate, NSMenuItemValidation {
         func add(_ title: String, _ action: Selector, identifier: String) -> NSMenuItem {
             let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
             item.target = self
+            // AppKit doesn't validate the items added here before showing the submenu, so
+            // they are enabled or not as they are filled in, as `validateMenuItem(_:)` would
+            // have them: splits can't be replaced while an attempt runs (spec §7).
+            item.isEnabled = kind == .layouts || files.canReplaceRun
             if let identifierPrefix {
                 item.identifier = NSUserInterfaceItemIdentifier(identifierPrefix + identifier)
             }
