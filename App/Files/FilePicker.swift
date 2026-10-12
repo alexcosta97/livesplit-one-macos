@@ -102,6 +102,11 @@ final class ScriptedFilePicker: FilePicker {
             return nil
         }
         guard let path = answers.removeFirst() else { return nil }
+        // Answers are absolute paths (spec §14.2); a relative one would depend on the cwd.
+        guard path.hasPrefix("/") else {
+            log.record(.error, "Scripted file answer \"\(path)\" isn't absolute; cancelling")
+            return nil
+        }
         return URL(filePath: path)
     }
 }

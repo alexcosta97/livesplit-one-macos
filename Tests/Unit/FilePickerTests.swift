@@ -15,16 +15,24 @@ import Testing
     }
 
     @Test func itAnswersInOrderWhateverIsAsked() throws {
-        let (picker, _, _) = try makePicker(["/a.lss", "/b.ls1l", "/c.lss"])
+        let (picker, _, _) = try makePicker(["/a.lss", "/b.ls1l", "/c.ls1l"])
         #expect(picker.fileToOpen(.splits)?.path == "/a.lss")
         #expect(picker.fileToSave(.layout, name: "Layout.ls1l", directory: nil)?.path == "/b.ls1l")
-        #expect(picker.fileToOpen(.layout)?.path == "/c.lss")
+        #expect(picker.fileToOpen(.layout)?.path == "/c.ls1l")
     }
 
     @Test func aNullCancels() throws {
         let (picker, _, _) = try makePicker([nil, "/a.lss"])
         #expect(picker.fileToOpen(.splits) == nil)
         #expect(picker.fileToOpen(.splits)?.path == "/a.lss")
+    }
+
+    @Test func aRelativePathCancelsAndLogsIt() throws {
+        let (picker, unified, _) = try makePicker(["relative/a.lss", "/b.lss"])
+        #expect(picker.fileToOpen(.splits) == nil)
+        #expect(unified.entries.map(\.category) == [.error])
+        #expect(unified.entries.first?.message.contains("relative/a.lss") == true)
+        #expect(picker.fileToOpen(.splits)?.path == "/b.lss")
     }
 
     @Test func itRemembersWhatItWasAsked() throws {
