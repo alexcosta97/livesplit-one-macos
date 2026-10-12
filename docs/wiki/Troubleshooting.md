@@ -18,6 +18,12 @@ Quit the app, then in Finder check that you can open `app.toml` in the folder [S
 
 The window opens where it was last. If that place isn't on a screen any more, or only a sliver of it is, it opens in the middle of the main screen. If the window is larger than the screen, it shrinks to fit. If it's on a screen you can't see, quit the app, move `app.toml` out of its folder (see [Settings and Logs](Settings-and-Logs#settings)), and open the app again: the window opens in the middle of the screen with the default settings.
 
+## A keyboard shortcut does nothing
+
+- The keys work only while the timer window is in front. Click the timer, then try again.
+- A key does nothing while its command is greyed out in the right-click menu, for example **Split** after the run ended.
+- If you changed a key, check it in **Settings…**. If you edited `app.toml` by hand, the app ignores a key it can't read and notes it in the day's log (see [Settings and Logs](Settings-and-Logs#logs)).
+
 ## Reporting a bug
 
 Open a [bug report](https://github.com/alexcosta97/livesplit-one-macos/issues/new?template=3-bug-report.yml) and attach the log file for the day it happened. [Settings and Logs](Settings-and-Logs#logs) says where the files are. Each time the app starts, the log records its version, so the file also says which version you were using.

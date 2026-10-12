@@ -16,6 +16,9 @@ final class TimerWindowController: NSObject, NSWindowDelegate {
     private let noticeView = NoticeView()
     private let settings: SettingsStore
     private var pendingSave: Task<Void, Never>?
+    /// Called with `true` when the window becomes key and `false` when it stops being key, as
+    /// when another window comes in front or the app goes to the background.
+    var onKeyChange: (@MainActor (Bool) -> Void)?
 
     /// `screens` are the screens' visible frames; `mainScreen` is where a window with no usable
     /// saved frame goes.
@@ -82,6 +85,14 @@ final class TimerWindowController: NSObject, NSWindowDelegate {
 
     func windowWillClose(_ notification: Notification) {
         timerView.stopDisplayLink()
+    }
+
+    func windowDidBecomeKey(_ notification: Notification) {
+        onKeyChange?(true)
+    }
+
+    func windowDidResignKey(_ notification: Notification) {
+        onKeyChange?(false)
     }
 
     func windowDidMove(_ notification: Notification) {

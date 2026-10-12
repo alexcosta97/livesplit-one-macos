@@ -310,7 +310,9 @@ Quit                   ⌘Q
   the run would drop the attempt.
 - **Start/Split** reads *Start* while the timer isn't running and *Split*
   otherwise. **Pause** reads *Resume* while the timer is paused. The Control
-  items show their first shortcut that a menu can show (section 7.2).
+  items show their first shortcut that a menu can show (section 7.2) while the
+  timer window is in front. While another window is in front, they show none,
+  so no menu can run a shortcut typed there.
 - **Commands** from the menus and shortcuts run through the same event-reporting
   command sink as server commands (section 5.1), on a background queue, since
   a reset can wait for a decision (section 5.3). Pause and Resume send `pause`
@@ -391,7 +393,8 @@ Quit                   ⌘Q
   in most Mac apps, a key is matched by the character it types with no
   modifiers on the current keyboard layout, not by where it is: `u` is
   whichever key types *u*, on QWERTY, AZERTY or Dvorak alike. Letters are
-  written lowercase and match either case. Keys that type nothing visible,
+  written lowercase, and Caps Lock doesn't change them; Shift does, so
+  `Shift+u` is a different shortcut from `u`. Keys that type nothing visible,
   or that are also on the numeric keypad, have names: `Space`, `Backspace`,
   `Delete`, `Enter`, `Tab`, `Escape`, `Up`, `Down`, `Left`, `Right`, `Home`,
   `End`, `PageUp`, `PageDown`, `F1` to `F20`, and `Numpad0` to `Numpad9`,
@@ -412,10 +415,11 @@ Opened with Settings… (⌘,). One window, with two sections:
 - **General:** *When a reset has new best times:* Ask / Update them / Keep the
   old ones (section 7.1).
 - **Shortcuts:** each Control command with its shortcuts, shown as they look
-  on the current keyboard. **+** records the next key press, Esc cancels
-  recording, and × removes a shortcut. A shortcut that another command uses
-  isn't added, and the row says which command has it. ⌘Q, ⌘H, ⌘M, ⌘, and ⌘W
-  can't be recorded. **Restore Defaults** puts back section 7.2's defaults.
+  on the current keyboard. **+** records the next key press, Esc or leaving
+  the window cancels recording, and × removes a shortcut. A shortcut that
+  another command uses isn't added, and the row says which command has it.
+  ⌘Q, ⌘H, ⌥⌘H, ⌘M, ⌘, and ⌘W can't be recorded. **Restore Defaults** puts
+  back section 7.2's defaults.
 
 Every change is saved at once and shows in the menus.
 
@@ -557,16 +561,16 @@ width = 300.0
 x = 120.0
 y = 300.0
 
+[shortcuts]
+start_split = ["Space", "Numpad1"]
+undo_all_pauses = ["Control+Shift+p"]
+
 [[windows]]
 height = 520.0
 layout = "/Users/me/Layouts/Main.ls1l"
 width = 300.0
 x = 120.0
 y = 640.0
-
-[shortcuts]
-start_split = ["Space", "Numpad1"]
-undo_all_pauses = ["Control+Shift+p"]
 ```
 
 Every key is optional: a missing key takes its default (nothing opened, no
@@ -586,7 +590,8 @@ only the commands whose shortcuts differ from the defaults, so a later
 version's new defaults reach anyone who never changed them. A command that
 isn't listed has its defaults, and `[]` means no shortcut. An entry that
 isn't a shortcut, that can't be recorded (section 7.3), or that an earlier
-command in that order already has, is dropped and logged.
+command in that order already has, is dropped and logged. A key in the
+table that isn't a command is ignored and logged.
 
 The splits and layouts themselves stay wherever the user keeps them; the app
 only stores their paths.
