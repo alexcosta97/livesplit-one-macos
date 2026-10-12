@@ -418,7 +418,7 @@ Opened with Settings… (⌘,). One window, with two sections:
   on the current keyboard. **+** records the next key press, Esc or leaving
   the window cancels recording, and × removes a shortcut. A shortcut that
   another command uses isn't added, and the row says which command has it.
-  ⌘Q, ⌘H, ⌥⌘H, ⌘M, ⌘, and ⌘W can't be recorded. **Restore Defaults** puts
+  ⌘Q, ⌘H, ⌥⌘H, ⌘M, ⌘, ⌘W, ⌘S and ⇧⌘S can't be recorded. **Restore Defaults** puts
   back section 7.2's defaults.
 
 Every change is saved at once and shows in the menus.

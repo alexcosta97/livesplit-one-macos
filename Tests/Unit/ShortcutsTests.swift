@@ -43,7 +43,9 @@ import Testing
         #expect(shortcuts.isDefault)
     }
 
-    @Test(arguments: ["Meta+q", "Meta+h", "Alt+Meta+h", "Meta+m", "Meta+,", "Meta+w"])
+    @Test(arguments: [
+        "Meta+q", "Meta+h", "Alt+Meta+h", "Meta+m", "Meta+,", "Meta+w", "Meta+s", "Shift+Meta+s",
+    ])
     func reservedShortcutsAreRefused(_ text: String) {
         var shortcuts = Shortcuts()
         #expect(shortcuts.add(shortcut(text), to: .undoAllPauses) == .reserved)

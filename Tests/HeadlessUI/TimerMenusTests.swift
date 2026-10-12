@@ -12,19 +12,37 @@ import Testing
         timingMethod: .realTime)
     var shortcuts = Shortcuts()
     let runner: CommandRunner
-    let timer: SharedTimer
+    let content = TimerContent(lang: 0)
+    var timer: SharedTimer { content.timer }
+    let window: TimerWindowController
+    let settings: SettingsStore
+    let files: FileController
     let unified = RecordingUnifiedLog()
     let folder: TemporaryFolder
 
     init() throws {
         let run = Run()
         run.pushSegment(Segment("Time"))
-        timer = LiveSplitCore.Timer(run)!.intoShared()
+        #expect(content.setRun(run))
         folder = try TemporaryFolder()
+        settings = SettingsStore(
+            directory: folder.url.appending(path: "config", directoryHint: .isDirectory))
+        let screen = CGRect(x: 0, y: 0, width: 1440, height: 875)
+        window = TimerWindowController(
+            content: content, settings: settings, screens: [screen], mainScreen: screen,
+            notices: NoticeQueue(schedule: { _, _ in }))
+        let log = Log(directory: folder.url.appending(path: "logs"), unified: unified)
+        files = FileController(
+            content: content, window: window, settings: settings, picker: FakeFilePicker(),
+            alerts: FakeFileAlerts(), lang: 0, log: log)
         runner = CommandRunner(
-            timer: timer, resetSavesBestTimes: nil,
-            log: Log(directory: folder.url, unified: unified), changed: {},
+            timer: content.timer, resetSavesBestTimes: nil, log: log, changed: {},
             remember: { _ in })
+    }
+
+    // Ends the window's display link, so they don't pile up across tests.
+    isolated deinit {
+        window.window.contentView = nil
     }
 
     /// Waits until every command sent so far has run: the runner's queue is serial, so a
@@ -38,7 +56,7 @@ import Testing
     private func makeMenus() -> TimerMenus {
         TimerMenus(
             runner: runner, readState: { [unowned self] in state },
-            shortcuts: { [unowned self] in shortcuts })
+            shortcuts: { [unowned self] in shortcuts }, files: files)
     }
 
     private func titles(_ menu: NSMenu) -> [String] {
@@ -53,7 +71,7 @@ import Testing
         let menus = makeMenus()
         #expect(
             titles(menus.mainMenu) == [
-                "LiveSplit One", "Control", "Compare Against", "Window", "Help",
+                "LiveSplit One", "File", "Control", "Compare Against", "Window", "Help",
             ])
 
         let app = try submenu("LiveSplit One", in: menus.mainMenu)
@@ -75,6 +93,23 @@ import Testing
         #expect(app.items[8].keyEquivalent == "q")
         #expect(app.items[8].action == #selector(NSApplication.terminate(_:)))
 
+        let file = try submenu("File", in: menus.mainMenu)
+        #expect(
+            titles(file) == [
+                "Open Splits", "Save Splits", "Save Splits As…", "Close Splits", "—",
+                "Open Layout", "Save Layout As…",
+            ])
+        #expect(file.items[1].action == #selector(TimerMenus.saveSplits(_:)))
+        #expect(file.items[1].keyEquivalent == "s")
+        #expect(file.items[1].keyEquivalentModifierMask == .command)
+        #expect(file.items[2].action == #selector(TimerMenus.saveSplitsAs(_:)))
+        #expect(file.items[2].keyEquivalent == "s")
+        #expect(file.items[2].keyEquivalentModifierMask == [.shift, .command])
+        #expect(file.items[3].action == #selector(TimerMenus.closeSplits(_:)))
+        #expect(file.items[6].action == #selector(TimerMenus.saveLayoutAs(_:)))
+        #expect(
+            file.items.allSatisfy { $0.identifier?.rawValue.hasPrefix("timer-") != true })
+
         let window = try submenu("Window", in: menus.mainMenu)
         #expect(window === menus.windowMenu)
         #expect(titles(window) == ["Close", "Minimize", "—", "Always on Top"])
@@ -94,19 +129,26 @@ import Testing
         let menu = makeMenus().contextMenu
         #expect(
             titles(menu) == [
-                "Control", "Compare Against", "—", "Always on Top", "—", "Settings…",
-                "Open Log Folder", "About LiveSplit One for macOS", "Quit",
+                "Open Splits", "Save Splits", "Save Splits As…", "Close Splits", "—", "Control",
+                "Compare Against", "—", "Open Layout", "Save Layout As…", "—", "Always on Top",
+                "—", "Settings…", "Open Log Folder", "About LiveSplit One for macOS", "Quit",
             ])
-        #expect(menu.items[0].identifier?.rawValue == "timer-control")
-        #expect(menu.items[1].identifier?.rawValue == "timer-compare-against")
-        #expect(menu.items[3].identifier?.rawValue == "timer-always-on-top")
-        #expect(menu.items[3].action == #selector(AppDelegate.toggleAlwaysOnTop(_:)))
-        #expect(menu.items[5].action == #selector(AppDelegate.showSettings(_:)))
-        #expect(menu.items[5].keyEquivalent == ",")
-        #expect(menu.items[6].action == #selector(AppDelegate.openLogFolder(_:)))
-        #expect(menu.items[7].action == #selector(AppDelegate.showAbout(_:)))
-        #expect(menu.items[8].action == #selector(NSApplication.terminate(_:)))
-        #expect(menu.items[8].keyEquivalent == "q")
+        // The items AppKit leaves without an identifier take their action's name.
+        #expect(
+            menu.items.prefix(13).map { $0.identifier?.rawValue } == [
+                "timer-open-splits", "timer-save-splits", "timer-save-splits-as",
+                "timer-close-splits", nil, "timer-control", "timer-compare-against", nil,
+                "timer-open-layout", "timer-save-layout-as", nil, "timer-always-on-top", nil,
+            ])
+        #expect(menu.items[1].keyEquivalent == "s")
+        #expect(menu.items[2].keyEquivalentModifierMask == [.shift, .command])
+        #expect(menu.items[11].action == #selector(AppDelegate.toggleAlwaysOnTop(_:)))
+        #expect(menu.items[13].action == #selector(AppDelegate.showSettings(_:)))
+        #expect(menu.items[13].keyEquivalent == ",")
+        #expect(menu.items[14].action == #selector(AppDelegate.openLogFolder(_:)))
+        #expect(menu.items[15].action == #selector(AppDelegate.showAbout(_:)))
+        #expect(menu.items[16].action == #selector(NSApplication.terminate(_:)))
+        #expect(menu.items[16].keyEquivalent == "q")
         let control = try submenu("Control", in: menu)
         #expect(
             control.items.map { $0.identifier?.rawValue } == [
@@ -269,8 +311,12 @@ import Testing
     @Test func everyMenuThatCanRunACommandHasTheDelegate() throws {
         let menus = makeMenus()
         for root in [menus.mainMenu, menus.contextMenu] {
+            let parent = root === menus.mainMenu ? try submenu("File", in: root) : root
             for title in ["Control", "Compare Against"] {
                 #expect(try submenu(title, in: root).delegate === menus)
+            }
+            for title in ["Open Splits", "Open Layout"] {
+                #expect(try submenu(title, in: parent).delegate === menus)
             }
         }
     }
@@ -286,6 +332,135 @@ import Testing
         #expect(!menus.contextMenu.performKeyEquivalent(with: keyDown(49, " ")))
         await finishCommands()
         #expect(TimerMenuState.read(from: timer).phase == .notRunning)
+    }
+
+    // MARK: Files
+
+    private func startAttempt() {
+        let sink = EventSink(timer: timer, report: { _ in }, decideReset: { .discard })
+        _ = sink.handleCommand(#"{"command":"start"}"#)
+    }
+
+    private func send(_ command: String) {
+        let sink = EventSink(timer: timer, report: { _ in }, decideReset: { .discard })
+        _ = sink.handleCommand(#"{"command":"\#(command)"}"#)
+    }
+
+    private func contextItem(_ title: String, in menus: TimerMenus) throws -> NSMenuItem {
+        try #require(menus.contextMenu.items.first { $0.title == title })
+    }
+
+    /// Opens the Open Splits or Open Layout submenu as AppKit does, and returns its items.
+    private func opened(_ title: String, in root: NSMenu, _ menus: TimerMenus) throws
+        -> [NSMenuItem]
+    {
+        let menu = try submenu(title, in: root)
+        menus.menuNeedsUpdate(menu)
+        return menu.items
+    }
+
+    @Test func openSplitsListsTheRecentFilesMostRecentFirstAndClearMenuClearsThem() throws {
+        let menus = makeMenus()
+        for root in [menus.mainMenu, menus.contextMenu] {
+            let parent = root === menus.mainMenu ? try submenu("File", in: root) : root
+            let items = try opened("Open Splits", in: parent, menus)
+            #expect(items.map(\.title) == ["Open…"])
+        }
+        settings.update {
+            $0.recentSplits.add("/tmp/first.lss")
+            $0.recentSplits.add("/tmp/second.lss")
+        }
+        let items = try opened("Open Splits", in: menus.contextMenu, menus)
+        #expect(
+            items.map { $0.isSeparatorItem ? "—" : $0.title } == [
+                "Open…", "second.lss", "first.lss", "—", "Clear Menu",
+            ])
+        #expect(
+            items.map { $0.identifier?.rawValue } == [
+                "timer-open-splits-choose", "timer-recent-splits-0", "timer-recent-splits-1", nil,
+                "timer-clear-recent-splits",
+            ])
+        #expect(items[1].toolTip == "/tmp/second.lss")
+        #expect(items[1].representedObject as? String == "/tmp/second.lss")
+        #expect(items[1].action == #selector(TimerMenus.openRecentSplits(_:)))
+        #expect(items[0].action == #selector(TimerMenus.openSplits(_:)))
+        #expect(items.allSatisfy { $0.isSeparatorItem || $0.target === menus })
+
+        let clear = items[4]
+        #expect(clear.action == #selector(TimerMenus.clearRecentSplits(_:)))
+        menus.clearRecentSplits(clear)
+        #expect(settings.settings.recentSplits.paths.isEmpty)
+        #expect(try opened("Open Splits", in: menus.contextMenu, menus).map(\.title) == ["Open…"])
+    }
+
+    @Test func openLayoutListsTheRecentLayoutsMostRecentFirstAndClearMenuClearsThem() throws {
+        let menus = makeMenus()
+        settings.update {
+            $0.recentLayouts.add("/tmp/a.ls1l")
+            $0.recentLayouts.add("/tmp/b.ls1l")
+        }
+        let items = try opened("Open Layout", in: menus.contextMenu, menus)
+        #expect(
+            items.map { $0.isSeparatorItem ? "—" : $0.title } == [
+                "Open…", "b.ls1l", "a.ls1l", "—", "Clear Menu",
+            ])
+        #expect(
+            items.map { $0.identifier?.rawValue } == [
+                "timer-open-layout-choose", "timer-recent-layouts-0", "timer-recent-layouts-1", nil,
+                "timer-clear-recent-layouts",
+            ])
+        #expect(items[2].representedObject as? String == "/tmp/a.ls1l")
+        #expect(items[1].action == #selector(TimerMenus.openRecentLayouts(_:)))
+        menus.clearRecentLayouts(items[4])
+        #expect(settings.settings.recentLayouts.paths.isEmpty)
+    }
+
+    /// Validates the Files items of both menus and returns which are enabled, in order: Open
+    /// Splits' Open…, a recent file and Clear Menu, then Close Splits, Save Splits, Save
+    /// Splits As…, Open Layout's Open… and Save Layout As….
+    private func filesEnabled(_ menus: TimerMenus) throws -> [[Bool]] {
+        settings.update { $0.recentSplits.add("/tmp/first.lss") }
+        return try [menus.mainMenu, menus.contextMenu].map { root in
+            let parent = root === menus.mainMenu ? try submenu("File", in: root) : root
+            let open = try opened("Open Splits", in: parent, menus)
+            let layout = try opened("Open Layout", in: parent, menus)
+            let named = ["Close Splits", "Save Splits", "Save Splits As…", "Save Layout As…"]
+                .map { title in parent.items.first { $0.title == title }! }
+            let all = open + [named[0], named[1], named[2], layout[0], named[3]]
+            return all.filter { !$0.isSeparatorItem }.map { menus.validateMenuItem($0) }
+        }
+    }
+
+    @Test func openSplitsAndCloseSplitsAreEnabledOnlyWhenNoAttemptIsInProgress() throws {
+        let menus = makeMenus()
+        let idle = [true, true, true, true, true, true, true, true]
+        #expect(try filesEnabled(menus) == [idle, idle])
+
+        startAttempt()
+        #expect(content.phase == .running)
+        let busy = [false, false, false, false, true, true, true, true]
+        #expect(try filesEnabled(menus) == [busy, busy])
+
+        send("pause")
+        #expect(content.phase == .paused)
+        #expect(try filesEnabled(menus) == [busy, busy])
+
+        send("resume")
+        send("split")
+        #expect(content.phase == .ended)
+        #expect(try filesEnabled(menus) == [busy, busy])
+
+        send("reset")
+        #expect(content.phase == .notRunning)
+        #expect(try filesEnabled(menus) == [idle, idle])
+    }
+
+    @Test func theOpenSplitsParentStaysEnabledSoItsSubmenuOpens() throws {
+        let menus = makeMenus()
+        startAttempt()
+        let parent = try contextItem("Open Splits", in: menus)
+        #expect(parent.submenu != nil)
+        #expect(parent.isEnabled)
     }
 
     @Test func aDisabledCommandIsntRun() async {

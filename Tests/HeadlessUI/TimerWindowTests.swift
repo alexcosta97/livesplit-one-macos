@@ -73,14 +73,19 @@ import Testing
     /// it is key, and none once another window is.
     @Test func menusFollowingTheWindowShowShortcutsOnlyWhileItIsKey() throws {
         let folder = try TemporaryFolder()
-        let controller = makeController(SettingsStore(directory: folder.url))
+        let store = SettingsStore(directory: folder.url)
+        let controller = makeController(store)
         let runner = CommandRunner(
             timer: controller.content.timer, resetSavesBestTimes: nil,
             log: Log(directory: folder.url), changed: {},
             remember: { _ in })
+        let files = FileController(
+            content: controller.content, window: controller, settings: store,
+            picker: FakeFilePicker(), alerts: FakeFileAlerts(), lang: 0,
+            log: Log(directory: folder.url))
         let menus = TimerMenus(
             runner: runner, readState: { TimerMenuState.read(from: controller.content.timer) },
-            shortcuts: { Shortcuts() })
+            shortcuts: { Shortcuts() }, files: files)
         menus.follow(controller)
         let controls = try [menus.mainMenu, menus.contextMenu].map { root in
             try #require(root.items.first { $0.title == "Control" }?.submenu)

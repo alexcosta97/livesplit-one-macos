@@ -15,6 +15,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private(set) var runner: CommandRunner?
     /// The menu bar and the right-click menu (spec §7).
     private(set) var menus: TimerMenus?
+    /// Opens, saves and closes splits and layouts (spec §7).
+    private(set) var files: FileController?
     private var settingsWindow: SettingsWindowController?
     private var shortcutKeys: ShortcutKeys?
 
@@ -42,15 +44,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             timer: content.timer, resetSavesBestTimes: settings.settings.resetSavesBestTimes,
             changed: { [weak content] in content?.markChanged() },
             remember: { [weak self] in self?.rememberResetAnswer($0) })
+        let files = FileController(
+            content: content, window: timerWindow, settings: settings,
+            picker: SystemFilePicker(), alerts: SystemFileAlerts())
         let menus = TimerMenus(
             runner: runner, readState: { TimerMenuState.read(from: content.timer) },
-            shortcuts: { settings.settings.shortcuts })
+            shortcuts: { settings.settings.shortcuts }, files: files)
         NSApp.mainMenu = menus.mainMenu
         NSApp.windowsMenu = menus.windowMenu
         NSApp.helpMenu = menus.helpMenu
         timerWindow.timerView.menu = menus.contextMenu
         self.runner = runner
         self.menus = menus
+        self.files = files
         let shortcutKeys = ShortcutKeys(
             window: timerWindow.window, shortcuts: { settings.settings.shortcuts },
             perform: { [weak menus] in menus?.perform($0, from: .keyboard) })

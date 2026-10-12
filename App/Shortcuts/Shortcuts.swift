@@ -10,8 +10,9 @@ struct Shortcuts: Codable, Equatable, Sendable {
         .undoAllPauses: [],
     ]
 
-    /// The app's own menu shortcuts: Quit, Hide, Hide Others, Minimize, Settings and Close
-    /// (spec §7.3). They can't be recorded, and are dropped from the file.
+    /// The app's own menu shortcuts: Quit, Hide, Hide Others, Minimize, Settings, Close,
+    /// Save Splits and Save Splits As (spec §7.3). They can't be recorded, and are dropped from
+    /// the file.
     static let reserved: Set<Shortcut> = [
         Shortcut(key: .character("q"), modifiers: .meta),
         Shortcut(key: .character("h"), modifiers: .meta),
@@ -19,6 +20,8 @@ struct Shortcuts: Codable, Equatable, Sendable {
         Shortcut(key: .character("m"), modifiers: .meta),
         Shortcut(key: .character(","), modifiers: .meta),
         Shortcut(key: .character("w"), modifiers: .meta),
+        Shortcut(key: .character("s"), modifiers: .meta),
+        Shortcut(key: .character("s"), modifiers: [.shift, .meta]),
     ]
 
     /// Why adding a shortcut was refused.
