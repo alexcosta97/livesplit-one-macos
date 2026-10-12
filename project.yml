@@ -165,3 +165,5 @@ targets:
       base:
         GENERATE_INFOPLIST_FILE: YES
         TEST_TARGET_NAME: LiveSplitOne
+        # The runner's sandbox, plus listening for the fake server (spec §14.2).
+        CODE_SIGN_ENTITLEMENTS: Tests/E2E/E2E.entitlements
