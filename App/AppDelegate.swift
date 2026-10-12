@@ -19,6 +19,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private(set) var files: FileController?
     private var settingsWindow: SettingsWindowController?
     private var shortcutKeys: ShortcutKeys?
+    /// Decides whether the app may quit (spec §7.1).
+    private var quitFlow: QuitFlow?
 
     static func main() {
         let app = NSApplication.shared
@@ -46,7 +48,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             remember: { [weak self] in self?.rememberResetAnswer($0) })
         let files = FileController(
             content: content, window: timerWindow, settings: settings,
-            picker: SystemFilePicker(), alerts: SystemFileAlerts())
+            picker: SystemFilePicker.make(), alerts: SystemFileAlerts())
         let menus = TimerMenus(
             runner: runner, readState: { TimerMenuState.read(from: content.timer) },
             shortcuts: { settings.settings.shortcuts }, files: files)
@@ -62,17 +64,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             perform: { [weak menus] in menus?.perform($0, from: .keyboard) })
         shortcutKeys.install()
         self.shortcutKeys = shortcutKeys
-        timerWindow.window.makeKeyAndOrderFront(nil)
-        // After making it key, which can happen at once: `follow` reads whether it is key now.
-        menus.follow(timerWindow)
+        self.quitFlow = QuitFlow(content: content, runner: runner, files: files)
+        // The settings notice goes first, then those of files that don't reopen.
         if let notice = LaunchNotices.settings(settings.loadOutcome) {
             timerWindow.notices.show(notice)
         }
+        // Before the window is shown, so the reopened layout's frame is the first one seen.
+        files.reopenAtLaunch()
+        timerWindow.window.makeKeyAndOrderFront(nil)
+        // After making it key, which can happen at once: `follow` reads whether it is key now.
+        menus.follow(timerWindow)
         self.timerWindow = timerWindow
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         true
+    }
+
+    /// Quit (spec §7.1): resets an attempt in progress, then asks about unsaved changes.
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard let quitFlow else { return .terminateNow }
+        return quitFlow.shouldTerminate { NSApp.reply(toApplicationShouldTerminate: $0) }
     }
 
     func applicationWillTerminate(_ notification: Notification) {

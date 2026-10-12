@@ -27,6 +27,14 @@ protocol FilePicker: AnyObject {
 
 /// `NSOpenPanel` and `NSSavePanel`, shown as app-modal panels.
 final class SystemFilePicker: FilePicker {
+    /// The picker the app uses: the scripted answers a test chose at launch (Debug builds
+    /// only, spec §14.2), or the system's panels.
+    @MainActor
+    static func make(scriptedAnswers: [String?]? = LaunchOverrides.pickedFiles) -> FilePicker {
+        if let scriptedAnswers { return ScriptedFilePicker(answers: scriptedAnswers) }
+        return SystemFilePicker()
+    }
+
     func fileToOpen(_ kind: FileKind) -> URL? {
         let panel = Self.openPanel(kind)
         return panel.runModal() == .OK ? panel.url : nil
