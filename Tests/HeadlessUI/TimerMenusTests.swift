@@ -415,6 +415,81 @@ import Testing
         #expect(settings.settings.recentLayouts.paths.isEmpty)
     }
 
+    @Test func recentFilesWithTheSameNameAddTheirFolder() throws {
+        let menus = makeMenus()
+        settings.update {
+            $0.recentSplits.add("/tmp/Races/Splits.lss")
+            $0.recentSplits.add("/tmp/Other/Splits.lss")
+            $0.recentSplits.add("/tmp/Unique.lss")
+        }
+        let items = try opened("Open Splits", in: menus.contextMenu, menus)
+        #expect(
+            items.map { $0.isSeparatorItem ? "—" : $0.title } == [
+                "Open…", "Unique.lss", "Splits.lss — Other", "Splits.lss — Races", "—",
+                "Clear Menu",
+            ])
+        #expect(items[2].toolTip == "/tmp/Other/Splits.lss")
+        #expect(items[3].representedObject as? String == "/tmp/Races/Splits.lss")
+    }
+
+    // MARK: Save actions reach the controller
+
+    private func makeMenusWithFiles(picker: FakeFilePicker) -> TimerMenus {
+        let log = Log(directory: folder.url.appending(path: "logs"), unified: unified)
+        let controller = FileController(
+            content: content, window: window, settings: settings, picker: picker,
+            alerts: FakeFileAlerts(), lang: 0, log: log)
+        return TimerMenus(
+            runner: runner, readState: { [unowned self] in state },
+            shortcuts: { [unowned self] in shortcuts }, files: controller)
+    }
+
+    private func fileItem(_ title: String, in menus: TimerMenus) throws -> NSMenuItem {
+        let file = try submenu("File", in: menus.mainMenu)
+        return try #require(file.items.first { $0.title == title })
+    }
+
+    private func invoke(_ item: NSMenuItem) throws {
+        let action = try #require(item.action)
+        _ = NSApp.sendAction(action, to: item.target, from: item)
+    }
+
+    @Test func saveSplitsFromTheMenuAsksForANameWhenTheRunHasNoFile() throws {
+        let target = folder.url.appending(path: "Saved.lss")
+        let picker = FakeFilePicker(save: [target])
+        let menus = makeMenusWithFiles(picker: picker)
+        try invoke(fileItem("Save Splits", in: menus))
+        #expect(picker.saves.map(\.kind) == ["splits"])
+        #expect(FileManager.default.fileExists(atPath: target.path))
+        #expect(settings.settings.recentSplits.paths == [target.standardizedFileURL.path])
+
+        // With a file now, Save Splits writes it without asking again.
+        try invoke(fileItem("Save Splits", in: menus))
+        #expect(picker.saves.count == 1)
+    }
+
+    @Test func saveSplitsAsFromTheMenuAsksEvenWithAFile() throws {
+        let first = folder.url.appending(path: "One.lss")
+        let second = folder.url.appending(path: "Two.lss")
+        let picker = FakeFilePicker(save: [first, second])
+        let menus = makeMenusWithFiles(picker: picker)
+        try invoke(fileItem("Save Splits As…", in: menus))
+        try invoke(fileItem("Save Splits As…", in: menus))
+        #expect(picker.saves.map(\.kind) == ["splits", "splits"])
+        #expect(FileManager.default.fileExists(atPath: first.path))
+        #expect(FileManager.default.fileExists(atPath: second.path))
+    }
+
+    @Test func saveLayoutAsFromTheMenuWritesTheLayout() throws {
+        let target = folder.url.appending(path: "Layout.ls1l")
+        let picker = FakeFilePicker(save: [target])
+        let menus = makeMenusWithFiles(picker: picker)
+        try invoke(fileItem("Save Layout As…", in: menus))
+        #expect(picker.saves.map(\.kind) == ["layout"])
+        #expect(FileManager.default.fileExists(atPath: target.path))
+        #expect(settings.settings.recentLayouts.paths == [target.standardizedFileURL.path])
+    }
+
     /// Validates the Files items of both menus and returns which are enabled, in order: Open
     /// Splits' Open…, a recent file and Clear Menu, then Close Splits, Save Splits, Save
     /// Splits As…, Open Layout's Open… and Save Layout As….

@@ -308,6 +308,9 @@ Quit                   ⌘Q
   (and its recent files) and Close Splits are disabled while an attempt is in
   progress, running, paused or finished and not yet reset, since replacing
   the run would drop the attempt.
+- **Recent files** are listed by file name, most recent first, with the full
+  path as the tooltip. Two with the same name in different folders add the
+  parent folder's name, such as `Splits.lss — Races`.
 - **Start/Split** reads *Start* while the timer isn't running and *Split*
   otherwise. **Pause** reads *Resume* while the timer is paused. The Control
   items show their first shortcut that a menu can show (section 7.2) while the

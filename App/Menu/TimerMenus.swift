@@ -324,6 +324,8 @@ final class TimerMenus: NSObject, NSMenuDelegate, NSMenuItemValidation {
         let name = kind == .splits ? "splits" : "layouts"
         let paths = kind == .splits ? files.recentSplits : files.recentLayouts
         menu.removeAllItems()
+        // Only the right-click menu's items have identifiers (`identifierPrefix`): the menu
+        // bar's, including its recent files, have none by design.
         func add(_ title: String, _ action: Selector, identifier: String) -> NSMenuItem {
             let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
             item.target = self
@@ -336,9 +338,15 @@ final class TimerMenus: NSObject, NSMenuDelegate, NSMenuItemValidation {
         _ = add(
             "Open…", kind == .splits ? #selector(openSplits(_:)) : #selector(openLayout(_:)),
             identifier: kind == .splits ? "open-splits-choose" : "open-layout-choose")
+        let names = paths.map { URL(filePath: $0).lastPathComponent }
         for (index, path) in paths.enumerated() {
+            // The parent folder's name tells apart files with the same name (spec §7).
+            let title =
+                names.filter { $0 == names[index] }.count > 1
+                ? "\(names[index]) — \(URL(filePath: path).deletingLastPathComponent().lastPathComponent)"
+                : names[index]
             let item = add(
-                URL(filePath: path).lastPathComponent,
+                title,
                 kind == .splits
                     ? #selector(openRecentSplits(_:)) : #selector(openRecentLayouts(_:)),
                 identifier: "recent-\(name)-\(index)")
