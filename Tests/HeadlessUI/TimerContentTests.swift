@@ -105,4 +105,65 @@ import Testing
         content.markChanged()
         #expect(!content.isIdle)
     }
+
+    @Test func aNewRunReplacesTheOldOneAndOpensUnmodified() throws {
+        let content = TimerContent(lang: 0)
+        #expect(content.setRun(try SplitsFile.load(Fixtures.url("GameTime.lss"))))
+        #expect(content.withRun { Int($0.len()) } > 1)
+        #expect(!content.hasUnsavedChanges)
+    }
+
+    @Test func aResetAttemptIsAnUnsavedChange() {
+        let content = TimerContent(lang: 0)
+        let sink = EventSink(timer: content.timer, report: { _ in }, decideReset: { .save })
+        _ = sink.handleCommand(#"{"command":"splitOrStart"}"#)
+        _ = sink.handleCommand(#"{"command":"reset","saveAttempt":true}"#)
+        #expect(content.hasUnsavedChanges)
+    }
+
+    @Test func savingMarksTheRunSavedOnlyIfItDidntChange() {
+        let content = TimerContent(lang: 0)
+        let sink = EventSink(timer: content.timer, report: { _ in }, decideReset: { .save })
+        _ = sink.handleCommand(#"{"command":"splitOrStart"}"#)
+        _ = sink.handleCommand(#"{"command":"reset","saveAttempt":true}"#)
+        let text = content.lssText()
+        _ = sink.handleCommand(#"{"command":"splitOrStart"}"#)
+        _ = sink.handleCommand(#"{"command":"reset","saveAttempt":true}"#)
+        content.markSaved(text)
+        #expect(content.hasUnsavedChanges)
+        content.markSaved(content.lssText())
+        #expect(!content.hasUnsavedChanges)
+    }
+
+    @Test func aNewLayoutIsDrawnAtOnce() throws {
+        let content = TimerContent(lang: 0)
+        _ = content.render(pixelWidth: 300, pixelHeight: 500)
+        content.setLayout(try LayoutFile.load(Fixtures.url("Dark.lsl")), keepingWindowSize: false)
+        #expect(content.render(pixelWidth: 300, pixelHeight: 500).image != nil)
+    }
+
+    @Test func aNewLayoutGivesItsSizeHint() throws {
+        let content = TimerContent(lang: 0)
+        _ = content.render(pixelWidth: 300, pixelHeight: 500)
+        content.setLayout(try LayoutFile.load(Fixtures.url("Dark.lsl")), keepingWindowSize: false)
+        #expect(content.render(pixelWidth: 300, pixelHeight: 500).sizeHint != nil)
+    }
+
+    @Test func keepingTheWindowSizeDropsTheNextHintOnly() throws {
+        let content = TimerContent(lang: 0)
+        _ = content.render(pixelWidth: 300, pixelHeight: 500)
+        content.setLayout(try LayoutFile.load(Fixtures.url("Dark.lsl")), keepingWindowSize: true)
+        #expect(content.render(pixelWidth: 300, pixelHeight: 500).sizeHint == nil)
+        // A later change of height gives its hint again. The layout is what changes the height
+        // here: GameTime.lss's extra segments don't change Dark.lsl's height, so a run can't
+        // show it.
+        content.setLayout(Layout.defaultLayout(0), keepingWindowSize: false)
+        #expect(content.render(pixelWidth: 300, pixelHeight: 500).sizeHint != nil)
+    }
+
+    @Test func theLinkedLayoutIsRead() {
+        let content = TimerContent(lang: 0)
+        #expect(content.linkedLayout == .none)
+        // Task 6's tests cover a path link, written at test time.
+    }
 }
