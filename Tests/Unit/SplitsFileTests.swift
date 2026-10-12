@@ -57,6 +57,19 @@ import Testing
         #expect(SplitsFile.needsNewName(path) == needsNewName)
     }
 
+    @Test func aFolderIsUnreadableNotNotSplits() throws {
+        let folder = try TemporaryFolder()
+        do {
+            _ = try SplitsFile.load(folder.url)
+            Issue.record("it loaded")
+        } catch {
+            guard case .unreadable = error else {
+                Issue.record("\(error)")
+                return
+            }
+        }
+    }
+
     @Test func theSuggestedNameKeepsTheFileNameWithLss() throws {
         let run = try SplitsFile.load(Fixtures.url("Llanfair.lfs"))
         #expect(SplitsFile.suggestedName(path: "/a/My Run.lfs", run: run) == "My Run.lss")
@@ -88,5 +101,24 @@ import Testing
         #expect(try String(contentsOf: target, encoding: .utf8) == "new")
         let type = try FileManager.default.attributesOfItem(atPath: link.path)[.type]
         #expect(type as? FileAttributeType == .typeSymbolicLink)
+    }
+
+    @Test func aFailedWriteThrowsAndLeavesTheFileAlone() throws {
+        let folder = try TemporaryFolder()
+        let locked = folder.url.appending(path: "locked")
+        try FileManager.default.createDirectory(at: locked, withIntermediateDirectories: false)
+        let target = locked.appending(path: "target.lss")
+        try "old".write(to: target, atomically: true, encoding: .utf8)
+        // An atomic write needs a new file beside the target, which a read-only folder refuses.
+        try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: locked.path)
+        defer {
+            try? FileManager.default.setAttributes(
+                [.posixPermissions: 0o755], ofItemAtPath: locked.path)
+        }
+        #expect(throws: (any Error).self) { try TextFile.write("new", to: target) }
+        #expect(try String(contentsOf: target, encoding: .utf8) == "old")
+        #expect(throws: (any Error).self) {
+            try TextFile.write("new", to: folder.url.appending(path: "missing/x.lss"))
+        }
     }
 }

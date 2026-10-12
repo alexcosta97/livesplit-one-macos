@@ -23,6 +23,19 @@ import Testing
         #expect(throws: FileLoadError.notLayout) { try LayoutFile.load(Fixtures.url(name)) }
     }
 
+    @Test func aFolderIsUnreadableNotNotLayout() throws {
+        let folder = try TemporaryFolder()
+        do {
+            _ = try LayoutFile.load(folder.url)
+            Issue.record("it loaded")
+        } catch {
+            guard case .unreadable = error else {
+                Issue.record("\(error)")
+                return
+            }
+        }
+    }
+
     @Test func aSavedLayoutOpensAgain() throws {
         let folder = try TemporaryFolder()
         let url = folder.url.appending(path: "Saved.ls1l")
