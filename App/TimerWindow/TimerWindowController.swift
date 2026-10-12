@@ -1,4 +1,5 @@
 import AppKit
+import LiveSplitCore
 
 /// The timer window with its contents and notices: where it goes, what it remembers, and how it
 /// follows the layout's size (spec §5.2, §6).
@@ -11,10 +12,14 @@ final class TimerWindowController: NSObject, NSWindowDelegate {
     let timerView: TimerView
     let notices: NoticeQueue
     let content: TimerContent
-    /// The open layout's path, or `nil` for the default layout. #12 sets it.
+    /// The open layout's path, or `nil` for the default layout. `showLayout` and
+    /// `adoptLayoutPath` set it.
     private(set) var layoutPath: String?
     private let noticeView = NoticeView()
     private let settings: SettingsStore
+    /// The screens' visible frames and the main screen's, for restoring a layout's frame.
+    private let screens: [CGRect]
+    private let mainScreen: CGRect
     private var pendingSave: Task<Void, Never>?
     /// Called with `true` when the window becomes key and `false` when it stops being key, as
     /// when another window comes in front or the app goes to the background.
@@ -29,6 +34,8 @@ final class TimerWindowController: NSObject, NSWindowDelegate {
         self.content = content
         self.settings = settings
         self.notices = notices
+        self.screens = screens
+        self.mainScreen = mainScreen
         let frame =
             WindowPlacement.restoredFrame(settings.settings.frame(forLayout: nil), screens: screens)
             ?? WindowPlacement.centred(WindowPlacement.defaultSize, on: mainScreen)
@@ -67,6 +74,29 @@ final class TimerWindowController: NSObject, NSWindowDelegate {
     /// does when the renderer gives a size hint (spec §5.2).
     func fitLayout(_ size: CGSize) {
         window.setFrame(WindowPlacement.resized(window.frame, to: size), display: true)
+        saveFrame()
+    }
+
+    /// Shows `layout`, from the file at `path` or the default layout for `nil`, in the frame
+    /// saved for it, or keeping the window's size until the size hint (spec §6).
+    func showLayout(_ layout: Layout, path: String?) {
+        // So a pending save isn't written under the new path.
+        saveFrameIfPending()
+        layoutPath = path
+        let restored = WindowPlacement.restoredFrame(
+            settings.settings.frame(forLayout: path), screens: screens)
+        if let restored { window.setFrame(restored, display: true) }
+        content.setLayout(layout, keepingWindowSize: restored != nil)
+        // Setting the frame scheduled a save of the frame just restored.
+        pendingSave?.cancel()
+        pendingSave = nil
+    }
+
+    /// After Save Layout As…, the window's layout is the new file: saves the current frame under
+    /// its path, and the frame pending under the old one first.
+    func adoptLayoutPath(_ path: String) {
+        saveFrameIfPending()
+        layoutPath = path
         saveFrame()
     }
 
