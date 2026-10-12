@@ -6,8 +6,6 @@ import Testing
 
 @testable import LiveSplitOne
 
-/// Quit's decision (spec §7.1), with the real timer and command runner and fake panels and
-/// alerts, so nothing quits and nothing is shown.
 /// Counts the times the reset question is asked.
 private final class QuestionCount: Sendable {
     private let stored = Mutex(0)
@@ -15,6 +13,8 @@ private final class QuestionCount: Sendable {
     func add() { stored.withLock { $0 += 1 } }
 }
 
+/// Quit's decision (spec §7.1), with the real timer and command runner and fake panels and
+/// alerts, so nothing quits and nothing is shown.
 @MainActor
 @Suite final class QuitTests {
     let folder: TemporaryFolder
@@ -48,7 +48,9 @@ private final class QuestionCount: Sendable {
     }
 
     /// A quit flow whose reset question, if asked, is answered with `answer`.
-    private func makeFlow(answering answer: ResetAnswer = .no) -> QuitFlow {
+    private func makeFlow(
+        answering answer: ResetAnswer = .no, alerts alertsOverride: FileAlerts? = nil
+    ) -> QuitFlow {
         let counter = questions
         let runner = CommandRunner(
             timer: content.timer, resetSavesBestTimes: nil, log: makeLog("runner-logs"),
@@ -60,8 +62,8 @@ private final class QuestionCount: Sendable {
             remember: { _ in })
         runnerInUse = runner
         let files = FileController(
-            content: content, window: window, settings: settings, picker: picker, alerts: alerts,
-            lang: 0, log: makeLog("logs"))
+            content: content, window: window, settings: settings, picker: picker,
+            alerts: alertsOverride ?? alerts, lang: 0, log: makeLog("logs"))
         return QuitFlow(content: content, runner: runner, files: files)
     }
 
@@ -84,18 +86,33 @@ private final class QuestionCount: Sendable {
         _ = sink.handleCommand(#"{"command":"reset","saveAttempt":true}"#)
     }
 
-    /// The reply of `shouldTerminate`: the immediate one, and the replies given later.
+    /// The replies of a quit request: the immediate answer, and the replies given later. Waits
+    /// for the first later reply, up to a deadline, when the answer is `.terminateLater`.
     private func quit(_ flow: QuitFlow) async -> (NSApplication.TerminateReply, [Bool]) {
-        var replies: [Bool] = []
-        let immediate = flow.shouldTerminate { replies.append($0) }
-        if immediate == .terminateLater {
-            for _ in 0..<200 where replies.isEmpty {
-                try? await Task.sleep(for: .milliseconds(50))
-            }
-            // Time for a second reply to show.
-            try? await Task.sleep(for: .milliseconds(100))
+        let (stream, continuation) = AsyncStream.makeStream(of: Bool.self)
+        let immediate = flow.shouldTerminate { continuation.yield($0) }
+        return (immediate, await replies(stream, continuation, expecting: immediate))
+    }
+
+    private func replies(
+        _ stream: AsyncStream<Bool>, _ continuation: AsyncStream<Bool>.Continuation,
+        expecting immediate: NSApplication.TerminateReply
+    ) async -> [Bool] {
+        guard immediate == .terminateLater else { return [] }
+        let deadline = Task {
+            try await Task.sleep(for: .seconds(20))
+            continuation.finish()
         }
-        return (immediate, replies)
+        var replies: [Bool] = []
+        for await reply in stream {
+            replies.append(reply)
+            break
+        }
+        deadline.cancel()
+        // A second reply, were there one, comes from the same block as the first.
+        continuation.finish()
+        for await reply in stream { replies.append(reply) }
+        return replies
     }
 
     @Test func withNoChangesItQuitsWithoutAsking() async {
@@ -120,6 +137,7 @@ private final class QuestionCount: Sendable {
         alerts.choices = [.dontSave]
         let (immediate, _) = await quit(makeFlow())
         #expect(immediate == .terminateNow)
+        #expect(alerts.asked.count == 1)
         #expect(picker.saves.isEmpty)
     }
 
@@ -215,22 +233,182 @@ private final class QuestionCount: Sendable {
         // This reset waits on the main actor for the answer, which can't run until this test
         // awaits, so quitting queues its reset behind it and the answer drops that one.
         runner.run(.reset, from: .keyboard)
-        var replies: [Bool] = []
-        let immediate = flow.shouldTerminate { replies.append($0) }
+        let (immediate, replies) = await quit(flow)
         #expect(immediate == .terminateLater)
-        for _ in 0..<100 where replies.isEmpty {
-            try? await Task.sleep(for: .milliseconds(50))
-        }
-        try? await Task.sleep(for: .milliseconds(100))
         #expect(replies == [false])
         #expect(questions.value == 1)
         #expect(alerts.asked.isEmpty)
     }
 
+    @Test(.timeLimit(.minutes(1))) func aPausedAttemptIsResetFirstToo() async {
+        let flow = makeFlow(answering: .no)
+        _ = await run(.splitOrStart, on: runnerInUse!)
+        _ = await run(.pause, on: runnerInUse!)
+        #expect(content.phase == .paused)
+        alerts.choices = [.dontSave]
+        let (immediate, replies) = await quit(flow)
+        #expect(immediate == .terminateLater)
+        #expect(replies == [true])
+        #expect(content.phase == .notRunning)
+    }
+
+    @Test(.timeLimit(.minutes(1))) func aCancelledSavePanelAfterTheResetKeepsTheAppOpen()
+        async
+    {
+        let flow = makeFlow(answering: .no)
+        _ = await run(.splitOrStart, on: runnerInUse!)
+        picker.saveAnswers = [nil]
+        alerts.choices = [.save]
+        let (immediate, replies) = await quit(flow)
+        #expect(immediate == .terminateLater)
+        #expect(replies == [false])
+        #expect(picker.saves.count == 1)
+        #expect(content.hasUnsavedChanges)
+    }
+
+    @Test(.timeLimit(.minutes(1))) func aFailedSaveAfterTheResetKeepsTheAppOpen() async {
+        let flow = makeFlow(answering: .no)
+        _ = await run(.splitOrStart, on: runnerInUse!)
+        // A folder can't be written as a file.
+        picker.saveAnswers = [folder.url]
+        alerts.choices = [.save]
+        let (immediate, replies) = await quit(flow)
+        #expect(immediate == .terminateLater)
+        #expect(replies == [false])
+        #expect(alerts.saveFailures.count == 1)
+        #expect(content.hasUnsavedChanges)
+    }
+
+    /// A reset that finds no attempt, because one queued before it ran first, has nothing left
+    /// to ask about, so quitting goes on to the save question.
+    @Test(.timeLimit(.minutes(1))) func aResetThatFindsNoAttemptGoesOnToTheSaveQuestion()
+        async
+    {
+        let flow = makeFlow(answering: .no)
+        let runner = runnerInUse!
+        _ = await run(.splitOrStart, on: runner)
+        // Holds the command queue, so the resets below wait in order behind it.
+        let gate = DispatchSemaphore(value: 0)
+        runner.run(.undoAllPauses, from: .keyboard) { _ in gate.wait() }
+        runner.run(.reset, from: .keyboard)
+        alerts.choices = [.dontSave]
+        let (stream, continuation) = AsyncStream.makeStream(of: Bool.self)
+        let immediate = flow.shouldTerminate { continuation.yield($0) }
+        #expect(immediate == .terminateLater)
+        gate.signal()
+        let replies = await replies(stream, continuation, expecting: immediate)
+        #expect(replies == [true])
+        #expect(alerts.asked.count == 1)
+    }
+
+    @Test func onlyNoRunInProgressLetsAFailedResetQuit() {
+        #expect(QuitFlow.resetAllowsQuitting(#"{"success":null}"#))
+        #expect(QuitFlow.resetAllowsQuitting(#"{"error":{"code":"NoRunInProgress"}}"#))
+        #expect(!QuitFlow.resetAllowsQuitting(#"{"error":{"code":"RunnerDecidedAgainstReset"}}"#))
+        #expect(!QuitFlow.resetAllowsQuitting(nil))
+    }
+
+    @Test(.timeLimit(.minutes(1))) func aSecondQuitWhileTheFirstIsPendingIsCancelled() async {
+        let flow = makeFlow(answering: .yes)
+        await finishAnAttempt(on: runnerInUse!)
+        alerts.choices = [.dontSave]
+        let (stream, continuation) = AsyncStream.makeStream(of: Bool.self)
+        var secondReplies = 0
+        let first = flow.shouldTerminate { continuation.yield($0) }
+        // The first is waiting on the reset question, which can't run until this test awaits.
+        let second = flow.shouldTerminate { _ in secondReplies += 1 }
+        #expect(first == .terminateLater)
+        #expect(second == .terminateCancel)
+        let replies = await replies(stream, continuation, expecting: first)
+        #expect(replies == [true])
+        #expect(secondReplies == 0)
+        #expect(questions.value == 1)
+        #expect(alerts.asked.count == 1)
+        // Once decided, a later request is decided afresh.
+        alerts.choices = [.dontSave]
+        #expect(flow.shouldTerminate { _ in } == .terminateNow)
+    }
+
+    /// The save question is a modal alert, which holds up main queue jobs, so the flow asks it
+    /// from a run loop block, as the reset question is: a job queued while it's open runs.
+    @Test(.timeLimit(.minutes(1))) func otherMainActorWorkRunsWhileTheSaveQuestionIsOpen()
+        async
+    {
+        let modal = ModalAlerts()
+        let flow = makeFlow(answering: .no, alerts: modal)
+        _ = await run(.splitOrStart, on: runnerInUse!)
+        let (immediate, replies) = await quit(flow)
+        #expect(immediate == .terminateLater)
+        #expect(replies == [true])
+        #expect(modal.questions == 1)
+        #expect(modal.jobRanWhileOpen)
+    }
+
     // MARK: Launch
+
+    @Test func launchShowsTheSettingsNoticeThenTheReopenNoticesThenTheWindow() {
+        let files = FileController(
+            content: content, window: window, settings: settings, picker: picker, alerts: alerts,
+            lang: 0, log: makeLog("logs"))
+        settings.update {
+            $0.lastSplitsPath = folder.url.appending(path: "Gone.lss").path
+            $0.lastLayoutPath = folder.url.appending(path: "Gone.ls1l").path
+        }
+        var shown: (current: String?, waiting: [String])?
+        files.launch(settingsOutcome: .recovered(reason: "bad")) {
+            shown = (window.notices.current, window.notices.waiting)
+        }
+        #expect(shown?.current == LaunchNotices.settings(.recovered(reason: "bad")))
+        #expect(shown?.waiting.count == 2)
+        #expect(shown?.waiting.first?.contains("Gone.lss") == true)
+        #expect(shown?.waiting.last?.contains("Gone.ls1l") == true)
+    }
 
     @Test func theScriptedPickerIsChosenWhenAnswersAreGiven() {
         #expect(SystemFilePicker.make(scriptedAnswers: ["/tmp/a.lss", nil]) is ScriptedFilePicker)
         #expect(SystemFilePicker.make(scriptedAnswers: nil) is SystemFilePicker)
     }
+}
+
+private final class Flag: Sendable {
+    private let stored = Mutex(false)
+    var value: Bool {
+        get { stored.withLock { $0 } }
+        set { stored.withLock { $0 = newValue } }
+    }
+}
+
+/// Asks the save question with a real modal alert that a timer closes, and records whether a
+/// main actor job queued as it opened ran meanwhile.
+@MainActor
+private final class ModalAlerts: FileAlerts {
+    private(set) var questions = 0
+    private let ran = Flag()
+    private let ranWhileOpen = Flag()
+    var jobRanWhileOpen: Bool { ranWhileOpen.value }
+
+    func askToSave(name: String?) -> SaveChoice {
+        questions += 1
+        let ran = ran
+        let ranWhileOpen = ranWhileOpen
+        Task { @MainActor in ran.value = true }
+        let alert = NSAlert()
+        alert.messageText = "Save?"
+        let start = Date()
+        let closing = Timer(timeInterval: 0.05, repeats: true) { timer in
+            let jobRan = ran.value
+            if jobRan || Date().timeIntervalSince(start) > 5 {
+                ranWhileOpen.value = jobRan
+                timer.invalidate()
+                MainActor.assumeIsolated { NSApp.abortModal() }
+            }
+        }
+        RunLoop.main.add(closing, forMode: .common)
+        _ = alert.runModal()
+        closing.invalidate()
+        return .dontSave
+    }
+
+    func showLoadFailed(_ error: FileLoadError, file: String) {}
+    func showSaveFailed(reason: String, file: String) {}
 }

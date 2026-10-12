@@ -65,15 +65,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         shortcutKeys.install()
         self.shortcutKeys = shortcutKeys
         self.quitFlow = QuitFlow(content: content, runner: runner, files: files)
-        // The settings notice goes first, then those of files that don't reopen.
-        if let notice = LaunchNotices.settings(settings.loadOutcome) {
-            timerWindow.notices.show(notice)
+        files.launch(settingsOutcome: settings.loadOutcome) {
+            timerWindow.window.makeKeyAndOrderFront(nil)
+            // After making it key, which can happen at once: `follow` reads whether it is key.
+            menus.follow(timerWindow)
         }
-        // Before the window is shown, so the reopened layout's frame is the first one seen.
-        files.reopenAtLaunch()
-        timerWindow.window.makeKeyAndOrderFront(nil)
-        // After making it key, which can happen at once: `follow` reads whether it is key now.
-        menus.follow(timerWindow)
         self.timerWindow = timerWindow
     }
 

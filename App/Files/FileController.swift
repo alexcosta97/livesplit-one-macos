@@ -43,6 +43,17 @@ final class FileController {
 
     // MARK: Launch
 
+    /// What launch does before the window shows (spec §6, §7): the settings notice first, then
+    /// the last session's files, whose notices queue behind it, and then `show`, so the
+    /// reopened layout's frame is the first one seen.
+    func launch(settingsOutcome: SettingsStore.LoadOutcome, show: () -> Void) {
+        if let notice = LaunchNotices.settings(settingsOutcome) {
+            window.notices.show(notice)
+        }
+        reopenAtLaunch()
+        show()
+    }
+
     /// Reopens the splits and layout of the last session. A file that can't be opened leaves
     /// `app.toml` alone, so a file on a drive that comes back reopens next time.
     func reopenAtLaunch() {

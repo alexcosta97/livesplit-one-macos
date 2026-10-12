@@ -84,15 +84,24 @@ final class CommandRunner: Sendable {
         precondition(!Thread.isMainThread)
         let result = Mutex<T?>(nil)
         let done = DispatchSemaphore(value: 0)
-        // The CF calls are thread-safe; `RunLoop` isn't documented to be.
-        CFRunLoopPerformBlock(CFRunLoopGetMain(), CFRunLoopMode.commonModes.rawValue) {
-            let value = MainActor.assumeIsolated { body() }
+        performOnMainRunLoop {
+            let value = body()
             result.withLock { $0 = value }
             done.signal()
         }
-        CFRunLoopWakeUp(CFRunLoopGetMain())
         done.wait()
         return result.withLock { $0! }
+    }
+
+    /// Runs `body` on the main actor from a run loop block, without waiting for it. Work that
+    /// runs a modal loop, such as an alert, uses this rather than a `Task` for the reason given
+    /// at `waitOnMain`.
+    static func performOnMainRunLoop(_ body: @escaping @MainActor @Sendable () -> Void) {
+        // The CF calls are thread-safe; `RunLoop` isn't documented to be.
+        CFRunLoopPerformBlock(CFRunLoopGetMain(), CFRunLoopMode.commonModes.rawValue) {
+            MainActor.assumeIsolated { body() }
+        }
+        CFRunLoopWakeUp(CFRunLoopGetMain())
     }
 
     /// Runs `command` on the queue, logs it with its source and reply, tells the window, then
