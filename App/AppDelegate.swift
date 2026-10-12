@@ -21,6 +21,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var shortcutKeys: ShortcutKeys?
     /// Decides whether the app may quit (spec §7.1).
     private var quitFlow: QuitFlow?
+    /// The connection to a server (spec §8).
+    private(set) var client: ServerClient?
+    /// The Connect to Server sheet while it is open.
+    private var connectWindow: NSWindow?
 
     static func main() {
         let app = NSApplication.shared
@@ -49,9 +53,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         let files = FileController(
             content: content, window: timerWindow, settings: settings,
             picker: SystemFilePicker.make(), alerts: SystemFileAlerts())
+        let client = ServerClient(
+            sink: runner.sink, notices: { [weak timerWindow] in timerWindow?.notices.show($0) })
+        runner.observeEvents { client.send($0) }
+        self.client = client
         let menus = TimerMenus(
             runner: runner, readState: { TimerMenuState.read(from: content.timer) },
-            shortcuts: { settings.settings.shortcuts }, files: files)
+            shortcuts: { settings.settings.shortcuts }, files: files,
+            connectionStatus: { client.status })
+        client.onStatusChange = { [weak menus] _ in menus?.refreshConnection() }
         NSApp.mainMenu = menus.mainMenu
         NSApp.windowsMenu = menus.windowMenu
         NSApp.helpMenu = menus.helpMenu
@@ -85,6 +95,42 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     func applicationWillTerminate(_ notification: Notification) {
         timerWindow?.saveFrameIfPending()
+        // Closes the socket with the normal close code (spec §8.3).
+        client?.disconnect()
+    }
+
+    /// Connect to Server… or Disconnect from `<host>` (spec §8), from both menus.
+    @objc func toggleConnection(_ sender: Any?) {
+        guard let client else { return }
+        guard case .notConnected = client.status else {
+            client.disconnect()
+            return
+        }
+        showConnectSheet()
+    }
+
+    /// Opens the Connect to Server sheet on the timer window, prefilled with the last address
+    /// (spec §8.1). Connect saves the address as typed, then connects.
+    private func showConnectSheet() {
+        guard connectWindow == nil, let window, let settings, let client else { return }
+        let sheet = ConnectSheet(
+            prefill: settings.settings.lastServerURL,
+            connect: { [weak self] server, text in
+                settings.update { $0.lastServerURL = text }
+                self?.closeConnectSheet()
+                client.connect(to: server)
+            },
+            cancel: { [weak self] in self?.closeConnectSheet() })
+        let sheetWindow = sheet.makeWindow()
+        connectWindow = sheetWindow
+        window.beginSheet(sheetWindow)
+        NSApp.activate()
+    }
+
+    private func closeConnectSheet() {
+        guard let connectWindow else { return }
+        self.connectWindow = nil
+        window?.endSheet(connectWindow)
     }
 
     /// Always on Top (spec §6), from both menus.

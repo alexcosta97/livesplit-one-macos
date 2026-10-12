@@ -11,6 +11,7 @@ import Testing
         comparisons: ["Sub", "Personal Best", "Best Segments"], currentComparison: "Personal Best",
         timingMethod: .realTime)
     var shortcuts = Shortcuts()
+    var connection = ConnectionStatus.notConnected
     let runner: CommandRunner
     let content = TimerContent(lang: 0)
     var timer: SharedTimer { content.timer }
@@ -56,7 +57,8 @@ import Testing
     private func makeMenus() -> TimerMenus {
         TimerMenus(
             runner: runner, readState: { [unowned self] in state },
-            shortcuts: { [unowned self] in shortcuts }, files: files)
+            shortcuts: { [unowned self] in shortcuts }, files: files,
+            connectionStatus: { [unowned self] in connection })
     }
 
     private func titles(_ menu: NSMenu) -> [String] {
@@ -97,7 +99,7 @@ import Testing
         #expect(
             titles(file) == [
                 "Open Splits", "Save Splits", "Save Splits As…", "Close Splits", "—",
-                "Open Layout", "Save Layout As…",
+                "Open Layout", "Save Layout As…", "—", "Connect to Server…",
             ])
         #expect(file.items[1].action == #selector(TimerMenus.saveSplits(_:)))
         #expect(file.items[1].keyEquivalent == "s")
@@ -107,6 +109,8 @@ import Testing
         #expect(file.items[2].keyEquivalentModifierMask == [.shift, .command])
         #expect(file.items[3].action == #selector(TimerMenus.closeSplits(_:)))
         #expect(file.items[6].action == #selector(TimerMenus.saveLayoutAs(_:)))
+        #expect(file.items[8].action == #selector(AppDelegate.toggleConnection(_:)))
+        #expect(file.items[8].identifier?.rawValue == "file-connect")
         #expect(
             file.items.allSatisfy { $0.identifier?.rawValue.hasPrefix("timer-") != true })
 
@@ -130,31 +134,58 @@ import Testing
         #expect(
             titles(menu) == [
                 "Open Splits", "Save Splits", "Save Splits As…", "Close Splits", "—", "Control",
-                "Compare Against", "—", "Open Layout", "Save Layout As…", "—", "Always on Top",
-                "—", "Settings…", "Open Log Folder", "About LiveSplit One for macOS", "Quit",
+                "Compare Against", "—", "Open Layout", "Save Layout As…", "—",
+                "Connect to Server…", "Always on Top", "—", "Settings…", "Open Log Folder",
+                "About LiveSplit One for macOS", "Quit",
             ])
         // The items AppKit leaves without an identifier take their action's name.
         #expect(
-            menu.items.prefix(13).map { $0.identifier?.rawValue } == [
+            menu.items.prefix(14).map { $0.identifier?.rawValue } == [
                 "timer-open-splits", "timer-save-splits", "timer-save-splits-as",
                 "timer-close-splits", nil, "timer-control", "timer-compare-against", nil,
-                "timer-open-layout", "timer-save-layout-as", nil, "timer-always-on-top", nil,
+                "timer-open-layout", "timer-save-layout-as", nil, "timer-connect",
+                "timer-always-on-top", nil,
             ])
         #expect(menu.items[1].keyEquivalent == "s")
         #expect(menu.items[2].keyEquivalentModifierMask == [.shift, .command])
-        #expect(menu.items[11].action == #selector(AppDelegate.toggleAlwaysOnTop(_:)))
-        #expect(menu.items[13].action == #selector(AppDelegate.showSettings(_:)))
-        #expect(menu.items[13].keyEquivalent == ",")
-        #expect(menu.items[14].action == #selector(AppDelegate.openLogFolder(_:)))
-        #expect(menu.items[15].action == #selector(AppDelegate.showAbout(_:)))
-        #expect(menu.items[16].action == #selector(NSApplication.terminate(_:)))
-        #expect(menu.items[16].keyEquivalent == "q")
+        #expect(menu.items[11].action == #selector(AppDelegate.toggleConnection(_:)))
+        #expect(menu.items[12].action == #selector(AppDelegate.toggleAlwaysOnTop(_:)))
+        #expect(menu.items[14].action == #selector(AppDelegate.showSettings(_:)))
+        #expect(menu.items[14].keyEquivalent == ",")
+        #expect(menu.items[15].action == #selector(AppDelegate.openLogFolder(_:)))
+        #expect(menu.items[16].action == #selector(AppDelegate.showAbout(_:)))
+        #expect(menu.items[17].action == #selector(NSApplication.terminate(_:)))
+        #expect(menu.items[17].keyEquivalent == "q")
         let control = try submenu("Control", in: menu)
         #expect(
             control.items.map { $0.identifier?.rawValue } == [
                 "timer-start_split", "timer-reset", "timer-undo_split", "timer-skip_split",
                 "timer-pause", "timer-undo_all_pauses",
             ])
+    }
+
+    @Test func theConnectItemFollowsTheConnectionInBothMenus() throws {
+        let menus = makeMenus()
+        let items = [
+            try #require(
+                menus.contextMenu.items.first { $0.identifier?.rawValue == "timer-connect" }),
+            try #require(
+                try submenu("File", in: menus.mainMenu).items.first {
+                    $0.identifier?.rawValue == "file-connect"
+                }),
+        ]
+        #expect(items.map(\.title) == ["Connect to Server…", "Connect to Server…"])
+        let server = try ServerURL.parse("192.168.1.20:9087").get()
+        for status: ConnectionStatus in [
+            .connecting(server), .connected(server), .retrying(server, attempt: 2),
+        ] {
+            connection = status
+            menus.refreshConnection()
+            #expect(items.allSatisfy { $0.title == "Disconnect from 192.168.1.20:9087" })
+        }
+        connection = .notConnected
+        menus.refreshConnection()
+        #expect(items.allSatisfy { $0.title == "Connect to Server…" })
     }
 
     /// Validates every Control item in both menus, as AppKit does before showing them, and

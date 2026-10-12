@@ -25,6 +25,9 @@ final class TimerMenus: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private let readState: @MainActor () -> TimerMenuState
     private let shortcuts: @MainActor () -> Shortcuts
     private let files: FileController
+    private let connectionStatus: @MainActor () -> ConnectionStatus
+    /// Connect to Server… in both menus, titled from the connection status (spec §8.3).
+    private var connectItems: [NSMenuItem] = []
     /// Which recent files an Open Splits or Open Layout submenu lists.
     private enum RecentKind { case splits, layouts }
     private var recentMenus: [(menu: NSMenu, kind: RecentKind, identifierPrefix: String?)] = []
@@ -40,16 +43,19 @@ final class TimerMenus: NSObject, NSMenuDelegate, NSMenuItemValidation {
 
     init(
         runner: CommandRunner, readState: @escaping @MainActor () -> TimerMenuState,
-        shortcuts: @escaping @MainActor () -> Shortcuts, files: FileController
+        shortcuts: @escaping @MainActor () -> Shortcuts, files: FileController,
+        connectionStatus: @escaping @MainActor () -> ConnectionStatus = { .notConnected }
     ) {
         self.runner = runner
         self.files = files
+        self.connectionStatus = connectionStatus
         self.readState = readState
         self.shortcuts = shortcuts
         super.init()
         buildMainMenu()
         buildContextMenu()
         refreshShortcuts()
+        refreshConnection()
     }
 
     /// Shows the shortcuts while `controller`'s window is key, from now on (spec §7).
@@ -146,6 +152,14 @@ final class TimerMenus: NSObject, NSMenuDelegate, NSMenuItemValidation {
         return (splits, layout)
     }
 
+    /// Connect to Server… or Disconnect from `<host>`, to the app delegate (spec §8).
+    private func connectItem(identifier: String) -> NSMenuItem {
+        let item = identified(
+            item("Connect to Server…", #selector(AppDelegate.toggleConnection(_:))), identifier)
+        connectItems.append(item)
+        return item
+    }
+
     private func buildMainMenu() {
         let app = NSMenu(title: "LiveSplit One")
         app.items = [
@@ -170,7 +184,9 @@ final class TimerMenus: NSObject, NSMenuDelegate, NSMenuItemValidation {
         helpMenu.items = [item("Open Log Folder", #selector(AppDelegate.openLogFolder(_:)))]
         let fileMenu = NSMenu(title: "File")
         let fileItems = fileItems(identified: false)
-        fileMenu.items = fileItems.splits + [.separator()] + fileItems.layout
+        fileMenu.items =
+            fileItems.splits + [.separator()] + fileItems.layout
+            + [.separator(), connectItem(identifier: "file-connect")]
         mainMenu.items = [
             parent("LiveSplit One", app),
             parent("File", fileMenu),
@@ -192,7 +208,8 @@ final class TimerMenus: NSObject, NSMenuDelegate, NSMenuItemValidation {
         var items: [NSMenuItem] = fileItems.splits
         items += [.separator(), control, compare, .separator()]
         items += fileItems.layout
-        items += [.separator(), alwaysOnTop, .separator()]
+        items += [.separator(), connectItem(identifier: "timer-connect"), alwaysOnTop]
+        items += [.separator()]
         items += [
             item("Settings…", #selector(AppDelegate.showSettings(_:)), key: ","),
             item("Open Log Folder", #selector(AppDelegate.openLogFolder(_:))),
@@ -217,6 +234,12 @@ final class TimerMenus: NSObject, NSMenuDelegate, NSMenuItemValidation {
                 item.keyEquivalentModifierMask = shown?.modifiers ?? []
             }
         }
+    }
+
+    /// Titles Connect to Server… from the connection status (spec §8.3). Call after it changes.
+    func refreshConnection() {
+        let title = connectionStatus().menuTitle
+        for item in connectItems { item.title = title }
     }
 
     // MARK: Running
