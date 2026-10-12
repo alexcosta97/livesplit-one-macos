@@ -101,6 +101,8 @@ targets:
     platform: macOS
     sources:
       - Tests/Unit
+      # The fake server (spec §14.1), shared with the E2E tests.
+      - Tests/Support/FakeServer.swift
       - path: Tests/Fixtures
         type: folder
         buildPhase: resources
@@ -152,6 +154,8 @@ targets:
     platform: macOS
     sources:
       - Tests/E2E
+      # The app connects to it on 127.0.0.1 (spec §14.2).
+      - Tests/Support/FakeServer.swift
       - path: Tests/Fixtures
         type: folder
         buildPhase: resources
