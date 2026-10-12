@@ -15,12 +15,16 @@ import Testing
         for controller in opened { controller.window.contentView = nil }
     }
 
+    /// The screens the controllers see, which a test can change after launch.
+    private var screens: [CGRect] = []
+
     private func makeController(
         _ store: SettingsStore, notices: NoticeQueue = NoticeQueue(schedule: { _, _ in })
     ) -> TimerWindowController {
+        screens = [screen]
         let controller = TimerWindowController(
-            content: TimerContent(lang: 0), settings: store, screens: [screen],
-            mainScreen: screen, notices: notices)
+            content: TimerContent(lang: 0), settings: store, screens: { [unowned self] in screens },
+            mainScreen: { [unowned self] in screens.first ?? screen }, notices: notices)
         opened.append(controller)
         return controller
     }
@@ -288,6 +292,52 @@ import Testing
         settle(controller)
         #expect(hints == 1)
         #expect(controller.window.frame.size != frame.size)
+    }
+
+    /// Spec §6: a saved frame no screen shows enough of is not used; the window goes in the
+    /// middle of the main screen.
+    @Test func aSavedFrameOffEveryScreenCentresTheWindowOnTheMainScreen() throws {
+        let folder = try TemporaryFolder()
+        let store = SettingsStore(directory: folder.url)
+        store.update {
+            $0.setFrame(
+                WindowFrame(x: 5000, y: 4000, width: 250, height: 400),
+                forLayout: "/layouts/dark.lsl")
+        }
+        let controller = makeController(store)
+        controller.window.setFrame(CGRect(x: 60, y: 70, width: 333, height: 444), display: false)
+
+        controller.showLayout(try dark(), path: "/layouts/dark.lsl")
+
+        #expect(
+            controller.window.frame
+                == WindowPlacement.centred(WindowPlacement.defaultSize, on: screen))
+        #expect(screen.contains(controller.window.frame))
+    }
+
+    /// A display unplugged after launch: the frame was on screen at launch, and isn't now.
+    @Test func screensThatChangedSinceLaunchAreUsedWhenALayoutIsShown() throws {
+        let folder = try TemporaryFolder()
+        let store = SettingsStore(directory: folder.url)
+        let second = CGRect(x: 1440, y: 0, width: 1920, height: 1080)
+        store.update {
+            $0.setFrame(
+                WindowFrame(x: 1700, y: 100, width: 250, height: 400),
+                forLayout: "/layouts/dark.lsl")
+            $0.setFrame(
+                WindowFrame(x: 1700, y: 100, width: 250, height: 400),
+                forLayout: "/layouts/other.lsl")
+        }
+        let controller = makeController(store)
+        screens = [screen, second]
+        controller.showLayout(try dark(), path: "/layouts/dark.lsl")
+        #expect(controller.window.frame == CGRect(x: 1700, y: 100, width: 250, height: 400))
+
+        screens = [screen]  // The second display is gone.
+        controller.showLayout(try dark(), path: "/layouts/other.lsl")
+        #expect(
+            controller.window.frame
+                == WindowPlacement.centred(WindowPlacement.defaultSize, on: screen))
     }
 
     @Test func aLayoutWithNoSavedFrameKeepsTheSizeUntilTheHintThenSavesIt() throws {
