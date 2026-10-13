@@ -13,6 +13,7 @@ The right-click menu, with Control open.
 | **Compare Against** | The comparison the timer shows, and Real Time or Game Time, below. |
 | **Open Layout** | Opens a layout from a file or the recent files, below. |
 | **Save Layout As…** | Saves the layout to a `.ls1l` file you choose. |
+| **Connect to Server…** | Connects to a timer server, such as livesplit-asr-bridge. Reads **Disconnect from &lt;host&gt;** while connected, connecting or retrying, and closes the connection. See [Connecting to a Server](Connecting-to-a-Server). |
 | **Always on Top** | Keeps the timer window above other apps' windows. A tick shows when it's on. The app remembers it. |
 | **Settings…** | Opens the Settings window. See [Settings and Logs](Settings-and-Logs#the-settings-window). |
 | **Open Log Folder** | Opens the folder with the app's logs in Finder. See [Settings and Logs](Settings-and-Logs#logs). |
@@ -47,7 +48,7 @@ Lists your run's comparisons, your own first, then **Personal Best**, **Best Seg
 The menu bar has the same commands, in the places Mac apps keep them:
 
 - **LiveSplit One**: **About LiveSplit One for macOS**, **Settings…** (⌘,), **Hide LiveSplit One for macOS** (⌘H), **Hide Others** (⌥⌘H), **Show All**, **Quit LiveSplit One for macOS** (⌘Q).
-- **File**: **Open Splits**, **Save Splits** (⌘S), **Save Splits As…** (⇧⌘S), **Close Splits**, then **Open Layout** and **Save Layout As…**, as above.
+- **File**: **Open Splits**, **Save Splits** (⌘S), **Save Splits As…** (⇧⌘S), **Close Splits**, then **Open Layout** and **Save Layout As…**, then **Connect to Server…**, as above.
 - **Control** and **Compare Against**, as above.
 - **Window**: **Close** (⌘W, for the Settings window), **Minimize** (⌘M), **Always on Top**.
 - **Help**: **Open Log Folder**.

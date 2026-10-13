@@ -5,7 +5,8 @@ enum LogCategory: CaseIterable, Sendable {
     /// Connecting, connected, disconnected, retries, each command received and its reply, each
     /// event sent.
     case connection
-    /// Timer actions and their source (menu, keyboard, server), run and layout changes.
+    /// Timer actions from the menus and the keyboard and their source, run and layout changes.
+    /// Server commands are under `connection`.
     case timer
     /// Launch, version, settings read and written, files opened and saved.
     case app

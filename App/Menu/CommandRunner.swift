@@ -2,7 +2,8 @@ import Foundation
 import LiveSplitCore
 import Synchronization
 
-/// Where a command came from, for the log (spec §12.1). #14 adds the server.
+/// Where a command from the menus or the keyboard came from, for the log (spec §12.1). Server
+/// commands are logged by `ServerClient`, under Connection.
 enum CommandSource: String, Sendable {
     case menu = "the menu"
     case keyboard = "the keyboard"
@@ -14,7 +15,10 @@ enum CommandSource: String, Sendable {
 /// sink (spec §5.1, §7), on a serial background queue: a reset with new best times waits for
 /// `decideReset` on the command's thread, which must never be the main thread (§5.3).
 final class CommandRunner: Sendable {
-    private let sink: EventSink
+    /// The app's one sink. `ServerClient` runs the server's messages through it on its own queue
+    /// (spec §8.2).
+    let sink: EventSink
+    private let eventObserver: EventObserver
     private let queue = DispatchQueue(label: "dev.alexcosta.livesplit-one-macos.commands")
     private let preference: ResetPreference
     private let epoch: Epoch
@@ -35,14 +39,19 @@ final class CommandRunner: Sendable {
     ) {
         let preference = ResetPreference(resetSavesBestTimes)
         let epoch = Epoch()
+        let eventObserver = EventObserver()
         self.epoch = epoch
+        self.eventObserver = eventObserver
         self.preference = preference
         self.changed = changed
         self.log = log
         sink = EventSink(
             timer: timer,
-            // Runs on the command's thread: hand over to the main actor and return at once.
-            report: { _ in Task { @MainActor in changed() } },
+            // Runs on the command's thread: hand over and return at once.
+            report: { result in
+                if case .event(let event?) = result { eventObserver.value?(event) }
+                Task { @MainActor in changed() }
+            },
             // Runs on the command's thread, which waits for the answer (spec §5.3).
             decideReset: {
                 if let saves = preference.value { return saves ? .save : .discard }
@@ -132,6 +141,13 @@ final class CommandRunner: Sendable {
         }
     }
 
+    /// Calls `observer` with every event the sink reports, whatever sent the command, on the
+    /// command's thread (spec §8.2). It must return at once and never call the sink
+    /// (`EventSink.Report`). Rejections and events this version doesn't know aren't reported.
+    func observeEvents(_ observer: @escaping @Sendable (TimerEvent) -> Void) {
+        eventObserver.value = observer
+    }
+
     /// What a reset with new best times does from now on (spec §7.1).
     func setResetSavesBestTimes(_ value: Bool?) {
         preference.value = value
@@ -146,6 +162,16 @@ private final class ResetPreference: Sendable {
     init(_ value: Bool?) { stored = Mutex(value) }
 
     var value: Bool? {
+        get { stored.withLock { $0 } }
+        set { stored.withLock { $0 = newValue } }
+    }
+}
+
+/// Who is told of the sink's events, set once the server client exists.
+private final class EventObserver: Sendable {
+    private let stored = Mutex<(@Sendable (TimerEvent) -> Void)?>(nil)
+
+    var value: (@Sendable (TimerEvent) -> Void)? {
         get { stored.withLock { $0 } }
         set { stored.withLock { $0 = newValue } }
     }

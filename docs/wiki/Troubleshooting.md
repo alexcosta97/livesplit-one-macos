@@ -38,6 +38,20 @@ The window opens where it was last. If that place isn't on a screen any more, or
 - A key does nothing while its command is greyed out in the right-click menu, for example **Split** after the run ended.
 - If you changed a key, check it in **Settings…**. If you edited `app.toml` by hand, the app ignores a key it can't read and notes it in the day's log (see [Settings and Logs](Settings-and-Logs#logs)).
 
+## The app can't connect to the server
+
+The timer showed **Couldn't connect to &lt;host&gt;: &lt;reason&gt;**. The reason says what went wrong:
+
+- **LiveSplit One for macOS needs local network access. Allow it in System Settings › Privacy & Security › Local Network.** macOS is blocking the connection. Turn on **LiveSplit One for macOS** in that list, then connect again.
+- **The server didn't answer within 10 seconds.** Nothing answered at that address. Check that the server is running and that the address and port are right. If they are and it's a local address, the gaming PC's firewall is probably dropping the connection: allow the server's port through it, or connect through a VPN such as Tailscale, using the address the VPN gives the PC. See [Connecting to a Server](Connecting-to-a-Server#which-address-to-use).
+- macOS's own reason, such as **Could not connect to the server.** The computer answered but nothing is listening on that port: the server isn't running, or the port is wrong.
+
+The day's log has the same line, under **ERROR** (see [Settings and Logs](Settings-and-Logs#logs)).
+
+## The connection keeps being lost
+
+The timer showed **Lost connection to &lt;host&gt;, retrying…**. The server stopped answering: it was closed, the gaming PC went to sleep, or the network dropped. The app tries again by itself and shows **Connected to &lt;host&gt;** once the server is back. If it never comes back, check the server and the gaming PC's sleep settings. The log's **CONNECTION** lines give each reason, such as **The server stopped answering.** when the PC went to sleep. Choose **Disconnect from &lt;host&gt;** to stop retrying.
+
 ## Reporting a bug
 
 Open a [bug report](https://github.com/alexcosta97/livesplit-one-macos/issues/new?template=3-bug-report.yml) and attach the log file for the day it happened. [Settings and Logs](Settings-and-Logs#logs) says where the files are. Each time the app starts, the log records its version, so the file also says which version you were using.

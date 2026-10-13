@@ -52,6 +52,10 @@ targets:
         LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
         NSPrincipalClass: NSApplication
         NSHighResolutionCapable: true
+        # The user chooses the server, and `ws://` is unencrypted (spec §8.1,
+        # §13), so App Transport Security can't list the hosts allowed.
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: true
         NSLocalNetworkUsageDescription: >-
           LiveSplit One connects to the timer server you choose, such as
           livesplit-asr-bridge on another computer.
@@ -101,6 +105,8 @@ targets:
     platform: macOS
     sources:
       - Tests/Unit
+      # The fake server (spec §14.1), shared with the E2E tests.
+      - Tests/Support/FakeServer.swift
       - path: Tests/Fixtures
         type: folder
         buildPhase: resources
@@ -152,6 +158,8 @@ targets:
     platform: macOS
     sources:
       - Tests/E2E
+      # The app connects to it on 127.0.0.1 (spec §14.2).
+      - Tests/Support/FakeServer.swift
       - path: Tests/Fixtures
         type: folder
         buildPhase: resources
@@ -161,3 +169,5 @@ targets:
       base:
         GENERATE_INFOPLIST_FILE: YES
         TEST_TARGET_NAME: LiveSplitOne
+        # The runner's sandbox, plus listening for the fake server (spec §14.2).
+        CODE_SIGN_ENTITLEMENTS: Tests/E2E/E2E.entitlements

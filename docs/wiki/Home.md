@@ -11,13 +11,14 @@ It is made for two-PC setups: a gaming PC runs the game and [livesplit-asr-bridg
 ## Start here
 
 1. [Installing](Installing): download the app and open it the first time.
-2. [Getting Started](Getting-Started): open splits and a layout, run an attempt, and save.
+2. [Getting Started](Getting-Started): open splits and a layout, run an attempt, save, and connect to livesplit-asr-bridge.
 
 ## More
 
 - [The Timer Window](The-Timer-Window): moving and resizing the window, Always on Top, keyboard shortcuts, and the notices it shows.
 - [The Menu](The-Menu): every command in the right-click menu and the menu bar.
 - [Splits and Layouts](Splits-and-Layouts): opening and saving splits and layouts, unsaved changes, and what reopens at launch.
+- [Connecting to a Server](Connecting-to-a-Server): taking timer commands from livesplit-asr-bridge on another computer.
 - [Settings and Logs](Settings-and-Logs): where the app keeps its settings and logs.
 - [Troubleshooting](Troubleshooting): what you see, why, and what to do.
 - [Upcoming Changes](Upcoming-Changes): documentation for changes not yet released.
