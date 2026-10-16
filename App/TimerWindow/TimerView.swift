@@ -21,6 +21,12 @@ final class TimerView: NSView {
         idle ? idleFrameRate : .default
     }
 
+    /// The opacity of the view's backing. WindowServer sends a click on a fully transparent pixel
+    /// to the window below, so with a transparent layout background the window could be dragged
+    /// or resized only from where the layout draws. From 4/255 up, clicks stay with the window
+    /// (checked on macOS 27); this is 5/255, which no one can see.
+    static let hitTestableAlpha: CGFloat = 5.0 / 255
+
     /// The display link's current preferred rate, for tests.
     var preferredFrameRate: CAFrameRateRange? { displayLink?.preferredFrameRateRange }
 
@@ -30,6 +36,7 @@ final class TimerView: NSView {
         wantsLayer = true
         layerContentsRedrawPolicy = .never
         layer?.contentsGravity = .resize
+        layer?.backgroundColor = CGColor(gray: 0, alpha: Self.hitTestableAlpha)
         setAccessibilityElement(true)
         setAccessibilityRole(.image)
         setAccessibilityLabel("Timer")

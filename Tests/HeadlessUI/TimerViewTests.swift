@@ -45,6 +45,17 @@ import Testing
         #expect(makeView().mouseDownCanMoveWindow)
     }
 
+    /// WindowServer sends a click on a fully transparent pixel to the window below, so a layout
+    /// with a transparent background couldn't be dragged or resized from its empty parts. The
+    /// view keeps a backing that is invisible but not transparent to it.
+    @Test func theBackingIsntFullyTransparent() throws {
+        let view = makeView()
+        let alpha = try #require(view.layer?.backgroundColor?.alpha)
+        #expect(alpha >= TimerView.hitTestableAlpha)
+        #expect(TimerView.hitTestableAlpha >= 4.0 / 255)
+        #expect(alpha <= 0.05, "the backing would show")
+    }
+
     @Test func theLayoutIsNamedForAccessibility() {
         let view = makeView()
         #expect(view.accessibilityIdentifier() == "timer-layout")

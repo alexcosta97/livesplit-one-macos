@@ -250,7 +250,10 @@ Each addition gets Rust unit tests in `core/`.
 
 - **Borderless.** Dragging anywhere in the window moves it. The edges resize
   it freely; the renderer fits the layout to the window, as LiveSplit One does
-  when its window is resized.
+  when its window is resized. This holds where the layout is transparent too:
+  WindowServer sends a click on a fully transparent pixel to the window below,
+  so the view keeps a backing of 5/255 opacity (invisible; 4/255 is the least
+  that works on macOS 27) for clicks to land on.
 - **Size and position** are remembered per layout file in `app.toml`, and for
   the default layout, which has no file, in a key of its own (section 11). A
   layout opened for the first time keeps the window's size until the renderer's
