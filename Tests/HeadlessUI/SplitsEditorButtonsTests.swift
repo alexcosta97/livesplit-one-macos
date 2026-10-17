@@ -346,4 +346,88 @@ import Testing
         try click("editor-ok", controller)
         #expect(oks == 1)
     }
+
+    // MARK: Icons, the timing switch and the minimum width
+
+    private func png() throws -> Data {
+        let rep = try #require(
+            NSBitmapImageRep(
+                bitmapDataPlanes: nil, pixelsWide: 2, pixelsHigh: 2, bitsPerSample: 8,
+                samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+                colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0))
+        return try #require(rep.representation(using: .png, properties: [:]))
+    }
+
+    @Test func choosingASegmentIconAppliesANameBeingTypedFirst() throws {
+        let controller = try makeController()
+        let window = host(controller)
+        defer { window.close() }
+        let folder = try TemporaryFolder()
+        let url = folder.url.appending(path: "icon.png")
+        try png().write(to: url)
+        prompts.images = [url]
+        let c = try field("editor-cell-name-3", controller)
+        #expect(window.makeFirstResponder(c))
+        try type("Cee", into: c)
+        let icon: IconButton = try #require(find("editor-cell-icon-0", in: controller.view))
+        icon.chooseImage()
+        #expect(segmentNames(controller) == ["A", "B", "Cee"])
+        #expect(icon.icon != nil)
+    }
+
+    @Test func choosingTheGameIconDoesNothingWhileATimeIsInvalid() throws {
+        let controller = try makeController()
+        let window = host(controller)
+        defer { window.close() }
+        let split = try field("editor-cell-split-3", controller)
+        #expect(window.makeFirstResponder(split))
+        try type("abc", into: split)
+        let icon: IconButton = try #require(find("editor-game-icon", in: controller.view))
+        icon.chooseImage()
+        #expect(prompts.imagesAsked == 0)
+        #expect(split.currentEditor() != nil)
+        icon.removeImage()
+        #expect(split.currentEditor() != nil)
+    }
+
+    @Test func theTimingSwitchIsRefusedWhileATimeIsInvalid() throws {
+        let controller = try makeController()
+        let window = host(controller)
+        defer { window.close() }
+        let method = controller.editing.state.timingMethod
+        let split = try field("editor-cell-split-3", controller)
+        #expect(window.makeFirstResponder(split))
+        try type("abc", into: split)
+        let control: NSSegmentedControl = try #require(
+            find("editor-timing-method", in: controller.view))
+        control.selectedSegment = 1
+        _ = control.sendAction(control.action, to: control.target)
+        #expect(controller.editing.state.timingMethod == method)
+        #expect(control.selectedSegment == (method == .realTime ? 0 : 1))
+        #expect(split.currentEditor() != nil)
+    }
+
+    @Test func theButtonRowsFitAtTheMinimumWidth() throws {
+        let controller = try makeController()
+        let window = NSWindow(
+            contentRect: NSRect(origin: .zero, size: SplitsEditorViewController.minimumSize),
+            styleMask: [.titled], backing: .buffered, defer: true)
+        window.isReleasedWhenClosed = false
+        defer { window.close() }
+        window.contentViewController = controller
+        window.setContentSize(SplitsEditorViewController.minimumSize)
+        controller.view.layoutSubtreeIfNeeded()
+        func controls(_ view: NSView) -> [NSView] {
+            (view is NSButton ? [view] : []) + view.subviews.flatMap(controls)
+        }
+        let bounds = controller.view.bounds
+        for control in controls(controller.buttonRows) {
+            let frame = controller.view.convert(control.bounds, from: control)
+            #expect(bounds.contains(frame), "\(control.accessibilityIdentifier()) \(frame)")
+        }
+        func ambiguous(_ view: NSView) -> Bool {
+            view.hasAmbiguousLayout || view.subviews.contains(where: ambiguous)
+        }
+        #expect(!ambiguous(controller.view))
+    }
 }

@@ -17,6 +17,9 @@ final class SegmentTable: NSObject, NSTableViewDataSource, NSTableViewDelegate,
     /// Told whether a time entered in a cell was taken, so the window can show or take away
     /// the invalid-time message.
     var onTimeEntered: (_ accepted: Bool) -> Void = { _ in }
+    /// Ends the editing of a field before an icon changes, and says whether it ended; the
+    /// window's one rule for every action. An icon isn't changed if it didn't.
+    var endEditing: () -> Bool = { true }
 
     /// The editor, which the window can replace.
     private let editing: () -> SplitsEditing
@@ -421,7 +424,7 @@ final class SegmentTable: NSObject, NSTableViewDataSource, NSTableViewDelegate,
     // MARK: Icons
 
     private func chooseIcon(_ cell: NSView) {
-        guard let (_, row) = position(of: cell), let url = prompts.chooseImage(),
+        guard endEditing(), let (_, row) = position(of: cell), let url = prompts.chooseImage(),
             editing().state.rows.indices.contains(row)
         else { return }
         let data: Data
@@ -439,7 +442,7 @@ final class SegmentTable: NSObject, NSTableViewDataSource, NSTableViewDelegate,
     }
 
     private func removeIcon(_ cell: NSView) {
-        guard let (_, row) = position(of: cell) else { return }
+        guard endEditing(), let (_, row) = position(of: cell) else { return }
         switch editing().state.rows[row] {
         case .segment(let segment): editing().removeSegmentIcon(segment: segment.segmentIndex)
         case .group(let group): editing().removeGroupIcon(group.groupIndex)

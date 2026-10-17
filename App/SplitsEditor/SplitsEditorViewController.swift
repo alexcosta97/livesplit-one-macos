@@ -2,8 +2,8 @@ import AppKit
 
 /// The splits editor's contents (spec §9): the game's icon, game, category, start offset,
 /// attempts and linked layout at the top, the segment table in the middle, the segment, group
-/// and comparison buttons, the Real Time / Game Time switch, a message line, and **Cancel** and **OK**. `SplitsEditing` decides what an
-/// input means; this redraws from its state.
+/// and comparison buttons, the Real Time / Game Time switch, a message line, and **Cancel** and
+/// **OK**. `SplitsEditing` decides what an input means; this redraws from its state.
 @MainActor
 final class SplitsEditorViewController: NSViewController, NSTextFieldDelegate {
     /// The smallest size of the contents, in points.
@@ -145,6 +145,7 @@ final class SplitsEditorViewController: NSViewController, NSTextFieldDelegate {
             tableScroll.topAnchor.constraint(equalTo: tableContainer.topAnchor),
             tableScroll.bottomAnchor.constraint(equalTo: tableContainer.bottomAnchor),
         ])
+        segmentTable.endEditing = { [weak self] in self?.endFieldEditing() ?? true }
         segmentTable.onChange = { [weak self] in self?.refresh() }
         segmentTable.onTimeEntered = { [weak self] accepted in
             if accepted { self?.clearInvalid() } else { self?.show(.invalidTime) }
@@ -465,7 +466,7 @@ final class SplitsEditorViewController: NSViewController, NSTextFieldDelegate {
     // MARK: Actions
 
     private func chooseIcon() {
-        guard let url = prompts.chooseImage() else { return }
+        guard endFieldEditing(), let url = prompts.chooseImage() else { return }
         do {
             editing.setGameIcon(try ImageFile.load(url))
             refresh()
@@ -475,8 +476,7 @@ final class SplitsEditorViewController: NSViewController, NSTextFieldDelegate {
     }
 
     private func removeIcon() {
-        editing.removeGameIcon()
-        refresh()
+        perform { editing.removeGameIcon() }
     }
 
     @objc private func layoutChosen(_ sender: NSPopUpButton) {
