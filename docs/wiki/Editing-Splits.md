@@ -94,7 +94,7 @@ The table shows your own comparisons in columns after **Best Segment**.
 
 Both **Rename Comparison** and **Remove Comparison** are greyed out while you have none. The comparisons LiveSplit One has itself, such as **Personal Best**, can't be renamed or removed.
 
-A name that another comparison uses, or that starts with `[Race]`, is refused: the question stays open and says **That name is already used, or starts with [Race].**
+A name that another comparison uses, or that starts with `[Race]`, is refused: the question asks again, with the name you typed kept, and says **That name is already used, or starts with [Race].**
 
 ## Icons
 

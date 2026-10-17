@@ -52,5 +52,5 @@ The menu bar has the same commands, in the places Mac apps keep them:
 - **File**: **Edit Splits…**, **Open Splits**, **Save Splits** (⌘S), **Save Splits As…** (⇧⌘S), **Close Splits**, then **Open Layout** and **Save Layout As…**, then **Connect to Server…**, as above.
 - **Edit**: **Undo** (⌘Z), **Redo** (⇧⌘Z), **Cut** (⌘X), **Copy** (⌘C), **Paste** (⌘V) and **Select All** (⌘A). They work in the text fields of the splits editor and the Connect to Server sheet. macOS adds its own items to this menu, such as AutoFill, Start Dictation and Emoji & Symbols.
 - **Control** and **Compare Against**, as above.
-- **Window**: **Close** (⌘W, for the Settings window), **Minimize** (⌘M), **Always on Top**.
+- **Window**: **Close** (⌘W, for the Settings window, and for the splits editor, where it is **Cancel**), **Minimize** (⌘M), **Always on Top**.
 - **Help**: **Open Log Folder**.
