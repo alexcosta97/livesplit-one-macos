@@ -58,6 +58,24 @@ import Testing
         #expect(!content.isIdle)
     }
 
+    /// Replacing the run would drop an attempt that is running, paused or finished (spec §7).
+    @Test func theRunCanBeReplacedOnlyWithNoAttemptInProgress() {
+        let content = TimerContent(lang: 0)
+        #expect(content.canReplaceRun)
+        // The finished attempt beats the empty run's times; the reset doesn't keep them.
+        let sink = EventSink(timer: content.timer, report: { _ in }, decideReset: { .discard })
+        _ = sink.handleCommand(#"{"command":"start"}"#)
+        #expect(!content.canReplaceRun)
+        _ = sink.handleCommand(#"{"command":"pause"}"#)
+        #expect(!content.canReplaceRun)
+        _ = sink.handleCommand(#"{"command":"resume"}"#)
+        _ = sink.handleCommand(#"{"command":"split"}"#)
+        #expect(content.phase == .ended)
+        #expect(!content.canReplaceRun)
+        _ = sink.handleCommand(#"{"command":"reset"}"#)
+        #expect(content.canReplaceRun)
+    }
+
     @Test func markChangedTellsTheListener() {
         let content = TimerContent(lang: 0)
         var calls = 0

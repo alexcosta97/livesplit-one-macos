@@ -47,10 +47,10 @@ final class SplitsEditorPresenter: NSObject, NSWindowDelegate {
         super.init()
     }
 
-    /// Edit Splits…: does nothing while the editor is open or an attempt is in progress, which
-    /// is when `FileController.canReplaceRun` is false (spec §7).
+    /// Edit Splits…: does nothing while the editor is open or an attempt is in progress
+    /// (`TimerContent.canReplaceRun`, spec §7).
     func open() {
-        guard !isOpen, content.phase == .notRunning else { return }
+        guard !isOpen, content.canReplaceRun else { return }
         let controller = SplitsEditorViewController(
             editing: SplitsEditing(run: content.withRun { $0.clone() }, lang: lang),
             linkedLayout: content.linkedLayout, currentLayout: window.layoutPath,
@@ -104,14 +104,18 @@ final class SplitsEditorPresenter: NSObject, NSWindowDelegate {
             log.record(
                 .error, "Couldn't apply the splits editor's changes: an attempt is in progress")
         case .noSegments:
-            // `RunEditor` always keeps a segment.
+            // `RunEditor` always keeps a segment, so this can't happen. `Timer.setRun` took
+            // `run` even though it refused it, so it can't be edited again: the editor ends as
+            // Cancel ends it, and the copy is dropped.
+            log.record(
+                .error, "Couldn't apply the splits editor's changes: the splits have no segments")
             assertionFailure("The splits editor made a run with no segments")
-            keepEditing(run, controller)
+            cancel()
         }
     }
 
-    /// Goes on editing `run`: finishing it consumed the editor. The link the window keeps
-    /// stays, and `run` carries it too.
+    /// Goes on editing `run`, which `setRun` didn't take: finishing it consumed the editor. The
+    /// link the window keeps stays, and `run` carries it too.
     private func keepEditing(_ run: Run, _ controller: SplitsEditorViewController) {
         controller.editing = SplitsEditing(run: run, lang: lang)
         controller.refresh()

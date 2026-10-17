@@ -331,9 +331,10 @@ final class TimerMenus: NSObject, NSMenuDelegate, NSMenuItemValidation {
         switch item.action {
         case #selector(runControlCommand(_:)):
             break
-        case #selector(editSplits(_:)), #selector(openSplits(_:)),
-            #selector(openRecentSplits(_:)), #selector(clearRecentSplits(_:)),
-            #selector(closeSplits(_:)):
+        case #selector(editSplits(_:)):
+            return splitsEditor != nil && canReplaceRun
+        case #selector(openSplits(_:)), #selector(openRecentSplits(_:)),
+            #selector(clearRecentSplits(_:)), #selector(closeSplits(_:)):
             return canReplaceRun
         default:
             return true

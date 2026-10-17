@@ -638,6 +638,11 @@ import Testing
         #expect(modalRuns == 1)
     }
 
+    @Test func editSplitsIsDisabledWithoutAnEditor() throws {
+        let menus = makeMenus()
+        #expect(try editSplitsItems(menus).map { menus.validateMenuItem($0) } == [false, false])
+    }
+
     @Test func editSplitsIsEnabledOnlyWhenNoAttemptIsInProgress() throws {
         let menus = makeMenus(splitsEditor: makePresenter())
         let items = try editSplitsItems(menus)

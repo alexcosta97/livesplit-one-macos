@@ -40,8 +40,9 @@ final class SplitsEditorTests: XCTestCase {
         let e2e = E2EApp.launched(picks: ["saved:Edited.lss"])
         let editor = openEditor(e2e)
         editFirstSegment(in: editor, e2e)
-        // OK ends editing the time first, so the time is kept.
-        editor.buttons["editor-ok"].click()
+        // Return in the field is OK (spec §9). OK ends editing the time first, so the time
+        // being typed is kept.
+        e2e.app.typeKey(.return, modifierFlags: [])
         XCTAssertTrue(editor.waitForNonExistence(timeout: 5), "OK didn't close the editor")
         XCTAssertNotNil(e2e.logText(containing: "Edited the splits"))
 

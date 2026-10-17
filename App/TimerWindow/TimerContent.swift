@@ -116,6 +116,10 @@ final class TimerContent {
         return phase
     }
 
+    /// Whether the run may be replaced: no attempt is running, paused or finished and not reset,
+    /// which replacing the run would drop (spec §7). The one place this rule is written.
+    var canReplaceRun: Bool { phase == .notRunning }
+
     /// Whether the run changed since it was opened or last saved. A reset attempt counts.
     var hasUnsavedChanges: Bool { withRun { $0.hasBeenModified() } }
 
