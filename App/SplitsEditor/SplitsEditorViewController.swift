@@ -424,10 +424,14 @@ final class SplitsEditorViewController: NSViewController, NSTextFieldDelegate {
 
     func controlTextDidEndEditing(_ notification: Notification) {
         guard let field = notification.object as? NSTextField else { return }
+        // A name left unchanged isn't set: setting it marks the splits changed and drops their
+        // speedrun.com run.
         if field === gameField {
-            editing.setGame(field.stringValue)
+            if field.stringValue != editing.state.game { editing.setGame(field.stringValue) }
         } else if field === categoryField {
-            editing.setCategory(field.stringValue)
+            if field.stringValue != editing.state.category {
+                editing.setCategory(field.stringValue)
+            }
         } else if field === offsetField {
             // It was set when editing was about to end; show it as the editor writes it.
             field.stringValue = editing.state.offset

@@ -112,6 +112,23 @@ import Testing
         #expect(lines(.error).isEmpty)
     }
 
+    /// Leaving the game or the category unchanged doesn't set it, which would mark the splits
+    /// changed and drop their speedrun.com run.
+    @Test(arguments: ["editor-game", "editor-category"])
+    func aFieldLeftUnchangedLeavesTheSplitsSaved(_ identifier: String) throws {
+        let presenter = makePresenter()
+        presenter.open()
+        let editor = try #require(presenter.editorWindow)
+        let controller = try #require(presenter.controller)
+        let field: NSTextField = try #require(find(identifier, in: controller.view))
+        #expect(editor.makeFirstResponder(field))
+        #expect(field.currentEditor() != nil)
+        #expect(editor.makeFirstResponder(nil))
+        presenter.applyOK()
+        #expect(!presenter.isOpen)
+        #expect(!content.hasUnsavedChanges)
+    }
+
     @Test func okThroughTheButtonAppliesTheEdits() throws {
         let presenter = makePresenter()
         presenter.open()
