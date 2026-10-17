@@ -25,6 +25,8 @@ private final class QuestionCount: Sendable {
     let alerts = FakeFileAlerts()
     private let questions = QuestionCount()
     private var runnerInUse: CommandRunner?
+    /// How many times a refused quit beeped.
+    private var beeps = 0
 
     init() throws {
         folder = try TemporaryFolder()
@@ -49,7 +51,8 @@ private final class QuestionCount: Sendable {
 
     /// A quit flow whose reset question, if asked, is answered with `answer`.
     private func makeFlow(
-        answering answer: ResetAnswer = .no, alerts alertsOverride: FileAlerts? = nil
+        answering answer: ResetAnswer = .no, alerts alertsOverride: FileAlerts? = nil,
+        splitsEditor: SplitsEditorPresenter? = nil
     ) -> QuitFlow {
         let counter = questions
         let runner = CommandRunner(
@@ -64,7 +67,9 @@ private final class QuestionCount: Sendable {
         let files = FileController(
             content: content, window: window, settings: settings, picker: picker,
             alerts: alertsOverride ?? alerts, lang: 0, log: makeLog("logs"))
-        return QuitFlow(content: content, runner: runner, files: files)
+        return QuitFlow(
+            content: content, runner: runner, files: files, splitsEditor: splitsEditor,
+            beep: { [unowned self] in beeps += 1 })
     }
 
     private func run(_ command: TimerCommand, on runner: CommandRunner) async -> String? {
@@ -120,6 +125,34 @@ private final class QuestionCount: Sendable {
         #expect(immediate == .terminateNow)
         #expect(replies.isEmpty)
         #expect(alerts.asked.isEmpty)
+    }
+
+    /// The editor's OK would replace the run after the questions were answered (spec §9), so
+    /// Quit is refused while it is open, without resetting or asking anything. It beeps and
+    /// brings the editor to the front.
+    @Test func quitIsRefusedWhileTheSplitsEditorIsOpen() async {
+        makeUnsaved()
+        let editor = SplitsEditorPresenter(
+            content: content, window: window, prompts: ScriptedPrompts(), log: makeLog("logs"),
+            lang: 0, runModal: { _ in }, stopModal: {})
+        editor.open()
+        defer { editor.editorWindow?.close() }
+        #expect(editor.isOpen)
+        let flow = makeFlow(splitsEditor: editor)
+        #expect(editor.editorWindow?.isVisible == false)
+        let (immediate, replies) = await quit(flow)
+        #expect(immediate == .terminateCancel)
+        #expect(replies.isEmpty)
+        #expect(alerts.asked.isEmpty)
+        #expect(beeps == 1)
+        #expect(editor.editorWindow?.isVisible == true)
+
+        editor.applyOK()
+        alerts.choices = [.dontSave]
+        let (after, _) = await quit(flow)
+        #expect(after == .terminateNow)
+        #expect(alerts.asked.count == 1)
+        #expect(beeps == 1)
     }
 
     @Test func cancelStays() async {

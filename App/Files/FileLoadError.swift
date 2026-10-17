@@ -1,12 +1,13 @@
 import Foundation
 
-/// Why a splits or layout file didn't open (spec §7.1, §10). livesplit-core's parsers don't
-/// say why a file didn't parse, so only macOS's reasons for not reading it are passed on.
+/// Why a splits, layout or image file didn't open (spec §7.1, §10). livesplit-core's parsers
+/// don't say why a file didn't parse, so only macOS's reasons for not reading it are passed on.
 enum FileLoadError: Error, Equatable, Sendable {
     /// macOS couldn't read the file: its reason, such as a missing file or no permission.
     case unreadable(String)
     case notSplits
     case notLayout
+    case notImage
 
     /// The alert's text for the file named `file`.
     func message(file: String) -> String {
@@ -14,6 +15,7 @@ enum FileLoadError: Error, Equatable, Sendable {
         case .unreadable(let reason): reason
         case .notSplits: "\"\(file)\" isn't splits LiveSplit One for macOS can read."
         case .notLayout: "\"\(file)\" isn't a layout LiveSplit One for macOS can read."
+        case .notImage: "It isn't an image LiveSplit One for macOS can read."
         }
     }
 
@@ -23,6 +25,7 @@ enum FileLoadError: Error, Equatable, Sendable {
         case .unreadable(let reason): reason
         case .notSplits: "it isn't splits this app can read"
         case .notLayout: "it isn't a layout this app can read"
+        case .notImage: "it isn't an image this app can read"
         }
     }
 
@@ -33,9 +36,14 @@ enum FileLoadError: Error, Equatable, Sendable {
     /// Reads `url`, turning macOS's error into `.unreadable`. Only a regular file under
     /// `sizeLimit` is read, symlinks resolved: a link to a device or a pipe would never end,
     /// and splits name their layout, so the path can't be trusted.
-    static func read(_ url: URL) throws(FileLoadError) -> Data {
+    ///
+    /// `limit` and `tooLarge` (the text for a file over it) default to the splits and layout
+    /// ones; other kinds of file, such as icons, give their own.
+    static func read(
+        _ url: URL, limit: Int = sizeLimit, tooLarge: String = splitsTooLarge
+    ) throws(FileLoadError) -> Data {
         do {
-            return try readBounded(url, limit: sizeLimit)
+            return try readBounded(url, limit: limit, tooLarge: tooLarge)
         } catch let error as FileLoadError {
             throw error
         } catch {
@@ -43,7 +51,7 @@ enum FileLoadError: Error, Equatable, Sendable {
         }
     }
 
-    private static let tooLarge = "It's too large to be a splits or layout file."
+    private static let splitsTooLarge = "It's too large to be a splits or layout file."
     private static let notRegular = "It isn't a regular file."
 
     /// macOS's words for a file that couldn't be opened, such as "The file “x” couldn't be
@@ -69,7 +77,9 @@ enum FileLoadError: Error, Equatable, Sendable {
     /// The file is opened without blocking and then checked through the descriptor, so a file
     /// swapped for a pipe between a check and the open can't hold the app up: a pipe is refused
     /// by its type before anything is read.
-    static func readBounded(_ url: URL, limit: Int) throws -> Data {
+    static func readBounded(
+        _ url: URL, limit: Int, tooLarge: String = splitsTooLarge
+    ) throws -> Data {
         let resolved = url.resolvingSymlinksInPath()
         let descriptor = open(resolved.path, O_RDONLY | O_NONBLOCK | O_CLOEXEC)
         guard descriptor >= 0 else {

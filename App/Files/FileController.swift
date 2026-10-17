@@ -33,7 +33,7 @@ final class FileController {
 
     /// Whether opening or closing splits is allowed: no attempt is in progress, so none is
     /// dropped (spec §7.1).
-    var canReplaceRun: Bool { content.phase == .notRunning }
+    var canReplaceRun: Bool { content.canReplaceRun }
 
     var recentSplits: [String] { settings.settings.recentSplits.paths }
     var recentLayouts: [String] { settings.settings.recentLayouts.paths }

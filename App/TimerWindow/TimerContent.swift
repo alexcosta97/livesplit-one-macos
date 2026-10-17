@@ -68,17 +68,19 @@ final class TimerContent {
         markChanged()
     }
 
-    /// What `setRun(_:)` did.
+    /// What `setRun(_:ifAttemptCount:)` did.
     enum SetRunResult: Equatable {
         /// The timer times with the run from now on.
         case replaced
         /// The run has no segments, which a timer can't use. Nothing changed.
         case noSegments
-        /// An attempt is running, paused or finished and not reset. Nothing changed.
+        /// An attempt is running, paused or finished and not reset, or one started since the
+        /// expected attempt count was read. Nothing changed, and the run wasn't taken.
         case attemptInProgress
     }
 
-    /// Times with `run` from now on, unless an attempt is in progress or `run` has no segments.
+    /// Times with `run` from now on, unless an attempt is in progress, `run` has no segments,
+    /// or the timer's run no longer has `expected` attempts.
     ///
     /// The phase is checked under the same write lock that replaces the run, so an attempt
     /// that starts while a file picker or alert was open (a server command can start one) is
@@ -86,11 +88,18 @@ final class TimerContent {
     /// check `FileController.canReplaceRun` first to skip the picker. It takes the write lock
     /// on the main thread, so don't call it while a command waits on the reset question; it
     /// runs only from menu actions, which a modal alert blocks.
+    ///
+    /// `expected` is for a run made from a copy of the timer's (the splits editor, spec §9):
+    /// an attempt started since the copy was taken, even one reset since, changed the history
+    /// and the attempt count, which replacing the run would drop. Starting an attempt is what
+    /// counts one, so a different count means one started.
     @discardableResult
-    func setRun(_ run: Run) -> SetRunResult {
+    func setRun(_ run: Run, ifAttemptCount expected: UInt32? = nil) -> SetRunResult {
         var result = SetRunResult.replaced
         timer.writeWith { timer in
-            guard timer.currentPhase() == TimerPhase.notRunning.rawValue else {
+            guard timer.currentPhase() == TimerPhase.notRunning.rawValue,
+                expected.map({ $0 == timer.getRun().attemptCount() }) ?? true
+            else {
                 result = .attemptInProgress
                 return
             }
@@ -109,12 +118,29 @@ final class TimerContent {
         return result
     }
 
+    /// A copy of the run and its attempt count, read under one read lock with the phase, or
+    /// nil if an attempt is in progress (spec §9). Read together, an attempt can't start between
+    /// the phase check and the count, which `setRun(_:ifAttemptCount:)` compares against.
+    func copyOfRunWithNoAttempt() -> (run: Run, attempts: UInt32)? {
+        var result: (run: Run, attempts: UInt32)?
+        timer.readWith { timer in
+            guard timer.currentPhase() == TimerPhase.notRunning.rawValue else { return }
+            let run = timer.getRun()
+            result = (run.clone(), run.attemptCount())
+        }
+        return result
+    }
+
     /// The timer's phase, read under the read lock.
     var phase: TimerPhase {
         var phase = TimerPhase.notRunning
         timer.readWith { phase = TimerPhase(rawValue: $0.currentPhase()) ?? .notRunning }
         return phase
     }
+
+    /// Whether the run may be replaced: no attempt is running, paused or finished and not reset,
+    /// which replacing the run would drop (spec §7). The one place this rule is written.
+    var canReplaceRun: Bool { phase == .notRunning }
 
     /// Whether the run changed since it was opened or last saved. A reset attempt counts.
     var hasUnsavedChanges: Bool { withRun { $0.hasBeenModified() } }

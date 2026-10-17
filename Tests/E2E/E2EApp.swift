@@ -44,6 +44,38 @@ final class E2EApp {
         app.launch()
     }
 
+    /// Launches the app with file pickers that answer with `picks`, in order: a fixture's
+    /// name, or the name of a file to save under the run's folder, as `saved:Name`. Returns once
+    /// the timer window shows.
+    static func launched(picks: [String?] = []) -> E2EApp {
+        let e2e = E2EApp()
+        let paths: [String?] = picks.map { pick in
+            guard let pick else { return nil }
+            if pick.hasPrefix("saved:") {
+                return e2e.savedFile(String(pick.dropFirst("saved:".count))).path
+            }
+            return e2e.fixture(pick).path
+        }
+        e2e.launch(pickedFiles: paths)
+        XCTAssertTrue(e2e.timerWindow.waitForExistence(timeout: 10))
+        return e2e
+    }
+
+    /// Picks an item of the timer's right-click menu, going through `parents` first.
+    func choose(_ identifier: String, under parents: [String] = []) {
+        timerWindow.rightClick()
+        var scope: XCUIElement = app
+        for parent in parents {
+            let item = scope.menuItems[parent]
+            XCTAssertTrue(item.waitForExistence(timeout: 5), parent)
+            item.hover()
+            scope = item
+        }
+        let item = scope.menuItems[identifier]
+        XCTAssertTrue(item.waitForExistence(timeout: 5), identifier)
+        item.click()
+    }
+
     /// All of the log files' text, once it contains `text`, or `nil` if it doesn't within
     /// `timeout` seconds.
     func logText(containing text: String, timeout: TimeInterval = 10) -> String? {

@@ -71,4 +71,14 @@ import Testing
         #expect(keys.consumes(press(kVK_ANSI_K, "k")))
         #expect(performed == [.skipSplit])
     }
+
+    /// The Edit menu's keys can be shortcuts: in the timer window the shortcut runs, and
+    /// elsewhere the key goes on to the Edit menu (spec §7).
+    @Test(.onABCOrUSLayout) func anEditMenuKeyCanBeAShortcutInTheTimerWindowOnly() {
+        let keys = makeKeys()
+        _ = shortcuts.add(Shortcut(key: .character("z"), modifiers: .meta), to: .undoSplit)
+        #expect(keys.consumes(press(kVK_ANSI_Z, "z", flags: .command)))
+        #expect(!keys.consumes(press(kVK_ANSI_Z, "z", flags: .command, in: other)))
+        #expect(performed == [.undoSplit])
+    }
 }
