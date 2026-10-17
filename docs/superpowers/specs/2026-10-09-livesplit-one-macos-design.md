@@ -582,7 +582,8 @@ Every change is saved at once and shows in the menus.
   - comparisons: **Add Comparison…**, **Rename Comparison ▸** and **Remove
     Comparison ▸**, the last two listing the custom comparisons. A name that
     is used already or starts with `[Race]` is refused, and the question
-    stays open saying **That name is already used, or starts with [Race].**;
+    asks again with the typed name kept, saying **That name is already used,
+    or starts with [Race].**;
   - a Real Time / Game Time switch for which times the table shows and edits;
   - **Other ▸** Clear History, Clear Times (each asks for confirmation).
 - Icons are read like splits files (section 7.1): a regular file, at most
