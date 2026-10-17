@@ -129,6 +129,20 @@ import Testing
         #expect(!content.hasUnsavedChanges)
     }
 
+    /// Splits already unsaved when the editor opened aren't logged as edited by an OK with no
+    /// edits: the copy keeps their unsaved mark.
+    @Test func okWithNoEditsOnUnsavedSplitsLogsNothing() throws {
+        startAttempt()
+        reset()
+        #expect(content.hasUnsavedChanges)
+        let presenter = makePresenter()
+        presenter.open()
+        presenter.applyOK()
+        #expect(!presenter.isOpen)
+        #expect(content.hasUnsavedChanges)
+        #expect(lines(.timer).isEmpty)
+    }
+
     @Test func okThroughTheButtonAppliesTheEdits() throws {
         let presenter = makePresenter()
         presenter.open()

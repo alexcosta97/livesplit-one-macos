@@ -29,6 +29,9 @@ final class SplitsEditorPresenter: NSObject, NSWindowDelegate {
     /// The timer's attempt count when the copy was taken: an attempt started since, even one
     /// reset since, refuses OK (spec §9).
     private var attemptsAtOpen: UInt32 = 0
+    /// The copy as `.lss` text when it was taken, so OK logs an edit only if the editor changed
+    /// it: the copy keeps the unsaved mark of splits that were unsaved already.
+    private var lssAtOpen = ""
 
     /// The text below the table when an attempt started while the window was open (spec §9).
     static let attemptStartedMessage =
@@ -59,6 +62,7 @@ final class SplitsEditorPresenter: NSObject, NSWindowDelegate {
         guard !isOpen, content.canReplaceRun else { return }
         let (copy, attempts) = content.withRun { ($0.clone(), $0.attemptCount()) }
         attemptsAtOpen = attempts
+        lssAtOpen = copy.saveAsLss()
         let controller = SplitsEditorViewController(
             editing: SplitsEditing(run: copy, lang: lang),
             linkedLayout: content.linkedLayout, currentLayout: window.layoutPath,
@@ -106,7 +110,7 @@ final class SplitsEditorPresenter: NSObject, NSWindowDelegate {
     func applyOK() {
         guard let controller else { return }
         let run = controller.editing.finish()
-        let changed = run.hasBeenModified()
+        let changed = run.saveAsLss() != lssAtOpen
         switch content.setRun(run, ifAttemptCount: attemptsAtOpen) {
         case .replaced:
             // `setRun` marked the content changed and collected the unused images.
