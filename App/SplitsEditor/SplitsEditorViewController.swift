@@ -148,7 +148,12 @@ final class SplitsEditorViewController: NSViewController, NSTextFieldDelegate {
 
         let margin: CGFloat = 20
         let gap: CGFloat = 12
+        // The table starts under the header, or under the icon if that is taller; this pins it.
+        let tableTop = tableContainer.topAnchor.constraint(
+            equalTo: grid.bottomAnchor, constant: gap)
+        tableTop.priority = .defaultHigh
         NSLayoutConstraint.activate([
+            tableTop,
             iconButton.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: margin),
             iconButton.topAnchor.constraint(equalTo: root.topAnchor, constant: margin),
             grid.leadingAnchor.constraint(equalTo: iconButton.trailingAnchor, constant: gap),
@@ -177,7 +182,6 @@ final class SplitsEditorViewController: NSViewController, NSTextFieldDelegate {
             messageField.trailingAnchor.constraint(
                 lessThanOrEqualTo: cancelButton.leadingAnchor, constant: -gap),
             messageField.centerYAnchor.constraint(equalTo: okButton.centerYAnchor),
-            messageField.topAnchor.constraint(equalTo: timingControl.bottomAnchor, constant: gap),
 
             okButton.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -margin),
             okButton.topAnchor.constraint(equalTo: timingControl.bottomAnchor, constant: gap),
@@ -231,7 +235,7 @@ final class SplitsEditorViewController: NSViewController, NSTextFieldDelegate {
     private func selectLayoutItem() {
         let index =
             layoutTargets.firstIndex { Self.same($0, linkedLayout) }
-            ?? layoutTargets.firstIndex { $0 == linkedLayout } ?? 0
+            ?? 0
         layoutPopUp.selectItem(at: index)
     }
 
@@ -285,8 +289,10 @@ final class SplitsEditorViewController: NSViewController, NSTextFieldDelegate {
         } else if field === offsetField {
             // It was set when editing was about to end; show it as the editor writes it.
             field.stringValue = editing.state.offset
+            clearInvalid()
         } else if field === attemptsField {
             field.stringValue = String(editing.state.attempts)
+            clearInvalid()
         }
     }
 
@@ -297,14 +303,18 @@ final class SplitsEditorViewController: NSViewController, NSTextFieldDelegate {
         return endEditing(field, text: field.currentEditor()?.string ?? field.stringValue)
     }
 
+    /// Takes the red and the message of a refused entry away.
+    private func clearInvalid() {
+        offsetField.textColor = .controlTextColor
+        attemptsField.textColor = .controlTextColor
+        showMessage(nil)
+    }
+
     private func endEditing(_ field: NSTextField, text: String) -> Bool {
-        guard field === offsetField || field === attemptsField else { return true }
         let accepted =
             field === offsetField ? editing.setOffset(text) : editing.setAttempts(text)
         if accepted {
-            offsetField.textColor = .labelColor
-            attemptsField.textColor = .labelColor
-            showMessage(nil)
+            clearInvalid()
         } else {
             field.textColor = .systemRed
             showMessage(

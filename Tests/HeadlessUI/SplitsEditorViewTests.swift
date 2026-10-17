@@ -109,7 +109,9 @@ import Testing
     @Test func aBadOffsetKeepsFocusInRedWithAMessage() throws {
         let controller = try makeController()
         let offset = try field("editor-offset", controller)
+        let before = controller.editing.state.offset
         #expect(try !shouldEnd("editor-offset", with: "abc", controller))
+        #expect(controller.editing.state.offset == before)
         #expect(offset.textColor == .systemRed)
         let message: NSTextField = try #require(find("editor-message", in: controller.view))
         #expect(!message.isHidden)
@@ -117,9 +119,9 @@ import Testing
         #expect(message.textColor == .systemRed)
 
         #expect(try shouldEnd("editor-offset", with: "1.5", controller))
-        #expect(offset.textColor != .systemRed)
+        #expect(offset.textColor == .controlTextColor)
         #expect(message.isHidden)
-        #expect(controller.editing.state.offset != "")
+        #expect(controller.editing.state.offset == "1.50")
     }
 
     @Test func aBadNumberOfAttemptsSaysSo() throws {
@@ -129,8 +131,25 @@ import Testing
         #expect(message.stringValue == "Enter a whole number.")
         #expect(try field("editor-attempts", controller).textColor == .systemRed)
         #expect(try shouldEnd("editor-attempts", with: "7", controller))
+        #expect(try field("editor-attempts", controller).textColor == .controlTextColor)
         #expect(message.isHidden)
         #expect(controller.editing.state.attempts == 7)
+    }
+
+    @Test func aForcedEndOfABadEntryClearsTheRedAndTheMessage() throws {
+        let controller = try makeController()
+        let offset = try field("editor-offset", controller)
+        let before = controller.editing.state.offset
+        #expect(try !shouldEnd("editor-offset", with: "abc", controller))
+        try endEditing("editor-offset", with: "abc", controller)
+        #expect(offset.stringValue == before)
+        #expect(offset.textColor == .controlTextColor)
+        #expect(try field("editor-message", controller).isHidden)
+
+        #expect(try !shouldEnd("editor-attempts", with: "x", controller))
+        try endEditing("editor-attempts", with: "x", controller)
+        #expect(try field("editor-attempts", controller).textColor == .controlTextColor)
+        #expect(try field("editor-message", controller).isHidden)
     }
 
     @Test func showMessageShowsAndHides() throws {
@@ -271,6 +290,7 @@ import Testing
             contentRect: NSRect(x: 0, y: 0, width: 700, height: 500), styleMask: [.titled],
             backing: .buffered, defer: true)
         window.isReleasedWhenClosed = false
+        defer { window.close() }
         window.contentViewController = controller
         let game = try field("editor-game", controller)
         #expect(window.makeFirstResponder(game))
@@ -279,13 +299,26 @@ import Testing
         controller.refresh()
         #expect(game.currentEditor()?.string == "Typing")
         #expect(try field("editor-category", controller).stringValue == "Changed")
-        window.close()
     }
 
-    @Test func theViewHasAMinimumSize() throws {
+    @Test func theViewHasAMinimumSizeAndNoAmbiguousLayout() throws {
         let controller = try makeController()
         controller.view.layoutSubtreeIfNeeded()
         #expect(controller.view.fittingSize.width >= 640)
         #expect(controller.view.fittingSize.height >= 420)
+
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 640, height: 420), styleMask: [.titled],
+            backing: .buffered, defer: true)
+        window.isReleasedWhenClosed = false
+        defer { window.close() }
+        window.contentViewController = controller
+        window.setContentSize(NSSize(width: 640, height: 420))
+        controller.view.layoutSubtreeIfNeeded()
+        func ambiguous(_ view: NSView) -> [NSView] {
+            (view.hasAmbiguousLayout ? [view] : []) + view.subviews.flatMap(ambiguous)
+        }
+        let found = ambiguous(controller.view).map { String(describing: type(of: $0)) }
+        #expect(found == [])
     }
 }
