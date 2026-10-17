@@ -5,6 +5,7 @@ The right-click menu, with Control open.
 
 | Item | What it does |
 |---|---|
+| **Edit Splits…** | Opens the splits editor: see [Editing Splits](Editing-Splits). |
 | **Open Splits** | Opens splits from a file or the recent files, below. |
 | **Save Splits** (⌘S) | Saves the splits to their file. |
 | **Save Splits As…** (⇧⌘S) | Saves the splits to a file you choose. |
@@ -24,7 +25,7 @@ An item that can't be used right now is greyed out.
 
 ## Files
 
-**Open Splits** and **Open Layout** each open a list: **Open…**, then the recent files, the newest first, and **Clear Menu** below them. **Open Splits**, its recent files, its **Clear Menu** and **Close Splits** are greyed out while an attempt is running, paused or finished and not reset yet. What each item does, and the format each file uses, is in [Splits and Layouts](Splits-and-Layouts).
+**Edit Splits…** is greyed out while an attempt is running, paused or finished and not reset yet, and while the editor is already open. **Open Splits** and **Open Layout** each open a list: **Open…**, then the recent files, the newest first, and **Clear Menu** below them. **Open Splits**, its recent files, its **Clear Menu** and **Close Splits** are greyed out while an attempt is running, paused or finished and not reset yet, and while the splits editor is open. What each item does, and the format each file uses, is in [Splits and Layouts](Splits-and-Layouts).
 
 ## Control
 
@@ -48,7 +49,8 @@ Lists your run's comparisons, your own first, then **Personal Best**, **Best Seg
 The menu bar has the same commands, in the places Mac apps keep them:
 
 - **LiveSplit One**: **About LiveSplit One for macOS**, **Settings…** (⌘,), **Hide LiveSplit One for macOS** (⌘H), **Hide Others** (⌥⌘H), **Show All**, **Quit LiveSplit One for macOS** (⌘Q).
-- **File**: **Open Splits**, **Save Splits** (⌘S), **Save Splits As…** (⇧⌘S), **Close Splits**, then **Open Layout** and **Save Layout As…**, then **Connect to Server…**, as above.
+- **File**: **Edit Splits…**, **Open Splits**, **Save Splits** (⌘S), **Save Splits As…** (⇧⌘S), **Close Splits**, then **Open Layout** and **Save Layout As…**, then **Connect to Server…**, as above.
+- **Edit**: **Undo** (⌘Z), **Redo** (⇧⌘Z), **Cut** (⌘X), **Copy** (⌘C), **Paste** (⌘V) and **Select All** (⌘A). They work in the text fields of the splits editor and the Connect to Server sheet. macOS adds its own items to this menu, such as AutoFill, Start Dictation and Emoji & Symbols.
 - **Control** and **Compare Against**, as above.
 - **Window**: **Close** (⌘W, for the Settings window), **Minimize** (⌘M), **Always on Top**.
 - **Help**: **Open Log Folder**.

@@ -18,6 +18,7 @@ It is made for two-PC setups: a gaming PC runs the game and [livesplit-asr-bridg
 - [The Timer Window](The-Timer-Window): moving and resizing the window, Always on Top, keyboard shortcuts, and the notices it shows.
 - [The Menu](The-Menu): every command in the right-click menu and the menu bar.
 - [Splits and Layouts](Splits-and-Layouts): opening and saving splits and layouts, unsaved changes, and what reopens at launch.
+- [Editing Splits](Editing-Splits): changing the game, segments, times and comparisons.
 - [Connecting to a Server](Connecting-to-a-Server): taking timer commands from livesplit-asr-bridge on another computer.
 - [Settings and Logs](Settings-and-Logs): where the app keeps its settings and logs.
 - [Troubleshooting](Troubleshooting): what you see, why, and what to do.

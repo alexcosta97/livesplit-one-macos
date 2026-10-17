@@ -54,7 +54,7 @@ If an attempt is in progress when you quit, the app resets it first, as LiveSpli
 
 ## Why Open Splits is greyed out
 
-**Open Splits**, its recent files, its **Clear Menu** and **Close Splits** are greyed out while an attempt is running, paused, or finished and not reset yet. Replacing the splits then would throw the attempt away. Reset first (**Reset** in [The Menu](The-Menu#control)), then open the splits. **Open Layout** isn't affected, so you can change the layout in the middle of an attempt.
+**Open Splits**, its recent files, its **Clear Menu** and **Close Splits** are greyed out while an attempt is running, paused, or finished and not reset yet. Replacing the splits then would throw the attempt away. Reset first (**Reset** in [The Menu](The-Menu#control)), then open the splits. They are also greyed out while the splits editor is open: see [Editing Splits](Editing-Splits#while-the-window-is-open). **Open Layout** isn't affected, so you can change the layout in the middle of an attempt.
 
 ## Reset with new best times
 
@@ -75,7 +75,7 @@ Splits saved by LiveSplit can name the layout they are used with. When you open 
 
 If that layout can't be opened, the one you had stays, and a notice names the file: see [The Timer Window](The-Timer-Window#notices).
 
-The app never changes which layout splits use: it opens the layout and doesn't write the link back.
+Opening splits never changes the link. You change it in the splits editor, with **Layout:**: see [Editing Splits](Editing-Splits#the-layout-the-splits-use). The link is saved with the splits.
 
 ## Saving a layout
 
