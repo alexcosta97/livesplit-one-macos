@@ -27,6 +27,21 @@ import Testing
         #expect(try ImageFile.load(url) == data)
     }
 
+    @Test func aJpegLoads() throws {
+        let bitmap = try #require(NSBitmapImageRep(data: try png()))
+        let data = try #require(bitmap.representation(using: .jpeg, properties: [:]))
+        let url = folder.url.appending(path: "Icon.jpg")
+        try data.write(to: url)
+        #expect(try ImageFile.load(url) == data)
+    }
+
+    @Test @MainActor func aPdfIsNotAnImage() throws {
+        let view = NSView(frame: NSRect(x: 0, y: 0, width: 10, height: 10))
+        let url = folder.url.appending(path: "Icon.png")
+        try view.dataWithPDF(inside: view.bounds).write(to: url)
+        #expect(throws: FileLoadError.notImage) { try ImageFile.load(url) }
+    }
+
     @Test func aTextFileIsNotAnImage() throws {
         try folder.write("Notes.png", "not an image")
         #expect(throws: FileLoadError.notImage) {

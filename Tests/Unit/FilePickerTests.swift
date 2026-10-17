@@ -24,9 +24,7 @@ import UniformTypeIdentifiers
 
     @Test func theImageOpenPanelAllowsTheSevenFormats() {
         let panel = SystemFilePicker.openPanel(.image)
-        let extensions = ["png", "jpeg", "gif", "bmp", "tiff", "webp", "ico"]
-        #expect(
-            panel.allowedContentTypes == extensions.compactMap { UTType(filenameExtension: $0) })
+        #expect(panel.allowedContentTypes == [.png, .jpeg, .gif, .bmp, .tiff, .webP, .ico])
         #expect(panel.allowedContentTypes.count == 7)
     }
 

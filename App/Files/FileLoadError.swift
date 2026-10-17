@@ -1,7 +1,7 @@
 import Foundation
 
-/// Why a splits, layout or image file didn't open (spec §7.1, §10). livesplit-core's parsers don't
-/// say why a file didn't parse, so only macOS's reasons for not reading it are passed on.
+/// Why a splits, layout or image file didn't open (spec §7.1, §10). livesplit-core's parsers
+/// don't say why a file didn't parse, so only macOS's reasons for not reading it are passed on.
 enum FileLoadError: Error, Equatable, Sendable {
     /// macOS couldn't read the file: its reason, such as a missing file or no permission.
     case unreadable(String)

@@ -49,8 +49,8 @@ final class SystemFilePicker: FilePicker {
     }
 
     /// The panel for opening a file of `kind`. Splits can be any file, because livesplit-core
-    /// reads many formats whatever their extension; layouts are `.lsl` or `.ls1l`; images are the formats
-    /// livesplit-core decodes.
+    /// reads many formats whatever their extension; layouts are `.lsl` or `.ls1l`; images are
+    /// the formats livesplit-core decodes (`ImageFile.formats`).
     static func openPanel(_ kind: FileKind) -> NSOpenPanel {
         let panel = NSOpenPanel()
         panel.canChooseFiles = true
@@ -64,8 +64,7 @@ final class SystemFilePicker: FilePicker {
                 UTType(filenameExtension: $0, conformingTo: .data)
             }
         case .image:
-            panel.allowedContentTypes = ["png", "jpeg", "gif", "bmp", "tiff", "webp", "ico"]
-                .compactMap { UTType(filenameExtension: $0) }
+            panel.allowedContentTypes = ImageFile.formats
         }
         return panel
     }
