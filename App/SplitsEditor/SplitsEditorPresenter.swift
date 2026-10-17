@@ -80,6 +80,11 @@ final class SplitsEditorPresenter: NSObject, NSWindowDelegate {
         runModal(editor)
     }
 
+    /// Brings the editor's window to the front, for a Quit it refused (spec §9).
+    func bringToFront() {
+        editorWindow?.makeKeyAndOrderFront(nil)
+    }
+
     /// Centres `editor` on the timer window's screen.
     private func center(_ editor: NSWindow) {
         guard let screen = window.window.screen ?? NSScreen.main else {

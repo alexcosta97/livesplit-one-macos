@@ -546,6 +546,9 @@ Every change is saved at once and shows in the menus.
   while the splits editor was open, so these changes can't be applied.
   Choose Cancel, then edit the splits again.**, and the window stays open
   with the edits.
+- Quit waits while the window is open, since OK would replace the run after
+  the unsaved-changes question was answered: it beeps and brings the window
+  to the front, and does nothing else.
 - **The window holds no state of its own.** Every edit goes to `RunEditor`,
   which parses and validates input, and the window then redraws from the
   editor's state. The one exception is the linked layout, which `RunEditor`

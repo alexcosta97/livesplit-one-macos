@@ -20,7 +20,7 @@ A server can start an attempt while the window is open. **OK** then can't replac
 
 ### While the window is open
 
-The timer's menus can't be used until you close the window: see [The Menu](The-Menu#files). **Quit** does nothing until you close the window.
+The timer's menus can't be used until you close the window: see [The Menu](The-Menu#files). Until you close it, **Quit** only beeps and brings the window to the front.
 
 ## Game and category
 
