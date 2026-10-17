@@ -311,11 +311,11 @@ About LiveSplit One for macOS
 Quit                   ⌘Q
 ```
 
-- Items that can't be used are disabled, not hidden: Edit Splits while the
-  timer is running, Undo Split with nothing to undo, and so on. Open Splits
-  (and its recent files) and Close Splits are disabled while an attempt is in
-  progress, running, paused or finished and not yet reset, since replacing
-  the run would drop the attempt.
+- Items that can't be used are disabled, not hidden: Undo Split with nothing
+  to undo, and so on. Edit Splits, Open Splits (and its recent files) and
+  Close Splits are disabled while an attempt is in progress, running, paused
+  or finished and not yet reset, since replacing the run would drop the
+  attempt, and while the splits editor is open.
 - **Recent files** are listed by file name, most recent first, with the full
   path as the tooltip. Two with the same name in different folders add the
   parent folder's name, such as `Splits.lss — Races`.
@@ -331,14 +331,16 @@ Quit                   ⌘Q
 - **The menu bar** has the same commands, in the menus macOS apps use:
   - *LiveSplit One*: About, Settings… (⌘,), Hide (⌘H), Hide Others (⌥⌘H),
     Show All, Quit (⌘Q).
-  - *File*: Open Splits, Save Splits (⌘S), Save Splits As… (⇧⌘S), Close
-    Splits, then Open Layout and Save Layout As…, as in the right-click menu.
+  - *File*: Edit Splits…, Open Splits, Save Splits (⌘S), Save Splits As…
+    (⇧⌘S), Close Splits, then Open Layout and Save Layout As…, as in the
+    right-click menu.
+  - *Edit*: Undo (⌘Z), Redo (⇧⌘Z), Cut (⌘X), Copy (⌘C), Paste (⌘V), Select
+    All (⌘A), for the text fields of the splits editor and the Connect sheet.
+    AppKit's text fields only get these keys from menu items.
   - *Control* and *Compare Against*, as in the right-click menu.
   - *Window*: Close (⌘W, for the Settings window; the timer window has no
     close button), Minimize (⌘M), Always on Top.
   - *Help*: Open Log Folder.
-
-  The Connect and Edit Splits items are added to both menus by their issues.
 - **Compare Against** lists the run's comparisons, including custom ones, with
   a tick on the current one, and the timing method below a separator.
 - **Save Layout As…** saves LiveSplit One's `.ls1l` format, the only layout
@@ -363,8 +365,8 @@ Quit                   ⌘Q
   such splits from the menu opens that layout too, or the default layout when
   the link is to it. If the layout can't be opened, the current one stays and
   an overlay notice names the file. At launch the last layout is reopened
-  instead, since it is the one that was showing. The app never changes the
-  link; the splits editor (section 9) does.
+  instead, since it is the one that was showing. The app changes the link
+  only when the user chooses one in the splits editor (section 9).
 - **Reset with new best times:** what a Reset after beating some best times
   does is a setting, `reset_saves_best_times` (section 11), changed in the
   Settings window (section 7.3): *Ask*, *Update them* or *Keep the old ones*.
@@ -523,27 +525,60 @@ Every change is saved at once and shows in the menus.
 
 ## 9. Splits editor
 
-- **Edit Splits…** opens a modal window with **OK** and **Cancel**, like the
-  classic LiveSplit. It is disabled while the timer is running.
+- **Edit Splits…** opens a modal window titled **Edit Splits** with **OK**
+  and **Cancel**, like the classic LiveSplit. It is disabled while an attempt
+  is in progress (section 7).
 - It edits a copy of the run through livesplit-core's `RunEditor`. **OK**
-  replaces the timer's run with the edited one and marks the splits unsaved.
-  **Cancel**, Escape and closing the window discard the copy.
+  replaces the timer's run with the edited one. The splits are then unsaved
+  if any edit changed them: livesplit-core marks the run changed on each
+  edit, so OK with no edits leaves them as they were. **Cancel**, Escape and
+  closing the window discard the copy.
+- If an attempt started while the window was open (a server can start one),
+  OK can't replace the run without dropping the attempt. It says so below
+  the table, **The splits can't change while an attempt is in progress.
+  Reset it, or choose Cancel.**, and the window stays open with the edits.
 - **The window holds no state of its own.** Every edit goes to `RunEditor`,
   which parses and validates input, and the window then redraws from the
-  editor's state. Invalid time input is rejected the way LiveSplit One rejects
-  it: the cell shows the error and keeps focus.
+  editor's state. The one exception is the linked layout, which `RunEditor`
+  takes but doesn't report: the window keeps the link it last set, starting
+  from the run's.
+- **Invalid input** is rejected the way LiveSplit One rejects it: a time,
+  the start offset or the attempt count that doesn't parse turns red and
+  keeps focus, and a line below the table says **Enter a time, such as
+  1:23.45.** (or **Enter a whole number.** for the attempt count). An empty
+  time clears it. Escape still cancels the whole window.
 - **Contents:**
   - game icon (click to choose an image, or remove it), game name, category,
     start offset and attempt count;
+  - **Layout:** which layout opens with these splits (section 7.1): **None**,
+    the layout showing now (its file name, or **Default Layout**), and the
+    one the splits link to, if it is another;
   - a segment table (`NSTableView`): icon, segment name, split time, segment
-    time, best segment, and one column per custom comparison;
-  - buttons: Insert Above, Insert Below, Remove Segment, Move Up, Move Down;
-  - comparisons: Add Comparison, Rename Comparison, Remove Comparison;
+    time, best segment, and one column per custom comparison. Segment groups
+    show as a header row above their segments, which are indented. A group's
+    row has its icon and name, and no times; an empty name shows the name
+    it takes from its last segment, greyed;
+  - selection as in LiveSplit One: a click selects one row, ⌘-click adds or
+    removes one, ⇧-click selects a range; clicking a group's row selects all
+    its segments. Times are edited in the row that was clicked last;
+  - buttons: Insert Above, Insert Below, Remove Segment, Move Up, Move Down,
+    each enabled as `RunEditor` allows;
+  - groups: **Create Group** makes the selected segments, which must be next
+    to each other and in no group, a group; **Remove Group** turns the
+    selected groups back into plain segments. A group's name and icon are
+    edited in its row;
+  - comparisons: **Add Comparison…**, **Rename Comparison ▸** and **Remove
+    Comparison ▸**, the last two listing the custom comparisons. A name that
+    is used already or starts with `[Race]` is refused, and the question
+    stays open saying **That name is already used, or starts with [Race].**;
   - a Real Time / Game Time switch for which times the table shows and edits;
   - **Other ▸** Clear History, Clear Times (each asks for confirmation).
+- Icons are read like splits files (section 7.1): a regular file, at most
+  16 MB, in a format livesplit-core reads (PNG, JPEG, GIF, BMP, TIFF, WebP,
+  ICO). One that can't be read shows an alert with the reason.
 - Out of scope for the first version: speedrun.com metadata (region,
-  platform, variables), Clean Sum of Best, custom variables, and auto
-  splitter settings.
+  platform, variables), Clean Sum of Best, custom variables, importing and
+  generating comparisons, moving comparisons, and auto splitter settings.
 
 ## 10. Error handling
 
@@ -975,7 +1010,7 @@ three):
   section 7.1), linked layouts, reopen on launch. Planned in #58.
 - #14 Connect to Server: sheet, client, events to the server, status,
   automatic reconnection. Planned in #63.
-- #15 Splits editor.
+- #15 Splits editor. Planned in #72.
 - #18 E2E harness and suite (section 14.2), filled in alongside #11–#17:
   each issue adds its own flows from section 14.3, and #18 closes when they
   all pass.
