@@ -70,6 +70,23 @@ enum EditorSelection {
         return [.only(first)] + segments.dropFirst().map { .additionally($0) }
     }
 
+    /// The calls that select again, in a new editor of the same run, the segments `rows` shows
+    /// selected, with the active one last so it stays active. Nothing if none is selected.
+    static func restoring(_ rows: [RunEditorState.Row]) -> [Call] {
+        var segments: [Int] = []
+        var active: Int?
+        for case .segment(let segment) in rows {
+            switch segment.selected {
+            case .selected: segments.append(segment.segmentIndex)
+            case .active: active = segment.segmentIndex
+            case .notSelected: break
+            }
+        }
+        if let active { segments.append(active) }
+        guard let first = segments.first else { return [] }
+        return [.only(first)] + segments.dropFirst().map { .additionally($0) }
+    }
+
     /// The rows the state shows selected: segments `.selected` or `.active`, groups `selected`.
     static func selectedRows(_ rows: [RunEditorState.Row]) -> IndexSet {
         var selected = IndexSet()

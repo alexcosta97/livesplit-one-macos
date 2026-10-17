@@ -218,6 +218,26 @@ import Testing
         #expect(content.setRun(try SplitsFile.load(Fixtures.url("GameTime.lss"))) == .replaced)
     }
 
+    /// With an attempt count, a run isn't replaced once an attempt started since that count was
+    /// read, even if it was reset: the copy would drop its history (spec §9).
+    @Test func aRunIsntReplacedAfterAnAttemptStartedSinceTheCountWasRead() throws {
+        let content = TimerContent(lang: 0)
+        let count = content.withRun { $0.attemptCount() }
+        let sink = EventSink(timer: content.timer, report: { _ in }, decideReset: { .save })
+        _ = sink.handleCommand(#"{"command":"splitOrStart"}"#)
+        _ = sink.handleCommand(#"{"command":"reset","saveAttempt":true}"#)
+        #expect(content.phase == .notRunning)
+        let before = content.lssText()
+        let other = try SplitsFile.load(Fixtures.url("GameTime.lss"))
+        #expect(content.setRun(other, ifAttemptCount: count) == .attemptInProgress)
+        #expect(content.lssText() == before)
+        // The refused run wasn't taken, so it can still be used.
+        #expect(other.len() > 0)
+
+        let now = content.withRun { $0.attemptCount() }
+        #expect(content.setRun(other, ifAttemptCount: now) == .replaced)
+    }
+
     /// GameTime.lss with a `<LayoutPath>` element added, loaded as a run.
     private func run(linking layoutPath: String) throws -> Run {
         let folder = try TemporaryFolder()

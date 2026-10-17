@@ -48,6 +48,16 @@ import Testing
         #expect(EditorSelection.click(row: 3, modifier: .command, rows: active) == [.unselect(2)])
     }
 
+    /// A new editor of the same run selects again what the old one selected, the active
+    /// segment last (spec §9: a refused OK makes a new editor).
+    @Test func aSelectionIsRestoredWithTheActiveSegmentLast() {
+        #expect(
+            EditorSelection.restoring(rows(a: .selected, b: .active, c: .selected))
+                == [.only(0), .additionally(2), .additionally(1)])
+        #expect(EditorSelection.restoring(rows(c: .active)) == [.only(2)])
+        #expect(EditorSelection.restoring(rows()).isEmpty)
+    }
+
     @Test func aShiftClickSelectsARange() {
         #expect(EditorSelection.click(row: 3, modifier: .shift, rows: rows()) == [.range(2)])
     }

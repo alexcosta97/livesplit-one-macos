@@ -122,6 +122,34 @@ import Testing
         #expect(!presenter.isOpen)
     }
 
+    private func reset() {
+        let sink = EventSink(timer: content.timer, report: { _ in }, decideReset: { .save })
+        _ = sink.handleCommand(#"{"command":"reset","saveAttempt":true}"#)
+    }
+
+    private static let attemptStartedMessage =
+        "An attempt was started while the splits editor was open, so these changes can't be "
+        + "applied. Choose Cancel, then edit the splits again."
+
+    /// What a refused OK shows and logs, and that the window stays open with the edits.
+    private func expectRefused(
+        _ presenter: SplitsEditorPresenter, _ controller: SplitsEditorViewController
+    ) throws {
+        #expect(presenter.isOpen)
+        #expect(modalStops == 0)
+        #expect(presenter.controller === controller)
+        #expect(controller.editing.state.game == "X")
+        let message: NSTextField = try #require(find("editor-message", in: controller.view))
+        #expect(!message.isHidden)
+        #expect(message.stringValue == Self.attemptStartedMessage)
+        #expect(
+            lines(.error) == [
+                "Couldn't apply the splits editor's changes: an attempt was started while it "
+                    + "was open"
+            ])
+        #expect(lines(.timer).isEmpty)
+    }
+
     /// An attempt started while the window was open, such as by a server (spec §9).
     @Test func okWhileAnAttemptRunsKeepsTheWindowTheEditsAndTheAttempt() throws {
         let presenter = makePresenter()
@@ -134,34 +162,36 @@ import Testing
 
         #expect(game != "X")
         #expect(content.phase == .running)
-        #expect(presenter.isOpen)
-        #expect(modalStops == 0)
-        #expect(presenter.controller === controller)
-        #expect(controller.editing.state.game == "X")
-        let message: NSTextField = try #require(find("editor-message", in: controller.view))
-        #expect(!message.isHidden)
-        #expect(
-            message.stringValue
-                == "The splits can't change while an attempt is in progress. Reset it, or "
-                + "choose Cancel.")
-        #expect(
-            lines(.error) == [
-                "Couldn't apply the splits editor's changes: an attempt is in progress"
-            ])
-        #expect(lines(.timer).isEmpty)
-
-        // The editor goes on: after a reset, OK applies the edits made before and after.
-        controller.editing.setCategory("Any%")
-        let sink = EventSink(timer: content.timer, report: { _ in }, decideReset: { .discard })
-        _ = sink.handleCommand(#"{"command":"reset"}"#)
-        presenter.applyOK()
-        #expect(game == "X")
-        #expect(content.withRun { $0.categoryName() } == "Any%")
-        #expect(!presenter.isOpen)
-        #expect(lines(.timer).contains("Edited the splits"))
+        try expectRefused(presenter, controller)
     }
 
-    @Test func okWhileAnAttemptRunsKeepsTheLinkedLayoutChosen() throws {
+    /// An attempt that started and was reset while the window was open added to the history
+    /// and the attempt count, which the copy doesn't have, so OK stays refused (spec §9).
+    @Test func okAfterAnAttemptStartedAndWasResetKeepsTheTimersRun() throws {
+        let presenter = makePresenter()
+        presenter.open()
+        defer { presenter.editorWindow?.close() }
+        let controller = try #require(presenter.controller)
+        controller.editing.setGame("X")
+        let attempts = content.withRun { $0.attemptCount() }
+        startAttempt()
+        reset()
+        let before = content.lssText()
+        #expect(content.withRun { $0.attemptCount() } == attempts + 1)
+
+        presenter.applyOK()
+        #expect(content.lssText() == before)
+        #expect(content.withRun { $0.attemptCount() } == attempts + 1)
+        #expect(game != "X")
+        try expectRefused(presenter, controller)
+
+        // It stays refused.
+        presenter.applyOK()
+        #expect(content.lssText() == before)
+        #expect(presenter.isOpen)
+    }
+
+    @Test func aRefusedOKKeepsTheLinkedLayoutAndTheTimingMethodChosen() throws {
         let presenter = makePresenter()
         presenter.open()
         defer { presenter.editorWindow?.close() }
@@ -169,14 +199,16 @@ import Testing
         let popUp: NSPopUpButton = try #require(find("editor-layout", in: controller.view))
         popUp.selectItem(withTitle: "Default Layout")
         _ = popUp.sendAction(popUp.action, to: popUp.target)
+        let timing: NSSegmentedControl = try #require(
+            find("editor-timing-method", in: controller.view))
+        timing.selectedSegment = 1
+        _ = timing.sendAction(timing.action, to: timing.target)
+        #expect(controller.editing.state.timingMethod == .gameTime)
         startAttempt()
         presenter.applyOK()
         #expect(controller.linkedLayout == .defaultLayout)
-
-        let sink = EventSink(timer: content.timer, report: { _ in }, decideReset: { .discard })
-        _ = sink.handleCommand(#"{"command":"reset"}"#)
-        presenter.applyOK()
-        #expect(content.linkedLayout == .defaultLayout)
+        #expect(controller.editing.state.timingMethod == .gameTime)
+        #expect(timing.selectedSegment == 1)
     }
 
     @Test func cancelDiscardsTheEdits() throws {

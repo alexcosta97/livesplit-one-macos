@@ -16,11 +16,11 @@ If you are typing in a cell when you click **OK**, the app applies what you type
 
 **Edit Splits…** is greyed out during an attempt: see [The Menu](The-Menu#files). Reset first (**Reset** in [The Menu](The-Menu#control)).
 
-A server can start an attempt while the window is open. **OK** then can't replace the splits without dropping the attempt, and says so under the table: **The splits can't change while an attempt is in progress. Reset it, or choose Cancel.** The window stays open with your edits. Reset the timer, then click **OK**, or choose **Cancel**.
+A server can start an attempt while the window is open. **OK** then can't replace the splits without losing that attempt, even once it has been reset, and says so under the table: **An attempt was started while the splits editor was open, so these changes can't be applied. Choose Cancel, then edit the splits again.** The window stays open. Choose **Cancel**, then choose **Edit Splits…** again.
 
 ### While the window is open
 
-Nothing else can change the splits meanwhile: see [The Menu](The-Menu#files). **Quit** does nothing until you close the window.
+The timer's menus can't be used until you close the window: see [The Menu](The-Menu#files). **Quit** does nothing until you close the window.
 
 ## Game and category
 

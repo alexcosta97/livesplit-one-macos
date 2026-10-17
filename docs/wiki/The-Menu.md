@@ -25,7 +25,7 @@ An item that can't be used right now is greyed out.
 
 ## Files
 
-**Edit Splits…** is greyed out while an attempt is running, paused or finished and not reset yet, and while the editor is already open. **Open Splits** and **Open Layout** each open a list: **Open…**, then the recent files, the newest first, and **Clear Menu** below them. **Open Splits**, its recent files, its **Clear Menu** and **Close Splits** are greyed out while an attempt is running, paused or finished and not reset yet, and while the splits editor is open. What each item does, and the format each file uses, is in [Splits and Layouts](Splits-and-Layouts).
+**Edit Splits…** is greyed out while an attempt is running, paused or finished and not reset yet. **Open Splits** and **Open Layout** each open a list: **Open…**, then the recent files, the newest first, and **Clear Menu** below them. **Open Splits**, its recent files, its **Clear Menu** and **Close Splits** are greyed out while an attempt is running, paused or finished and not reset yet. While the splits editor is open, the timer's menus can't be used: see [Editing Splits](Editing-Splits#while-the-window-is-open). What each item does, and the format each file uses, is in [Splits and Layouts](Splits-and-Layouts).
 
 ## Control
 

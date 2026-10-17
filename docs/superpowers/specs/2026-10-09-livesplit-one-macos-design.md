@@ -533,10 +533,16 @@ Every change is saved at once and shows in the menus.
   if any edit changed them: livesplit-core marks the run changed on each
   edit, so OK with no edits leaves them as they were. **Cancel**, Escape and
   closing the window discard the copy.
-- If an attempt started while the window was open (a server can start one),
-  OK can't replace the run without dropping the attempt. It says so below
-  the table, **The splits can't change while an attempt is in progress.
-  Reset it, or choose Cancel.**, and the window stays open with the edits.
+- While the window is open the timer's menus are unavailable, but a server
+  can still start an attempt. If one started since the window opened,
+  whether it is still in progress or was reset, OK is refused: replacing the
+  run would drop the attempt, or the history, best times and attempt count
+  it added, which the copy doesn't have. The app compares the timer's
+  attempt count with the one it read when it took the copy, under the lock
+  that replaces the run. OK says below the table **An attempt was started
+  while the splits editor was open, so these changes can't be applied.
+  Choose Cancel, then edit the splits again.**, and the window stays open
+  with the edits.
 - **The window holds no state of its own.** Every edit goes to `RunEditor`,
   which parses and validates input, and the window then redraws from the
   editor's state. The one exception is the linked layout, which `RunEditor`
