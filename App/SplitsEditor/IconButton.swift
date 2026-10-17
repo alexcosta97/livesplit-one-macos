@@ -4,7 +4,7 @@ import AppKit
 /// **Remove Image** (spec §9).
 @MainActor
 final class IconButton: NSButton {
-    /// The side of the button, in points.
+    /// The side of the game's icon button, in points.
     static let side: CGFloat = 64
 
     var onChoose: () -> Void = {}
@@ -16,17 +16,21 @@ final class IconButton: NSButton {
         set { image = newValue }
     }
 
-    /// `label` is what VoiceOver says, such as "Game icon".
-    init(label: String) {
-        super.init(frame: NSRect(x: 0, y: 0, width: Self.side, height: Self.side))
+    /// Whether **Remove Image** is enabled; `nil` means when an icon shows. A group showing its
+    /// last segment's icon has none of its own to remove.
+    var canRemove: Bool?
+
+    /// `label` is what VoiceOver says, such as "Game icon"; `side` is in points.
+    init(label: String, side: CGFloat = IconButton.side) {
+        super.init(frame: NSRect(x: 0, y: 0, width: side, height: side))
         bezelStyle = .smallSquare
         imageScaling = .scaleProportionallyUpOrDown
         imagePosition = .imageOnly
         target = self
         action = #selector(showMenu(_:))
         setAccessibilityLabel(label)
-        widthAnchor.constraint(equalToConstant: Self.side).isActive = true
-        heightAnchor.constraint(equalToConstant: Self.side).isActive = true
+        widthAnchor.constraint(equalToConstant: side).isActive = true
+        heightAnchor.constraint(equalToConstant: side).isActive = true
     }
 
     @available(*, unavailable)
@@ -48,7 +52,7 @@ final class IconButton: NSButton {
         let remove = NSMenuItem(
             title: "Remove Image", action: #selector(removeItem(_:)), keyEquivalent: "")
         remove.target = self
-        remove.isEnabled = icon != nil
+        remove.isEnabled = canRemove ?? (icon != nil)
         menu.addItem(choose)
         menu.addItem(remove)
         return menu

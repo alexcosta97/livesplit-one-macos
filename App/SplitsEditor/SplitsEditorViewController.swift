@@ -33,7 +33,26 @@ final class SplitsEditorViewController: NSViewController, NSTextFieldDelegate {
         labels: ["Real Time", "Game Time"], trackingMode: .selectOne, target: nil, action: nil)
     private let messageField = NSTextField(wrappingLabelWithString: "")
 
-    /// Where the segment table goes (Task 6 of the plan).
+    /// What the message line shows: a refused entry's text, which the next good entry takes
+    /// away, or another text, which stays until it is replaced.
+    private enum Message: Equatable {
+        case invalidTime, invalidNumber
+        case other(String)
+
+        var text: String {
+            switch self {
+            case .invalidTime: "Enter a time, such as 1:23.45."
+            case .invalidNumber: "Enter a whole number."
+            case .other(let text): text
+            }
+        }
+    }
+    private var message: Message?
+
+    /// The segment table, in `tableContainer`.
+    private(set) lazy var segmentTable = SegmentTable(
+        editing: { [unowned self] in editing }, prompts: prompts)
+    /// Holds the segment table.
     let tableContainer = NSView()
     /// Where the button rows go (Task 7 of the plan).
     let buttonRows = NSStackView()
@@ -102,10 +121,22 @@ final class SplitsEditorViewController: NSViewController, NSTextFieldDelegate {
         for row in 0..<2 { grid.cell(atColumnIndex: 1, rowIndex: row).xPlacement = .fill }
         grid.translatesAutoresizingMaskIntoConstraints = false
 
-        // The table (Task 6) fills this.
         tableContainer.translatesAutoresizingMaskIntoConstraints = false
         tableContainer.setContentHuggingPriority(.defaultLow, for: .vertical)
         tableContainer.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
+        let tableScroll = segmentTable.scrollView
+        tableScroll.translatesAutoresizingMaskIntoConstraints = false
+        tableContainer.addSubview(tableScroll)
+        NSLayoutConstraint.activate([
+            tableScroll.leadingAnchor.constraint(equalTo: tableContainer.leadingAnchor),
+            tableScroll.trailingAnchor.constraint(equalTo: tableContainer.trailingAnchor),
+            tableScroll.topAnchor.constraint(equalTo: tableContainer.topAnchor),
+            tableScroll.bottomAnchor.constraint(equalTo: tableContainer.bottomAnchor),
+        ])
+        segmentTable.onChange = { [weak self] in self?.refresh() }
+        segmentTable.onTimeEntered = { [weak self] accepted in
+            if accepted { self?.clearInvalid() } else { self?.show(.invalidTime) }
+        }
 
         // The button rows (Task 7) go in this.
         buttonRows.orientation = .vertical
@@ -256,10 +287,16 @@ final class SplitsEditorViewController: NSViewController, NSTextFieldDelegate {
 
     // MARK: Drawing
 
-    /// Shows `text` in the message line, or hides it.
+    /// Shows `text` in the message line, or hides it. A good entry in a field doesn't take it
+    /// away.
     func showMessage(_ text: String?) {
-        messageField.stringValue = text ?? ""
-        messageField.isHidden = text == nil
+        show(text.map { .other($0) })
+    }
+
+    private func show(_ message: Message?) {
+        self.message = message
+        messageField.stringValue = message?.text ?? ""
+        messageField.isHidden = message == nil
     }
 
     /// Redraws everything from `editing.state`, leaving alone a field that is being edited.
@@ -272,6 +309,7 @@ final class SplitsEditorViewController: NSViewController, NSTextFieldDelegate {
         show(state.offset, in: offsetField)
         show(String(state.attempts), in: attemptsField)
         timingControl.selectedSegment = state.timingMethod == .realTime ? 0 : 1
+        segmentTable.refresh()
     }
 
     private func show(_ text: String, in field: NSTextField) {
@@ -303,11 +341,11 @@ final class SplitsEditorViewController: NSViewController, NSTextFieldDelegate {
         return endEditing(field, text: field.currentEditor()?.string ?? field.stringValue)
     }
 
-    /// Takes the red and the message of a refused entry away.
+    /// Takes the red and the message of a refused entry away, leaving any other message.
     private func clearInvalid() {
         offsetField.textColor = .controlTextColor
         attemptsField.textColor = .controlTextColor
-        showMessage(nil)
+        if message == .invalidTime || message == .invalidNumber { show(nil) }
     }
 
     private func endEditing(_ field: NSTextField, text: String) -> Bool {
@@ -317,9 +355,7 @@ final class SplitsEditorViewController: NSViewController, NSTextFieldDelegate {
             clearInvalid()
         } else {
             field.textColor = .systemRed
-            showMessage(
-                field === offsetField
-                    ? "Enter a time, such as 1:23.45." : "Enter a whole number.")
+            show(field === offsetField ? .invalidTime : .invalidNumber)
         }
         return accepted
     }

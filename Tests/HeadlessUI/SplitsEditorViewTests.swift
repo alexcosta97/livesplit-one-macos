@@ -162,6 +162,21 @@ import Testing
         #expect(message.isHidden)
     }
 
+    @Test func aValidEntryKeepsAMessageThatIsNotAboutInput() throws {
+        let controller = try makeController()
+        controller.showMessage("Something else")
+        #expect(try shouldEnd("editor-offset", with: "1.5", controller))
+        try endEditing("editor-attempts", with: "3", controller)
+        let message: NSTextField = try #require(find("editor-message", in: controller.view))
+        #expect(!message.isHidden)
+        #expect(message.stringValue == "Something else")
+
+        #expect(try !shouldEnd("editor-offset", with: "abc", controller))
+        #expect(message.stringValue == "Enter a time, such as 1:23.45.")
+        #expect(try shouldEnd("editor-offset", with: "2", controller))
+        #expect(message.isHidden)
+    }
+
     @Test func theLayoutListShowsNoneTheCurrentAndTheLinkedOne() throws {
         let controller = try makeController(link: .path("/a/Other.lsl"), current: "/b/Dark.lsl")
         let popUp = try popUp(controller)
