@@ -122,8 +122,10 @@ final class FileTests: XCTestCase {
             .withOffset(CGVector(dx: before.width / 2, dy: before.height / 2))
         let target = window.coordinate(withNormalizedOffset: .zero)
             .withOffset(CGVector(dx: before.width / 2 + 120, dy: before.height / 2 + 80))
-        middle.press(forDuration: 0.2, thenDragTo: target)
+        // click, not press: see TimerWindowTests.
+        middle.click(forDuration: 0.2, thenDragTo: target)
         let moved = window.frame
+        XCTAssertEqual(moved.minX, before.minX + 120, accuracy: 2, "the window didn't move")
 
         let saved = e2e.settingsText(containing: "x = \(Double(moved.minX))")
         XCTAssertNotNil(saved, "app.toml doesn't hold the moved frame")
