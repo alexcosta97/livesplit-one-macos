@@ -235,6 +235,9 @@ import Testing
             #expect(popUp.pullsDown)
             #expect(popUp.isEnabled)
             #expect(popUp.menu?.items.map(\.title).dropFirst() == ["Goal"])
+            // An item names its comparison by its represented object, not by its title.
+            #expect(
+                popUp.menu?.items.dropFirst().map { $0.representedObject as? String } == ["Goal"])
         }
         let other = try popUp("editor-other", controller)
         #expect(other.pullsDown)

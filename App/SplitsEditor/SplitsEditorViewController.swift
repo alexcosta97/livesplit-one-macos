@@ -53,8 +53,9 @@ final class SplitsEditorViewController: NSViewController, NSTextFieldDelegate {
     private(set) lazy var segmentTable = SegmentTable(
         editing: { [unowned self] in editing }, prompts: prompts)
     /// Holds the segment table.
-    let tableContainer = NSView()
-    /// The button rows: segments, groups, comparisons.
+    private let tableContainer = NSView()
+    /// The button rows: segments, groups, comparisons. Internal for the test that checks they
+    /// fit in the smallest window.
     let buttonRows = NSStackView()
 
     private let insertAboveButton = NSButton()
@@ -410,6 +411,7 @@ final class SplitsEditorViewController: NSViewController, NSTextFieldDelegate {
         while menu.numberOfItems > 1 { menu.removeItem(at: 1) }
         for name in names {
             let item = NSMenuItem(title: name, action: action, keyEquivalent: "")
+            item.representedObject = name
             item.target = self
             menu.addItem(item)
         }
@@ -533,7 +535,7 @@ final class SplitsEditorViewController: NSViewController, NSTextFieldDelegate {
     }
 
     @objc private func renameComparisonPressed(_ sender: NSMenuItem) {
-        let old = sender.title
+        guard let old = sender.representedObject as? String else { return }
         perform {
             _ = prompts.askName(
                 title: "Rename Comparison", prefill: old,
@@ -542,7 +544,7 @@ final class SplitsEditorViewController: NSViewController, NSTextFieldDelegate {
     }
 
     @objc private func removeComparisonPressed(_ sender: NSMenuItem) {
-        let name = sender.title
+        guard let name = sender.representedObject as? String else { return }
         perform { editing.removeComparison(name) }
     }
 
