@@ -20,6 +20,8 @@ final class SegmentTable: NSObject, NSTableViewDataSource, NSTableViewDelegate,
     /// Ends the editing of a field before an icon changes, and says whether it ended; the
     /// window's one rule for every action. An icon isn't changed if it didn't.
     var endEditing: () -> Bool = { true }
+    /// Escape in a cell: Cancel for the whole window (spec §9).
+    var onCancel: () -> Void = {}
 
     /// The editor, which the window can replace.
     private let editing: () -> SplitsEditing
@@ -391,6 +393,17 @@ final class SegmentTable: NSObject, NSTableViewDataSource, NSTableViewDelegate,
         onChange()
     }
 
+    /// Escape in a cell cancels the window, even with an invalid time in it (spec §9). The
+    /// field editor sends `cancelOperation(_:)` up the responder chain, where the table would
+    /// take it to end only the cell's edit.
+    func control(
+        _ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector
+    ) -> Bool {
+        guard commandSelector == #selector(NSResponder.cancelOperation(_:)) else { return false }
+        onCancel()
+        return true
+    }
+
     /// A time is checked as editing ends; one the editor refuses turns red and keeps focus.
     func control(_ control: NSControl, textShouldEndEditing fieldEditor: NSText) -> Bool {
         guard let field = control as? NSTextField, let (column, row) = position(of: field),
@@ -442,7 +455,9 @@ final class SegmentTable: NSObject, NSTableViewDataSource, NSTableViewDelegate,
     }
 
     private func removeIcon(_ cell: NSView) {
-        guard endEditing(), let (_, row) = position(of: cell) else { return }
+        guard endEditing(), let (_, row) = position(of: cell),
+            editing().state.rows.indices.contains(row)
+        else { return }
         switch editing().state.rows[row] {
         case .segment(let segment): editing().removeSegmentIcon(segment: segment.segmentIndex)
         case .group(let group): editing().removeGroupIcon(group.groupIndex)

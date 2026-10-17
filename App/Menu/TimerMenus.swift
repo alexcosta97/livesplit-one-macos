@@ -26,6 +26,8 @@ final class TimerMenus: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private let shortcuts: @MainActor () -> Shortcuts
     private let files: FileController
     private let connectionStatus: @MainActor () -> ConnectionStatus
+    /// Opens the splits editor (spec §9).
+    private let splitsEditor: SplitsEditorPresenter?
     /// Connect to Server… in both menus, titled from the connection status (spec §8.3).
     private var connectItems: [NSMenuItem] = []
     /// Which recent files an Open Splits or Open Layout submenu lists.
@@ -44,11 +46,13 @@ final class TimerMenus: NSObject, NSMenuDelegate, NSMenuItemValidation {
     init(
         runner: CommandRunner, readState: @escaping @MainActor () -> TimerMenuState,
         shortcuts: @escaping @MainActor () -> Shortcuts, files: FileController,
-        connectionStatus: @escaping @MainActor () -> ConnectionStatus = { .notConnected }
+        connectionStatus: @escaping @MainActor () -> ConnectionStatus = { .notConnected },
+        splitsEditor: SplitsEditorPresenter? = nil
     ) {
         self.runner = runner
         self.files = files
         self.connectionStatus = connectionStatus
+        self.splitsEditor = splitsEditor
         self.readState = readState
         self.shortcuts = shortcuts
         super.init()
@@ -125,13 +129,15 @@ final class TimerMenus: NSObject, NSMenuDelegate, NSMenuItemValidation {
         return item
     }
 
-    /// The Files items, the same in both menus; the right-click menu's have identifiers.
+    /// The Files items, the same in both menus, Edit Splits… first (spec §7); the right-click
+    /// menu's have identifiers.
     private func fileItems(identified: Bool) -> (splits: [NSMenuItem], layout: [NSMenuItem]) {
         func named(_ item: NSMenuItem, _ identifier: String) -> NSMenuItem {
             item.target = self
             return identified ? self.identified(item, "timer-" + identifier) : item
         }
         let splits = [
+            named(item("Edit Splits…", #selector(editSplits(_:))), "edit-splits"),
             parent(
                 "Open Splits", recentMenu(.splits, identifierPrefix: identified ? "timer-" : nil),
                 identifier: identified ? "timer-open-splits" : nil),
@@ -182,6 +188,21 @@ final class TimerMenus: NSObject, NSMenuDelegate, NSMenuItemValidation {
             item("Always on Top", #selector(AppDelegate.toggleAlwaysOnTop(_:))),
         ]
         helpMenu.items = [item("Open Log Folder", #selector(AppDelegate.openLogFolder(_:)))]
+        // For the text fields of the splits editor and the Connect sheet, which only get these
+        // keys from menu items (spec §7). They have no target, so they reach the first
+        // responder. They aren't in `Shortcuts.reserved`: the Settings window's recorder takes
+        // ⌘-keys before the menus (`KeyRecorderView.performKeyEquivalent`), and `ShortcutKeys`
+        // takes the Control shortcuts in the timer window before any menu.
+        let editMenu = NSMenu(title: "Edit")
+        editMenu.items = [
+            item("Undo", Selector(("undo:")), key: "z"),
+            item("Redo", Selector(("redo:")), key: "z", modifiers: [.shift, .command]),
+            .separator(),
+            item("Cut", #selector(NSText.cut(_:)), key: "x"),
+            item("Copy", #selector(NSText.copy(_:)), key: "c"),
+            item("Paste", #selector(NSText.paste(_:)), key: "v"),
+            item("Select All", #selector(NSText.selectAll(_:)), key: "a"),
+        ]
         let fileMenu = NSMenu(title: "File")
         let fileItems = fileItems(identified: false)
         fileMenu.items =
@@ -190,6 +211,7 @@ final class TimerMenus: NSObject, NSMenuDelegate, NSMenuItemValidation {
         mainMenu.items = [
             parent("LiveSplit One", app),
             parent("File", fileMenu),
+            parent("Edit", editMenu),
             parent("Control", controlMenu(identifierPrefix: nil)),
             parent("Compare Against", compareAgainstMenu()),
             parent("Window", windowMenu),
@@ -271,6 +293,8 @@ final class TimerMenus: NSObject, NSMenuDelegate, NSMenuItemValidation {
 
     // MARK: Files
 
+    @objc func editSplits(_ sender: Any?) { splitsEditor?.open() }
+
     @objc func openSplits(_ sender: Any?) { files.openSplits() }
 
     @objc func openRecentSplits(_ sender: NSMenuItem) {
@@ -294,17 +318,23 @@ final class TimerMenus: NSObject, NSMenuDelegate, NSMenuItemValidation {
 
     // MARK: Validation and updates
 
-    /// Gives a Control item its title and enabled state from the timer, and enables the Files
-    /// items that replace the run (Open Splits' items, Close Splits) only while no attempt is in
-    /// progress (spec §7).
+    /// Whether the items that replace the run (Edit Splits, Open Splits' items, Close Splits)
+    /// are enabled: not while an attempt is in progress, which replacing the run would drop, nor
+    /// while the splits editor is open, whose OK would overwrite the new run (spec §7).
+    private var canReplaceRun: Bool {
+        files.canReplaceRun && splitsEditor?.isOpen != true
+    }
+
+    /// Gives a Control item its title and enabled state from the timer, and enables the items
+    /// that replace the run only when `canReplaceRun` (spec §7).
     func validateMenuItem(_ item: NSMenuItem) -> Bool {
         switch item.action {
         case #selector(runControlCommand(_:)):
             break
-        case #selector(openSplits(_:)), #selector(openRecentSplits(_:)),
-            #selector(clearRecentSplits(_:)), #selector(closeSplits(_:)):
-            // Replacing the run would drop an attempt in progress (spec §7).
-            return files.canReplaceRun
+        case #selector(editSplits(_:)), #selector(openSplits(_:)),
+            #selector(openRecentSplits(_:)), #selector(clearRecentSplits(_:)),
+            #selector(closeSplits(_:)):
+            return canReplaceRun
         default:
             return true
         }
@@ -356,8 +386,9 @@ final class TimerMenus: NSObject, NSMenuDelegate, NSMenuItemValidation {
             item.target = self
             // AppKit doesn't validate the items added here before showing the submenu, so
             // they are enabled or not as they are filled in, as `validateMenuItem(_:)` would
-            // have them: splits can't be replaced while an attempt runs (spec §7).
-            item.isEnabled = kind == .layouts || files.canReplaceRun
+            // have them: splits can't be replaced while an attempt runs or the splits editor
+            // is open (spec §7).
+            item.isEnabled = kind == .layouts || canReplaceRun
             if let identifierPrefix {
                 item.identifier = NSUserInterfaceItemIdentifier(identifierPrefix + identifier)
             }

@@ -383,11 +383,15 @@ import Testing
         #expect(window.makeFirstResponder(split))
         try type("abc", into: split)
         let icon: IconButton = try #require(find("editor-game-icon", in: controller.view))
+        let before = controller.editing.state.icon
+        #expect(controller.editing.image(before) != nil)
         icon.chooseImage()
         #expect(prompts.imagesAsked == 0)
         #expect(split.currentEditor() != nil)
         icon.removeImage()
         #expect(split.currentEditor() != nil)
+        #expect(controller.editing.state.icon == before)
+        #expect(controller.editing.image(controller.editing.state.icon) != nil)
     }
 
     @Test func theTimingSwitchIsRefusedWhileATimeIsInvalid() throws {

@@ -1,21 +1,26 @@
 import AppKit
 
 /// What quitting asks and does (spec §7.1): an attempt in progress is reset first, which may
-/// ask the reset question, then unsaved changes are asked about. Kept apart from the app
-/// delegate so the tests need not quit.
+/// ask the reset question, then unsaved changes are asked about. While the splits editor is
+/// open, quitting is refused. Kept apart from the app delegate so the tests need not quit.
 @MainActor
 final class QuitFlow {
     private let content: TimerContent
     private let runner: CommandRunner
     private let files: FileController
+    private let splitsEditor: SplitsEditorPresenter?
     /// Whether a quit is being decided, so a second request is cancelled rather than queuing
     /// another reset and another reply.
     private var pending = false
 
-    init(content: TimerContent, runner: CommandRunner, files: FileController) {
+    init(
+        content: TimerContent, runner: CommandRunner, files: FileController,
+        splitsEditor: SplitsEditorPresenter? = nil
+    ) {
         self.content = content
         self.runner = runner
         self.files = files
+        self.splitsEditor = splitsEditor
     }
 
     /// The answer to `applicationShouldTerminate`. With an attempt in progress it queues a reset
@@ -28,6 +33,8 @@ final class QuitFlow {
         reply: @escaping @MainActor (Bool) -> Void
     ) -> NSApplication.TerminateReply {
         guard !pending else { return .terminateCancel }
+        // The editor's OK would replace the run after the questions were answered (spec §9).
+        guard splitsEditor?.isOpen != true else { return .terminateCancel }
         // A Start queued just after this read can't lose more than an attempt that is
         // milliseconds old, so the phase isn't held against the queue.
         guard content.phase != .notRunning else {

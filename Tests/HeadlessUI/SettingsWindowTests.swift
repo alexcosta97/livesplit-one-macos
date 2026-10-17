@@ -157,6 +157,23 @@ import Testing
         #expect(store.settings.shortcuts.isDefault)
     }
 
+    /// ⌘Z is the Edit menu's Undo, and not reserved: the recorder takes it before the menus, so
+    /// it can be recorded as a shortcut.
+    @Test(.onABCOrUSLayout) func theRecorderTakesTheEditMenusKeysBeforeTheMenus() throws {
+        let controller = SettingsWindowController(store: store, onChange: {})
+        let window = try #require(controller.window)
+        let content = controller.content
+        try press("add-shortcut-undo_all_pauses", in: content)
+
+        let event = keyDown(
+            kVK_ANSI_Z, "z", flags: .command, windowNumber: window.windowNumber)
+        #expect(window.performKeyEquivalent(with: event))
+        #expect(content.recording == nil)
+        #expect(
+            store.settings.shortcuts.shortcuts(for: .undoAllPauses)
+                == [Shortcut(key: .character("z"), modifiers: .meta)])
+    }
+
     @Test func escapeCancelsRecording() throws {
         let controller = makeController()
         try press("add-shortcut-pause", in: controller)

@@ -147,6 +147,7 @@ final class SplitsEditorViewController: NSViewController, NSTextFieldDelegate {
         ])
         segmentTable.endEditing = { [weak self] in self?.endFieldEditing() ?? true }
         segmentTable.onChange = { [weak self] in self?.refresh() }
+        segmentTable.onCancel = { [weak self] in self?.cancel() }
         segmentTable.onTimeEntered = { [weak self] accepted in
             if accepted { self?.clearInvalid() } else { self?.show(.invalidTime) }
         }
@@ -554,4 +555,6 @@ final class SplitsEditorViewController: NSViewController, NSTextFieldDelegate {
         ok()
     }
     @objc func cancelPressed(_ sender: Any?) { cancel() }
+    /// Escape, when the Cancel button's key equivalent didn't take it, is Cancel too (spec §9).
+    override func cancelOperation(_ sender: Any?) { cancel() }
 }
