@@ -20,8 +20,6 @@ More about formats and recent files is in [Splits and Layouts](Splits-and-Layout
 
 Your splits keep their times. Drag the edges of the window to change its size: the app remembers it for this layout. If your splits name a layout, it was opened for you in step 2, and you can skip this step.
 
-To rename segments or change their times, see [Editing Splits](Editing-Splits).
-
 ## 4. Start and split
 
 Click the timer so it is the window in front, then:
@@ -54,6 +52,7 @@ The timer shows **Connected to 192.168.1.20:9087**, and the auto splitter now st
 
 ## Next
 
+- [Editing Splits](Editing-Splits): renaming segments and changing times.
 - [The Menu](The-Menu): every command in the menus.
 - [Splits and Layouts](Splits-and-Layouts): everything about files.
 - [Connecting to a Server](Connecting-to-a-Server): everything about the bridge.

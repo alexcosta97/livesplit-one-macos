@@ -54,7 +54,7 @@ If an attempt is in progress when you quit, the app resets it first, as LiveSpli
 
 ## Why Open Splits is greyed out
 
-**Open Splits**, its recent files, its **Clear Menu** and **Close Splits** are greyed out while an attempt is running, paused, or finished and not reset yet. Replacing the splits then would throw the attempt away. Reset first (**Reset** in [The Menu](The-Menu#control)), then open the splits. They are also greyed out while the splits editor is open: see [Editing Splits](Editing-Splits#while-the-window-is-open). **Open Layout** isn't affected, so you can change the layout in the middle of an attempt.
+**Open Splits**, its recent files, its **Clear Menu** and **Close Splits** are greyed out while an attempt is running, paused, or finished and not reset yet. Replacing the splits then would throw the attempt away. Reset first (**Reset** in [The Menu](The-Menu#control)), then open the splits. They are also greyed out while the splits editor is open: see [The Menu](The-Menu#files). **Open Layout** isn't affected, so you can change the layout in the middle of an attempt.
 
 ## Reset with new best times
 

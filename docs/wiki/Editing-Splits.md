@@ -14,13 +14,13 @@ If you are typing in a cell when you click **OK**, the app applies what you type
 
 ### While an attempt is in progress
 
-**Edit Splits…** is greyed out while an attempt is running, paused, or finished and not reset yet. Reset first (**Reset** in [The Menu](The-Menu#control)).
+**Edit Splits…** is greyed out during an attempt: see [The Menu](The-Menu#files). Reset first (**Reset** in [The Menu](The-Menu#control)).
 
 A server can start an attempt while the window is open. **OK** then can't replace the splits without dropping the attempt, and says so under the table: **The splits can't change while an attempt is in progress. Reset it, or choose Cancel.** The window stays open with your edits. Reset the timer, then click **OK**, or choose **Cancel**.
 
 ### While the window is open
 
-Nothing else can change the splits. **Open Splits**, its recent files and **Close Splits** are greyed out, and **Quit** does nothing until you close the window.
+Nothing else can change the splits meanwhile: see [The Menu](The-Menu#files). **Quit** does nothing until you close the window.
 
 ## Game and category
 
@@ -41,7 +41,7 @@ The choice is saved with the splits, and the app opens that layout the next time
 
 ## Segments
 
-The table has a row for each segment. Its columns are **Icon**, **Segment Name**, **Split Time**, **Segment Time** and **Best Segment**, then one column for each custom comparison.
+The table has a row for each segment. It starts with an icon column, then **Segment Name**, **Split Time**, **Segment Time** and **Best Segment**, then one column for each custom comparison.
 
 Click a name or a time and type to edit it. Press Return to finish, or Tab to go to the next cell. Escape cancels the whole window.
 
@@ -78,11 +78,11 @@ A group puts segments under one name, such as a world or a chapter. Its row show
 
 **Real Time** and **Game Time**, under the table, choose which times the table shows and edits. See [The Menu](The-Menu#compare-against) for the timing method the timer uses.
 
-An empty time clears it.
+An empty time in the table clears it.
 
 ### Invalid times
 
-If a time or the start offset isn't a time, the cell turns red and keeps the cursor, and a line under the table says **Enter a time, such as 1:23.45.** For **Attempts:**, the line says **Enter a whole number.** Fix it, or clear it, to go on. **OK** doesn't close the window while one is wrong.
+If a time or **Start Offset:** isn't a time, the cell turns red and keeps the cursor, and a line under the table says **Enter a time, such as 1:23.45.** If **Attempts:** isn't a whole number, the line says **Enter a whole number.** An empty start offset or attempt count is also refused. Type a valid value, or choose **Cancel**, to go on. Only the times in the table can be left empty. **OK** doesn't close the window while one is wrong.
 
 ## Comparisons
 
