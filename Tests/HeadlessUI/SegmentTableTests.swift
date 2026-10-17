@@ -145,6 +145,13 @@ import Testing
             let time = try cell(column, 1, controller)
             #expect(time.stringValue == "")
             #expect(!time.isEditable)
+            #expect(!time.isSelectable)
+            #expect(!time.acceptsFirstResponder)
+            // The field's cell is what VoiceOver reads.
+            #expect(time.cell?.isAccessibilityElement() == false)
+            let segmentTime = try cell(column, 2, controller)
+            #expect(segmentTime.isSelectable)
+            #expect(segmentTime.cell?.isAccessibilityElement() == true)
         }
     }
 
@@ -318,7 +325,10 @@ import Testing
         let split = try cell("split", 3, controller)
         #expect(window.makeFirstResponder(b))
         b.currentEditor()?.string = "Bee"
-        // Tab ends the edit through the delegate, which redraws, then edits the next field.
+        // Tab ends the edit through the delegate, which redraws, then edits the next field. A
+        // real Tab moves along a row here (the next test) but doesn't wrap to the next row in
+        // an offscreen window, so moving to C's name is done as Tab does it, with
+        // makeFirstResponder; Task 8's E2E test presses a real Tab.
         #expect(window.makeFirstResponder(c))
         guard case .segment(let segment) = controller.editing.state.rows[2] else {
             Issue.record("Row 2 isn't a segment")
@@ -339,6 +349,60 @@ import Testing
         #expect(try cell("name", 3, controller) === c)
         #expect(try cell("split", 3, controller) === split)
         #expect(split.stringValue == "1:00.00")
+    }
+
+    @Test func aRealTabKeepsTheNextCellEditingThroughARedraw() throws {
+        let controller = try makeController()
+        let window = host(controller)
+        defer { window.close() }
+        let b = try cell("name", 2, controller)
+        let split = try cell("split", 2, controller)
+        #expect(window.makeFirstResponder(b))
+        let editor = try #require(b.currentEditor() as? NSTextView)
+        editor.string = "Bee"
+        editor.insertTab(nil)
+        guard case .segment(let segment) = controller.editing.state.rows[2] else {
+            Issue.record("Row 2 isn't a segment")
+            return
+        }
+        #expect(segment.name == "Bee")
+        #expect(b.stringValue == "Bee")
+        #expect(split.currentEditor() != nil)
+        split.currentEditor()?.string = "Typing"
+
+        let table = try table(controller)
+        _ = controller.editing.setTime(.split, "1:00", segment: 2)
+        controller.refresh()
+        #expect(table.selectedRowIndexes == [0, 1, 2, 3])
+        #expect(split.currentEditor()?.string == "Typing")
+        #expect(try cell("split", 2, controller) === split)
+        #expect(try cell("split", 3, controller).stringValue == "1:00.00")
+    }
+
+    @Test func comparisonColumnsKeepTheirWidths() throws {
+        let controller = try makeController()
+        let window = host(controller)
+        defer { window.close() }
+        let table = try table(controller)
+        let goal = try #require(table.tableColumns.last)
+        goal.width = 150
+        #expect(controller.editing.addComparison("Goal 2"))
+        controller.refresh()
+        #expect(table.tableColumns.map(\.width).suffix(2) == [150, 100])
+        table.tableColumns.last?.width = 130
+
+        // A rename keeps the column's place and width.
+        #expect(controller.editing.renameComparison("Goal", to: "PB Goal"))
+        controller.refresh()
+        #expect(table.tableColumns.map(\.title).suffix(2) == ["PB Goal", "Goal 2"])
+        #expect(table.tableColumns.map(\.width).suffix(2) == [150, 130])
+
+        // A removed comparison takes its column; the others keep theirs.
+        controller.editing.removeComparison("PB Goal")
+        controller.refresh()
+        #expect(table.tableColumns.last?.title == "Goal 2")
+        #expect(table.tableColumns.last?.identifier.rawValue == "comparison-0")
+        #expect(table.tableColumns.last?.width == 130)
     }
 
     @Test func aNewComparisonAddsAColumn() throws {
@@ -429,4 +493,5 @@ import Testing
         #expect(prompts.iconFailures.map(\.file) == ["NotSplits.txt"])
         #expect(try icon(0, controller).icon == nil)
     }
+
 }

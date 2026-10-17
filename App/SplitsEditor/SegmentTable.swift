@@ -29,7 +29,11 @@ final class SegmentTable: NSObject, NSTableViewDataSource, NSTableViewDelegate,
         var comparisons: [String]
     }
     private var drawn: Shape?
-    /// Set while the table asks for a selection, which it then shows itself.
+    /// Set while `selection(proposed:event:clickedRow:)` changes the editor's selection. The
+    /// window's redraw that follows calls `refresh()`, which must not call `selectRowIndexes`
+    /// then: the table is in the middle of choosing its selection and sets the one returned.
+    /// It doesn't guard against the delegate being asked again: the table doesn't ask about a
+    /// selection set in code (see `select(_:)`).
     private var isAnswering = false
 
     /// A column of the table, named as in the cells' identifiers.
@@ -136,7 +140,7 @@ final class SegmentTable: NSObject, NSTableViewDataSource, NSTableViewDelegate,
             }
         } else {
             if shape.comparisons != drawn?.comparisons {
-                buildComparisonColumns(state.comparisonNames)
+                buildComparisonColumns(state.comparisonNames, replacing: drawn?.comparisons ?? [])
             }
             drawn = shape
             tableView.reloadData()
@@ -144,15 +148,26 @@ final class SegmentTable: NSObject, NSTableViewDataSource, NSTableViewDelegate,
         if !isAnswering { select(EditorSelection.selectedRows(state.rows)) }
     }
 
-    /// Replaces the comparison columns with one per name.
-    private func buildComparisonColumns(_ names: [String]) {
+    /// Makes the comparison columns one per name, in order, keeping the columns, and so the
+    /// widths, of comparisons that stay. With as many names as before, a column keeps its
+    /// place, so a renamed comparison keeps its column; otherwise columns are matched by name.
+    private func buildComparisonColumns(_ names: [String], replacing old: [String]) {
+        var columns: [Int: NSTableColumn] = [:]
         for tableColumn in tableView.tableColumns {
-            if case .comparison = Column(tableColumn.identifier) {
+            if case .comparison(let index) = Column(tableColumn.identifier) {
+                columns[index] = tableColumn
                 tableView.removeTableColumn(tableColumn)
             }
         }
         for (index, name) in names.enumerated() {
-            tableView.addTableColumn(Self.makeColumn(.comparison(index), title: name, width: 100))
+            let kept =
+                names.count == old.count
+                ? columns[index] : old.firstIndex(of: name).flatMap { columns[$0] }
+            let tableColumn = kept ?? Self.makeColumn(.comparison(index), title: name, width: 100)
+            tableColumn.identifier = NSUserInterfaceItemIdentifier(
+                Column.comparison(index).identifier)
+            tableColumn.title = name
+            tableView.addTableColumn(tableColumn)
         }
     }
 
@@ -230,6 +245,10 @@ final class SegmentTable: NSObject, NSTableViewDataSource, NSTableViewDelegate,
         if field.stringValue != content.text { field.stringValue = content.text }
         field.placeholderString = content.placeholder
         field.isEditable = content.isEditable
+        // A group's time cells are blank: no stop for the keyboard or for VoiceOver, whose
+        // element is the field's cell.
+        field.isSelectable = content.isEditable
+        field.cell?.setAccessibilityElement(content.isEditable)
         field.alignment = column == .name ? .natural : .right
         field.font =
             switch (column, state.rows[row]) {
@@ -402,7 +421,9 @@ final class SegmentTable: NSObject, NSTableViewDataSource, NSTableViewDelegate,
     // MARK: Icons
 
     private func chooseIcon(_ cell: NSView) {
-        guard let (_, row) = position(of: cell), let url = prompts.chooseImage() else { return }
+        guard let (_, row) = position(of: cell), let url = prompts.chooseImage(),
+            editing().state.rows.indices.contains(row)
+        else { return }
         let data: Data
         do {
             data = try ImageFile.load(url)
