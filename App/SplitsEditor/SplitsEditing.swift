@@ -49,7 +49,9 @@ final class SplitsEditing {
 
     /// The edited run. The editor can't be used after.
     func finish() -> Run {
-        editor.close()
+        precondition(!finished, "The run was already finished")
+        finished = true
+        return editor.close()
     }
 
     // MARK: Run
@@ -137,6 +139,8 @@ final class SplitsEditing {
 
     /// An empty name gives the group its last segment's name.
     func renameGroup(_ index: Int, _ name: String) {
+        // The group calls here and below return false only for an index with no group, and the indexes come
+        // from `state`, so the results are dropped.
         _ = editor.renameSegmentGroup(index, name)
         refresh()
     }
@@ -173,7 +177,8 @@ final class SplitsEditing {
         refresh()
     }
 
-    /// `false` if `text` isn't a time. An empty one clears the time.
+    /// `false` if `text` isn't a time. An empty one clears the time. `segment` becomes the
+    /// active one even when the text doesn't parse, as editing a cell does in LiveSplit One.
     func setTime(_ column: TimeColumn, _ text: String, segment: Int) -> Bool {
         activate(segment)
         let parsed =

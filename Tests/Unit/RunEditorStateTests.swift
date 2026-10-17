@@ -6,8 +6,9 @@ import Testing
 
 @MainActor
 @Suite struct RunEditorStateTests {
-    private func state(of run: Run) throws -> RunEditorState {
+    private func state(of run: Run, timing: TimingMethod? = nil) throws -> RunEditorState {
         let editor = try #require(RunEditor(run))
+        if let timing { editor.selectTimingMethod(timing.rawValue) }
         let json = editor.stateAsJson(ImageCache(), 0)
         _ = editor.close()
         return try RunEditorState.decode(json)
@@ -54,10 +55,6 @@ import Testing
 
     @Test func gameTimeDecodes() throws {
         let run = try SplitsFile.load(Fixtures.url("GameTime.lss"))
-        let editor = try #require(RunEditor(run))
-        editor.selectTimingMethod(TimingMethod.gameTime.rawValue)
-        let json = editor.stateAsJson(ImageCache(), 0)
-        _ = editor.close()
-        #expect(try RunEditorState.decode(json).timingMethod == .gameTime)
+        #expect(try state(of: run, timing: .gameTime).timingMethod == .gameTime)
     }
 }

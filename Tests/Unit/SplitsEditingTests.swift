@@ -94,7 +94,8 @@ import Testing
     }
 
     @Test func theGameIconIsAnImageOnlyWhenThereIsOne() throws {
-        #expect(try editing("Grouped.lss").image(try editing("Grouped.lss").state.icon) != nil)
+        let grouped = try editing("Grouped.lss")
+        #expect(grouped.image(grouped.state.icon) != nil)
         let plain = try editing()
         #expect(plain.image(plain.state.icon) == nil)
     }
@@ -128,11 +129,27 @@ import Testing
     }
 
     @Test func linkedLayoutsAreSetAndRemoved() throws {
+        let path = try editing()
+        path.setLinkedLayout(.path("/a/x.lsl"))
+        #expect(try #require(path.finish().linkedLayout()).path() == "/a/x.lsl")
+
+        let standard = try editing()
+        standard.setLinkedLayout(.defaultLayout)
+        #expect(try #require(standard.finish().linkedLayout()).isDefault())
+
+        let none = try editing()
+        none.setLinkedLayout(.path("/a/x.lsl"))
+        none.setLinkedLayout(.none)
+        #expect(none.finish().linkedLayout() == nil)
+    }
+
+    @Test func aBadTimeStillMakesItsSegmentActive() throws {
         let editing = try editing()
-        editing.setLinkedLayout(.defaultLayout)
-        editing.setLinkedLayout(.path("/tmp/x.lsl"))
-        editing.setLinkedLayout(.none)
-        _ = editing.finish()
+        editing.insertBelow()
+        let before = try (0..<2).map { try segment(editing, row: $0).splitTime }
+        #expect(!editing.setTime(.split, "abc", segment: 1))
+        #expect(try (0..<2).map { try segment(editing, row: $0).splitTime } == before)
+        #expect(try segment(editing, row: 1).selected == .active)
     }
 
     @Test func groupsAreRemovedOnlyWhenGroupsAreSelected() throws {
