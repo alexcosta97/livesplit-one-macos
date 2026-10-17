@@ -10,6 +10,8 @@ import Testing
 @Suite final class SegmentTableTests {
     let prompts = ScriptedPrompts()
     let folder: TemporaryFolder
+    /// How many times the window's OK ran.
+    var oks = 0
 
     init() throws {
         folder = try TemporaryFolder()
@@ -20,7 +22,8 @@ import Testing
     {
         let controller = SplitsEditorViewController(
             editing: SplitsEditing(run: try SplitsFile.load(Fixtures.url(fixture)), lang: 0),
-            linkedLayout: .none, currentLayout: nil, prompts: prompts, ok: {}, cancel: {})
+            linkedLayout: .none, currentLayout: nil, prompts: prompts,
+            ok: { [unowned self] in oks += 1 }, cancel: {})
         _ = controller.view
         return controller
     }
@@ -218,6 +221,55 @@ import Testing
         #expect(try enter("1:00", in: "split", 0, controller))
         #expect(field.textColor == .controlTextColor)
         #expect(message.isHidden)
+    }
+
+    /// Return in a cell ends only that cell's edit and leaves the window open (spec §9).
+    @Test func returnInACellEndsItsEditOnly() throws {
+        let controller = try makeController()
+        let window = host(controller)
+        defer { window.close() }
+        let b = try cell("name", 2, controller)
+        #expect(window.makeFirstResponder(b))
+        let editor = try #require(b.currentEditor() as? NSTextView)
+        editor.string = "Bee"
+        editor.doCommand(by: #selector(NSResponder.insertNewline(_:)))
+        guard case .segment(let segment) = controller.editing.state.rows[2] else {
+            Issue.record("Row 2 isn't a segment")
+            return
+        }
+        #expect(segment.name == "Bee")
+        #expect(b.currentEditor() == nil)
+        #expect(window.firstResponder === (try table(controller)))
+        #expect(oks == 0)
+
+        // Return again, with no cell being edited, is OK: the table gives it to the window.
+        try table(controller).keyDown(with: try returnKey(window))
+        #expect(oks == 1)
+    }
+
+    private func returnKey(_ window: NSWindow) throws -> NSEvent {
+        try #require(
+            NSEvent.keyEvent(
+                with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0,
+                windowNumber: window.windowNumber, context: nil, characters: "\r",
+                charactersIgnoringModifiers: "\r", isARepeat: false, keyCode: 36))
+    }
+
+    /// Return in a cell with a bad time keeps it being edited, in red.
+    @Test func returnInACellWithABadTimeKeepsItsEdit() throws {
+        let controller = try makeController()
+        let window = host(controller)
+        defer { window.close() }
+        let split = try cell("split", 0, controller)
+        #expect(window.makeFirstResponder(split))
+        let editor = try #require(split.currentEditor() as? NSTextView)
+        // Typed, so the field knows its text changed and asks whether editing may end.
+        editor.selectAll(nil)
+        editor.insertText("abc", replacementRange: editor.selectedRange())
+        editor.doCommand(by: #selector(NSResponder.insertNewline(_:)))
+        #expect(split.currentEditor() != nil)
+        #expect(split.textColor == .systemRed)
+        #expect(oks == 0)
     }
 
     @Test func aForcedEndOfABadTimeShowsTheTimeAgain() throws {

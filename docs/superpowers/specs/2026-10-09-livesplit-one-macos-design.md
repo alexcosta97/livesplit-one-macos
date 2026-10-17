@@ -533,6 +533,9 @@ Every change is saved at once and shows in the menus.
   if any edit changed them: livesplit-core marks the run changed on each
   edit, so OK with no edits leaves them as they were. **Cancel**, Escape and
   closing the window discard the copy.
+- **OK** is the default button: Return is OK, except while a table cell is
+  being edited, where Return ends that cell's edit (checked as any other
+  edit) and leaves the window open, so Return again is OK.
 - While the window is open the timer's menus are unavailable, but a server
   can still start an attempt. If one started since the window opened,
   whether it is still in progress or was reset, OK is refused: replacing the

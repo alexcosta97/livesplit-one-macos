@@ -9,7 +9,7 @@ final class SegmentTable: NSObject, NSTableViewDataSource, NSTableViewDelegate,
     NSTextFieldDelegate
 {
     /// The table, in `scrollView`.
-    let tableView = NSTableView()
+    let tableView: NSTableView = ReturnLeavingTableView()
     let scrollView = NSScrollView()
 
     /// Called after the table changed the editor's state, to redraw the window.
@@ -396,12 +396,23 @@ final class SegmentTable: NSObject, NSTableViewDataSource, NSTableViewDelegate,
     /// Escape in a cell cancels the window, even with an invalid time in it (spec §9). The
     /// field editor sends `cancelOperation(_:)` up the responder chain, where the table would
     /// take it to end only the cell's edit.
+    ///
+    /// Return in a cell ends only that cell's edit, and the window stays open (spec §9). The
+    /// edit ends as any other does, so a refused time keeps it; once it ends, the table has
+    /// focus, so Return again is OK.
     func control(
         _ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector
     ) -> Bool {
-        guard commandSelector == #selector(NSResponder.cancelOperation(_:)) else { return false }
-        onCancel()
-        return true
+        switch commandSelector {
+        case #selector(NSResponder.cancelOperation(_:)):
+            onCancel()
+            return true
+        case #selector(NSResponder.insertNewline(_:)):
+            tableView.window?.makeFirstResponder(tableView)
+            return true
+        default:
+            return false
+        }
     }
 
     /// A time is checked as editing ends; one the editor refuses turns red and keeps focus.
@@ -463,6 +474,23 @@ final class SegmentTable: NSObject, NSTableViewDataSource, NSTableViewDelegate,
         case .group(let group): editing().removeGroupIcon(group.groupIndex)
         }
         onChange()
+    }
+}
+
+/// A table that gives Return to the window's default button (spec §9: once a cell's edit has
+/// ended, Return is OK). A plain key isn't offered as a key equivalent before it reaches the first
+/// responder, and `NSTableView` keeps Return to itself.
+@MainActor
+private final class ReturnLeavingTableView: NSTableView {
+    override func keyDown(with event: NSEvent) {
+        let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+            .subtracting([.numericPad, .function, .capsLock])
+        if flags.isEmpty, event.charactersIgnoringModifiers == "\r" || event.keyCode == 76,
+            window?.performKeyEquivalent(with: event) == true
+        {
+            return
+        }
+        super.keyDown(with: event)
     }
 }
 

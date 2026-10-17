@@ -7,7 +7,7 @@ The window edits a copy of your splits. Nothing changes until you click **OK**.
 
 ## OK and Cancel
 
-- **OK** (or Return) replaces the timer's splits with the edited ones. The splits are marked unsaved only if something changed: **OK** with no edits leaves them as they were. Save them as usual: see [Splits and Layouts](Splits-and-Layouts#saving-splits).
+- **OK** (or Return) replaces the timer's splits with the edited ones. While you are typing in a cell of the table, Return only finishes that cell: press it again for **OK**. The splits are marked unsaved only if something changed: **OK** with no edits leaves them as they were. Save them as usual: see [Splits and Layouts](Splits-and-Layouts#saving-splits).
 - **Cancel** (or Escape) throws the edits away. So does the close button. Escape cancels the whole window even while you are typing in a cell.
 
 If you are typing in a cell when you click **OK**, the app applies what you typed first. If that is an invalid time, the window stays open: see [Invalid times](#invalid-times).
@@ -43,7 +43,7 @@ The choice is saved with the splits, and the app opens that layout the next time
 
 The table has a row for each segment. It starts with an icon column, then **Segment Name**, **Split Time**, **Segment Time** and **Best Segment**, then one column for each custom comparison.
 
-Click a name or a time and type to edit it. Press Return to finish, or Tab to go to the next cell. Escape cancels the whole window.
+To edit a name or a time, click its cell in a selected row, or double-click it, and type. Tab goes to the next cell. Return finishes the cell and leaves the window open; press Return again for **OK**. Escape cancels the whole window.
 
 | Button | What it does |
 |---|---|
