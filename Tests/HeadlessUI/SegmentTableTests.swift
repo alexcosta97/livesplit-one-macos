@@ -302,6 +302,40 @@ import Testing
         #expect(try click(3, .shift, controller) == [0, 1, 2, 3])
     }
 
+    /// Clicking another row while a cell is being edited, as AppKit orders it (seen in the
+    /// app): the mouse down ends the cell's edit, then the table proposes the clicked row as
+    /// the mouse goes up. The typed name goes to its own segment, and only the clicked row is
+    /// selected and active.
+    @Test func clickingAnotherRowWhileEditingCommitsToTheEditedSegment() throws {
+        let controller = try makeController()
+        let window = host(controller)
+        defer { window.close() }
+        let table = try table(controller)
+        _ = try click(2, [], controller)
+        let b = try cell("name", 2, controller)
+        #expect(window.makeFirstResponder(b))
+        let editor = try #require(b.currentEditor() as? NSTextView)
+        editor.selectAll(nil)
+        editor.insertText("Bee", replacementRange: editor.selectedRange())
+
+        #expect(window.makeFirstResponder(table))
+        let up = try #require(
+            NSEvent.mouseEvent(
+                with: .leftMouseUp, location: .zero, modifierFlags: [], timestamp: 0,
+                windowNumber: 0, context: nil, eventNumber: 0, clickCount: 1, pressure: 0))
+        #expect(try select([0], event: up, clickedRow: -1, controller) == [0])
+
+        let rows = controller.editing.state.rows
+        guard case .segment(let a) = rows[0], case .segment(let bee) = rows[2] else {
+            Issue.record("Rows 0 and 2 aren't segments")
+            return
+        }
+        #expect(bee.name == "Bee")
+        #expect(bee.selected == .notSelected)
+        #expect(a.selected == .active)
+        #expect(table.selectedRowIndexes == [0])
+    }
+
     @Test func clickingTheGroupRowSelectsItsSegments() throws {
         let controller = try makeController()
         let window = host(controller)
