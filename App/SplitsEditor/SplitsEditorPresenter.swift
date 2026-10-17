@@ -137,8 +137,9 @@ final class SplitsEditorPresenter: NSObject, NSWindowDelegate {
         controller.refresh()
     }
 
-    /// Cancel, Escape and the close button: the copy is dropped.
+    /// Cancel, Escape and the close button: the editor and its copy are freed.
     private func cancel() {
+        controller?.editing.discard()
         finish()
     }
 

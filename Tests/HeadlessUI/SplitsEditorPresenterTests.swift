@@ -225,6 +225,25 @@ import Testing
         #expect(unified.entries.filter { $0.category != .app }.isEmpty)
     }
 
+    /// Cancel, Escape and the close button free the editor and its copy of the run: only
+    /// closing a `RunEditor` frees it.
+    @Test(arguments: ["cancel", "escape", "close"])
+    func endingWithoutOKFreesTheEditor(_ how: String) throws {
+        let presenter = makePresenter()
+        presenter.open()
+        let controller = try #require(presenter.controller)
+        let editing = controller.editing
+        switch how {
+        case "cancel": controller.cancelPressed(nil)
+        case "escape": controller.cancelOperation(nil)
+        default:
+            let editor = try #require(presenter.editorWindow)
+            _ = editor.delegate?.windowShouldClose?(editor)
+        }
+        #expect(editing.isFinished)
+        #expect(!presenter.isOpen)
+    }
+
     @Test func theCloseButtonIsCancel() throws {
         let presenter = makePresenter()
         presenter.open()

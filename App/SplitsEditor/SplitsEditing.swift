@@ -16,7 +16,8 @@ final class SplitsEditing {
     private let editor: RunEditor
     private let imageCache = ImageCache()
     private let lang: UInt8
-    private var finished = false
+    /// Whether the editor was closed, by `finish()` or `discard()`.
+    private(set) var isFinished = false
     private(set) var state: RunEditorState
 
     /// Starts editing `run`, which has segments. Times and offsets parse with `lang`.
@@ -49,9 +50,17 @@ final class SplitsEditing {
 
     /// The edited run. The editor can't be used after.
     func finish() -> Run {
-        precondition(!finished, "The run was already finished")
-        finished = true
+        precondition(!isFinished, "The run was already finished")
+        isFinished = true
         return editor.close()
+    }
+
+    /// Frees the editor and the run it edits, for Cancel. `RunEditor` has no other way to be
+    /// freed than closing it. Nothing happens if the run was already finished.
+    func discard() {
+        guard !isFinished else { return }
+        isFinished = true
+        _ = editor.close()
     }
 
     // MARK: Run
