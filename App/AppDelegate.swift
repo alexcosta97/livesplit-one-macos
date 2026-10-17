@@ -46,9 +46,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         NSWindow.allowsAutomaticWindowTabbing = false
         let content = TimerContent()
         let timerWindow = TimerWindowController.make(content: content, settings: settings)
+        // Every phase change is a command or an event, so `changed` sees each one, whether the
+        // window is drawing or not.
+        let displaySleep = DisplaySleepGuard.system
         let runner = CommandRunner(
             timer: content.timer, resetSavesBestTimes: settings.settings.resetSavesBestTimes,
-            changed: { [weak content] in content?.markChanged() },
+            changed: { [weak content] in
+                guard let content else { return }
+                content.markChanged()
+                displaySleep.update(phase: content.phase)
+            },
             remember: { [weak self] in self?.rememberResetAnswer($0) })
         let files = FileController(
             content: content, window: timerWindow, settings: settings,
