@@ -41,7 +41,7 @@ The choice is saved with the splits, and the app opens that layout the next time
 
 ## Segments
 
-The table has a row for each segment. It starts with an icon column, then **Segment Name**, **Split Time**, **Segment Time** and **Best Segment**, then one column for each custom comparison.
+The table has a row for each segment. It starts with an icon column, then **Segment Name**, **Split Time**, **Segment Time** and **Best Segment**, then one column for each custom comparison. Drag a column's edge to resize it. When the window gets wider, only **Segment Name** widens; the other columns keep their widths.
 
 To edit a name or a time, click its cell in a selected row, or double-click it, and type. Tab goes to the next cell. Return finishes the cell and leaves the window open; press Return again for **OK**. Escape cancels the whole window.
 

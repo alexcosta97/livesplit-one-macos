@@ -89,7 +89,9 @@ final class SegmentTable: NSObject, NSTableViewDataSource, NSTableViewDelegate,
         tableView.allowsColumnReordering = false
         tableView.usesAlternatingRowBackgroundColors = true
         tableView.rowHeight = Self.iconSide + 4
-        tableView.columnAutoresizingStyle = .lastColumnOnlyAutoresizingStyle
+        // Only Segment Name takes up the window's width, so the other columns, comparisons
+        // included, keep the widths they're given.
+        tableView.columnAutoresizingStyle = .uniformColumnAutoresizingStyle
         let fixed: [(Column, String, CGFloat)] = [
             (.icon, "", Self.iconSide + 8), (.name, "Segment Name", 180),
             (.split, "Split Time", 100), (.segment, "Segment Time", 100),
@@ -119,6 +121,8 @@ final class SegmentTable: NSObject, NSTableViewDataSource, NSTableViewDelegate,
         tableColumn.title = title
         tableColumn.width = width
         tableColumn.minWidth = column == .icon ? width : 60
+        tableColumn.resizingMask =
+            column == .name ? [.autoresizingMask, .userResizingMask] : .userResizingMask
         return tableColumn
     }
 

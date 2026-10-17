@@ -465,8 +465,11 @@ import Testing
         #expect(try cell("split", 3, controller).stringValue == "1:00.00")
     }
 
-    @Test func comparisonColumnsKeepTheirWidths() throws {
+    /// With either scroller style: legacy scrollers, shown with a mouse, narrow the table.
+    @Test(arguments: [NSScroller.Style.overlay, .legacy])
+    func comparisonColumnsKeepTheirWidths(scrollers: NSScroller.Style) throws {
         let controller = try makeController()
+        try table(controller).enclosingScrollView?.scrollerStyle = scrollers
         let window = host(controller)
         defer { window.close() }
         let table = try table(controller)
@@ -488,6 +491,13 @@ import Testing
         controller.refresh()
         #expect(table.tableColumns.last?.title == "Goal 2")
         #expect(table.tableColumns.last?.identifier.rawValue == "comparison-0")
+        #expect(table.tableColumns.last?.width == 130)
+
+        // A wider table widens Segment Name only.
+        let name = try #require(table.tableColumn(withIdentifier: .init("name"))).width
+        let scrollView = try #require(table.enclosingScrollView)
+        scrollView.setFrameSize(NSSize(width: scrollView.frame.width + 200, height: 400))
+        #expect(try #require(table.tableColumn(withIdentifier: .init("name"))).width > name)
         #expect(table.tableColumns.last?.width == 130)
     }
 
