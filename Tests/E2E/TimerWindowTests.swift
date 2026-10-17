@@ -53,7 +53,6 @@ final class TimerWindowTests: XCTestCase {
 
     @MainActor
     func testTheWindowMovesAndOpensThereAgain() throws {
-        throw XCTSkip("Required API is not available for this test.")
         let e2e = E2EApp()
         e2e.launch()
         let window = e2e.timerWindow
@@ -66,7 +65,9 @@ final class TimerWindowTests: XCTestCase {
             .withOffset(CGVector(dx: before.width / 2, dy: before.height / 2))
         let target = window.coordinate(withNormalizedOffset: .zero)
             .withOffset(CGVector(dx: before.width / 2 + 120, dy: before.height / 2 + 80))
-        middle.press(forDuration: 0.2, thenDragTo: target)
+        // click(forDuration:thenDragTo:), not press(forDuration:thenDragTo:): on macOS 27 the
+        // press variant sends the app no mouse events at all (#57).
+        middle.click(forDuration: 0.2, thenDragTo: target)
 
         let moved = window.frame
         XCTAssertEqual(moved.minX, before.minX + 120, accuracy: 2)
@@ -86,7 +87,6 @@ final class TimerWindowTests: XCTestCase {
 
     @MainActor
     func testTheWindowResizesFromItsCorner() throws {
-        throw XCTSkip("Required API is not available for this test.")
         let e2e = E2EApp()
         e2e.launch()
         let window = e2e.timerWindow
@@ -97,7 +97,7 @@ final class TimerWindowTests: XCTestCase {
         // the borderless window.
         let corner = window.coordinate(withNormalizedOffset: .zero)
             .withOffset(CGVector(dx: before.width - 2, dy: before.height - 2))
-        corner.press(forDuration: 0.2, thenDragTo: corner.withOffset(CGVector(dx: 60, dy: 40)))
+        corner.click(forDuration: 0.2, thenDragTo: corner.withOffset(CGVector(dx: 60, dy: 40)))
 
         XCTAssertEqual(window.frame.width, before.width + 60, accuracy: 3)
         XCTAssertEqual(window.frame.height, before.height + 40, accuracy: 3)
