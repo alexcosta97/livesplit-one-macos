@@ -19,6 +19,7 @@ enum EditorSelection {
 
     /// A click on `row` (a presentation row) with `modifier`.
     static func click(row: Int, modifier: Modifier, rows: [RunEditorState.Row]) -> [Call] {
+        precondition(rows.indices.contains(row), "Row \(row) is not one of \(rows.count) rows")
         switch rows[row] {
         case .segment(let segment):
             let index = segment.segmentIndex
@@ -38,10 +39,14 @@ enum EditorSelection {
     }
 
     /// A selection the table proposes with no click (arrow keys, ⇧-arrows, ⌘A): `proposed` and
-    /// `current` are row indexes. Group rows in a proposal stand for their segments.
-    static func proposed(_ proposed: IndexSet, current: IndexSet, rows: [RunEditorState.Row])
-        -> [Call]
-    {
+    /// `current` are row indexes, and `lastSelected` is the table's last-selected row for the
+    /// proposal. Group rows in a proposal stand for their segments. When the selection is
+    /// rebuilt, the segment of `lastSelected` (a group's last segment) is applied last, so it
+    /// is the active one; without it, or if it isn't in the proposal, the highest segment is.
+    static func proposed(
+        _ proposed: IndexSet, current: IndexSet, lastSelected: Int?, rows: [RunEditorState.Row]
+    ) -> [Call] {
+        if proposed == current { return [] }
         if proposed.count == 1, let row = proposed.first {
             return click(row: row, modifier: .none, rows: rows)
         }
@@ -53,8 +58,14 @@ enum EditorSelection {
         {
             return click(row: row, modifier: .shift, rows: rows)
         }
-        // Anything else is rebuilt: the last row goes last, so it's the active one.
-        let segments = segmentIndexes(of: proposed, rows: rows)
+        // Anything else is rebuilt, with the active segment last.
+        var segments = segmentIndexes(of: proposed, rows: rows)
+        if let lastSelected, proposed.contains(lastSelected),
+            let active = segmentIndexes(of: [lastSelected], rows: rows).last
+        {
+            segments.removeAll { $0 == active }
+            segments.append(active)
+        }
         guard let first = segments.first else { return [] }
         return [.only(first)] + segments.dropFirst().map { .additionally($0) }
     }
@@ -79,10 +90,13 @@ enum EditorSelection {
     {
         var indexes: [Int] = []
         for row in selection {
+            precondition(rows.indices.contains(row), "Row \(row) is not one of \(rows.count) rows")
             switch rows[row] {
             case .segment(let segment):
                 if !indexes.contains(segment.segmentIndex) { indexes.append(segment.segmentIndex) }
             case .group:
+                // Membership is `isIndented`, which livesplit-core's state supplies (a segment
+                // is indented exactly when it's in a group), so nothing is inferred here.
                 for case .segment(let member) in rows[(row + 1)...].prefix(while: {
                     if case .segment(let segment) = $0 { return segment.isIndented }
                     return false

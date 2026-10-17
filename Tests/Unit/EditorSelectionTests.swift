@@ -60,39 +60,74 @@ import Testing
     }
 
     @Test func oneProposedRowIsAPlainClick() {
-        let proposed = EditorSelection.proposed([3], current: [0], rows: rows(a: .active))
+        let proposed = EditorSelection.proposed(
+            [3], current: [0], lastSelected: nil, rows: rows(a: .active))
         #expect(proposed == [.only(2)])
-        let onGroup = EditorSelection.proposed([1], current: [0], rows: rows(a: .active))
+        let onGroup = EditorSelection.proposed(
+            [1], current: [0], lastSelected: nil, rows: rows(a: .active))
         #expect(onGroup == [.group(0)])
     }
 
     @Test func oneRowAddedNextToTheSelectionExtendsIt() {
         let current = rows(a: .active)
-        #expect(EditorSelection.proposed([0, 1], current: [0], rows: current) == [.groupRange(0)])
+        #expect(
+            EditorSelection.proposed([0, 1], current: [0], lastSelected: nil, rows: current) == [
+                .groupRange(0)
+            ])
         let below = rows(b: .active)
-        #expect(EditorSelection.proposed([2, 3], current: [2], rows: below) == [.range(2)])
-        #expect(EditorSelection.proposed([1, 2], current: [2], rows: below) == [.groupRange(0)])
+        #expect(
+            EditorSelection.proposed([2, 3], current: [2], lastSelected: nil, rows: below) == [
+                .range(2)
+            ])
+        #expect(
+            EditorSelection.proposed([1, 2], current: [2], lastSelected: nil, rows: below) == [
+                .groupRange(0)
+            ])
     }
 
     @Test func aWholeTableProposalRebuildsTheSelectionWithTheLastRowActive() {
         let proposed = EditorSelection.proposed(
-            [0, 1, 2, 3], current: [0], rows: rows(a: .active))
+            [0, 1, 2, 3], current: [0], lastSelected: nil, rows: rows(a: .active))
         #expect(proposed == [.only(0), .additionally(1), .additionally(2)])
     }
 
     @Test func aGroupRowInAProposalStandsForItsSegments() {
-        let proposed = EditorSelection.proposed([0, 1], current: [3], rows: rows(c: .active))
+        let proposed = EditorSelection.proposed(
+            [0, 1], current: [3], lastSelected: nil, rows: rows(c: .active))
         #expect(proposed == [.only(0), .additionally(1), .additionally(2)])
     }
 
     @Test func aShrinkRebuildsTheSelection() {
         let current = rows(a: .selected, b: .selected, c: .active)
-        let proposed = EditorSelection.proposed([0, 2], current: [0, 2, 3], rows: current)
+        let proposed = EditorSelection.proposed(
+            [0, 2], current: [0, 2, 3], lastSelected: nil, rows: current)
         #expect(proposed == [.only(0), .additionally(1)])
     }
 
+    @Test func theLastSelectedRowIsAppliedLast() {
+        let current = rows(a: .selected, b: .selected, c: .active)
+        let shrunk = EditorSelection.proposed(
+            [0, 2, 3], current: [0, 1, 2, 3], lastSelected: 0, rows: current)
+        #expect(shrunk == [.only(1), .additionally(2), .additionally(0)])
+        let group = EditorSelection.proposed(
+            [0, 1], current: [0, 1, 2, 3], lastSelected: 1, rows: current)
+        #expect(group == [.only(0), .additionally(1), .additionally(2)])
+        let outside = EditorSelection.proposed(
+            [0, 2, 3], current: [0, 1, 2, 3], lastSelected: 1, rows: current)
+        #expect(outside == [.only(0), .additionally(1), .additionally(2)])
+    }
+
+    @Test func aProposalEqualToTheSelectionMakesNoCalls() {
+        let current = rows(a: .selected, b: .active)
+        #expect(
+            EditorSelection.proposed([0, 2], current: [0, 2], lastSelected: 0, rows: current)
+                .isEmpty)
+    }
+
     @Test func anEmptyProposalMakesNoCalls() {
-        #expect(EditorSelection.proposed([], current: [0], rows: rows(a: .active)).isEmpty)
+        #expect(
+            EditorSelection.proposed([], current: [0], lastSelected: nil, rows: rows(a: .active))
+                .isEmpty)
     }
 
     @Test func selectedRowsAreTheSelectedSegmentsAndGroups() {

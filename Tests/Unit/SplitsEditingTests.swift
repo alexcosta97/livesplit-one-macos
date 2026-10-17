@@ -207,8 +207,41 @@ import Testing
     @Test func aWholeTableProposalSelectsEveryRow() throws {
         let editing = try editing("Grouped.lss")
         editing.apply(
-            EditorSelection.proposed([0, 1, 2, 3], current: [0], rows: editing.state.rows))
+            EditorSelection.proposed(
+                [0, 1, 2, 3], current: [0], lastSelected: nil, rows: editing.state.rows))
         #expect(EditorSelection.selectedRows(editing.state.rows) == [0, 1, 2, 3])
         #expect(try segment(editing, row: 3).selected == .active)
+    }
+
+    @Test func aShrinkProposalKeepsTheLastSelectedRowActive() throws {
+        let editing = try editing("Grouped.lss")
+        editing.apply([.only(0), .additionally(1), .additionally(2)])
+        let rows = editing.state.rows
+        let current = EditorSelection.selectedRows(rows)
+        #expect(current == [0, 1, 2, 3])
+        editing.apply(
+            EditorSelection.proposed([0, 2], current: current, lastSelected: 0, rows: rows))
+        #expect(EditorSelection.selectedRows(editing.state.rows) == [0, 2])
+        #expect(try segment(editing, row: 0).selected == .active)
+        #expect(try segment(editing, row: 2).selected == .selected)
+        #expect(try segment(editing, row: 3).selected == .notSelected)
+    }
+
+    @Test func extendingTheSelectionOverAGroupRowSelectsTheGroup() throws {
+        let editing = try editing("Grouped.lss")
+        editing.apply([.only(0)])
+        let rows = editing.state.rows
+        editing.apply(
+            EditorSelection.proposed([0, 1], current: [0], lastSelected: 1, rows: rows))
+        #expect(EditorSelection.selectedRows(editing.state.rows) == [0, 1, 2, 3])
+        guard case .group(let group) = editing.state.rows[1] else { throw RowError() }
+        #expect(group.selected)
+        let active = editing.state.rows.compactMap { row -> Int? in
+            if case .segment(let segment) = row, segment.selected == .active {
+                return segment.segmentIndex
+            }
+            return nil
+        }
+        #expect(active.count == 1)
     }
 }
