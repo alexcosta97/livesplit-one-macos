@@ -493,5 +493,4 @@ import Testing
         #expect(prompts.iconFailures.map(\.file) == ["NotSplits.txt"])
         #expect(try icon(0, controller).icon == nil)
     }
-
 }

@@ -1,8 +1,8 @@
 import AppKit
 
 /// The splits editor's contents (spec §9): the game's icon, game, category, start offset,
-/// attempts and linked layout at the top, the segment table in the middle, the Real Time /
-/// Game Time switch, a message line, and **Cancel** and **OK**. `SplitsEditing` decides what an
+/// attempts and linked layout at the top, the segment table in the middle, the segment, group
+/// and comparison buttons, the Real Time / Game Time switch, a message line, and **Cancel** and **OK**. `SplitsEditing` decides what an
 /// input means; this redraws from its state.
 @MainActor
 final class SplitsEditorViewController: NSViewController, NSTextFieldDelegate {
@@ -54,8 +54,20 @@ final class SplitsEditorViewController: NSViewController, NSTextFieldDelegate {
         editing: { [unowned self] in editing }, prompts: prompts)
     /// Holds the segment table.
     let tableContainer = NSView()
-    /// Where the button rows go (Task 7 of the plan).
+    /// The button rows: segments, groups, comparisons.
     let buttonRows = NSStackView()
+
+    private let insertAboveButton = NSButton()
+    private let insertBelowButton = NSButton()
+    private let removeButton = NSButton()
+    private let moveUpButton = NSButton()
+    private let moveDownButton = NSButton()
+    private let createGroupButton = NSButton()
+    private let removeGroupButton = NSButton()
+    private let addComparisonButton = NSButton()
+    private let renameComparisonPopUp = NSPopUpButton(frame: .zero, pullsDown: true)
+    private let removeComparisonPopUp = NSPopUpButton(frame: .zero, pullsDown: true)
+    private let otherPopUp = NSPopUpButton(frame: .zero, pullsDown: true)
 
     /// `currentLayout` is what the timer window shows (`TimerWindowController.layoutPath`, nil
     /// for the default layout).
@@ -138,11 +150,7 @@ final class SplitsEditorViewController: NSViewController, NSTextFieldDelegate {
             if accepted { self?.clearInvalid() } else { self?.show(.invalidTime) }
         }
 
-        // The button rows (Task 7) go in this.
-        buttonRows.orientation = .vertical
-        buttonRows.alignment = .leading
-        buttonRows.spacing = 6
-        buttonRows.translatesAutoresizingMaskIntoConstraints = false
+        buildButtonRows()
 
         timingControl.segmentStyle = .rounded
         timingControl.target = self
@@ -222,6 +230,79 @@ final class SplitsEditorViewController: NSViewController, NSTextFieldDelegate {
         ])
         view = root
         refresh()
+    }
+
+    /// The buttons (spec §9). Their enabled state comes from `refresh()`.
+    private func buildButtonRows() {
+        buttonRows.orientation = .vertical
+        buttonRows.alignment = .leading
+        buttonRows.spacing = 6
+        buttonRows.translatesAutoresizingMaskIntoConstraints = false
+
+        let buttons: [(NSButton, String, String, Selector)] = [
+            (
+                insertAboveButton, "Insert Above", "editor-insert-above",
+                #selector(insertAbovePressed(_:))
+            ),
+            (
+                insertBelowButton, "Insert Below", "editor-insert-below",
+                #selector(insertBelowPressed(_:))
+            ),
+            (removeButton, "Remove Segment", "editor-remove", #selector(removeSegmentPressed(_:))),
+            (moveUpButton, "Move Up", "editor-move-up", #selector(moveUpPressed(_:))),
+            (moveDownButton, "Move Down", "editor-move-down", #selector(moveDownPressed(_:))),
+            (
+                createGroupButton, "Create Group", "editor-create-group",
+                #selector(createGroupPressed(_:))
+            ),
+            (
+                removeGroupButton, "Remove Group", "editor-remove-group",
+                #selector(removeGroupPressed(_:))
+            ),
+            (
+                addComparisonButton, "Add Comparison…", "editor-add-comparison",
+                #selector(addComparisonPressed(_:))
+            ),
+        ]
+        for (button, title, identifier, action) in buttons {
+            button.title = title
+            button.bezelStyle = .push
+            button.target = self
+            button.action = action
+            button.setAccessibilityIdentifier(identifier)
+        }
+        for (popUp, title, identifier) in [
+            (renameComparisonPopUp, "Rename Comparison", "editor-rename-comparison"),
+            (removeComparisonPopUp, "Remove Comparison", "editor-remove-comparison"),
+            (otherPopUp, "Other", "editor-other"),
+        ] {
+            popUp.addItem(withTitle: title)
+            popUp.setAccessibilityIdentifier(identifier)
+            popUp.setAccessibilityLabel(title)
+        }
+        let clearHistory = NSMenuItem(
+            title: "Clear History…", action: #selector(clearHistoryPressed(_:)), keyEquivalent: "")
+        let clearTimes = NSMenuItem(
+            title: "Clear Times…", action: #selector(clearTimesPressed(_:)), keyEquivalent: "")
+        for item in [clearHistory, clearTimes] {
+            item.target = self
+            otherPopUp.menu?.addItem(item)
+        }
+
+        let rows: [[NSView]] = [
+            [insertAboveButton, insertBelowButton, removeButton, moveUpButton, moveDownButton],
+            [createGroupButton, removeGroupButton],
+            [addComparisonButton, renameComparisonPopUp, removeComparisonPopUp, otherPopUp],
+        ]
+        for views in rows {
+            let row = NSStackView(views: views)
+            row.orientation = .horizontal
+            row.spacing = 8
+            // A row keeps the width of its controls; stretched to the widest row, the extra
+            // width would be shared between its controls ambiguously.
+            row.setHuggingPriority(.required, for: .horizontal)
+            buttonRows.addArrangedSubview(row)
+        }
     }
 
     private func configure(_ field: NSTextField, _ identifier: String, _ label: String) {
@@ -310,6 +391,27 @@ final class SplitsEditorViewController: NSViewController, NSTextFieldDelegate {
         show(String(state.attempts), in: attemptsField)
         timingControl.selectedSegment = state.timingMethod == .realTime ? 0 : 1
         segmentTable.refresh()
+        removeButton.isEnabled = state.buttons.canRemove
+        moveUpButton.isEnabled = state.buttons.canMoveUp
+        moveDownButton.isEnabled = state.buttons.canMoveDown
+        createGroupButton.isEnabled = state.buttons.canCreateSegmentGroup
+        removeGroupButton.isEnabled = state.buttons.canRemoveSegmentGroups
+        fillComparisons(renameComparisonPopUp, action: #selector(renameComparisonPressed(_:)))
+        fillComparisons(removeComparisonPopUp, action: #selector(removeComparisonPressed(_:)))
+    }
+
+    /// Rebuilds a pull-down's items after its title item from the comparisons' names; the
+    /// pull-down is disabled when there are none.
+    private func fillComparisons(_ popUp: NSPopUpButton, action: Selector) {
+        guard let menu = popUp.menu else { return }
+        let names = editing.state.comparisonNames
+        while menu.numberOfItems > 1 { menu.removeItem(at: 1) }
+        for name in names {
+            let item = NSMenuItem(title: name, action: action, keyEquivalent: "")
+            item.target = self
+            menu.addItem(item)
+        }
+        popUp.isEnabled = !names.isEmpty
     }
 
     private func show(_ text: String, in field: NSTextField) {
@@ -385,9 +487,71 @@ final class SplitsEditorViewController: NSViewController, NSTextFieldDelegate {
     }
 
     @objc private func timingMethodChosen(_ sender: NSSegmentedControl) {
-        editing.selectTimingMethod(sender.selectedSegment == 0 ? .realTime : .gameTime)
+        let method: TimingMethod = sender.selectedSegment == 0 ? .realTime : .gameTime
+        guard endFieldEditing() else {
+            refresh()
+            return
+        }
+        editing.selectTimingMethod(method)
+        refresh()
     }
 
-    @objc func okPressed(_ sender: Any?) { ok() }
+    /// Ends the editing of a field, which applies what was typed (spec §9). `false` means a
+    /// field refused its text and keeps focus, so the action must not go on. Segment indexes
+    /// are positions, so an action that moved or removed segments must not run before the typed
+    /// text has been written to the segment it was typed for.
+    private func endFieldEditing() -> Bool {
+        guard let window = view.window else { return true }
+        return window.makeFirstResponder(nil)
+    }
+
+    /// Runs a button's or menu item's action after ending editing, then redraws.
+    private func perform(_ action: () -> Void) {
+        guard endFieldEditing() else { return }
+        action()
+        refresh()
+    }
+
+    @objc private func insertAbovePressed(_ sender: Any?) { perform { editing.insertAbove() } }
+    @objc private func insertBelowPressed(_ sender: Any?) { perform { editing.insertBelow() } }
+    @objc private func removeSegmentPressed(_ sender: Any?) { perform { editing.removeSegments() } }
+    @objc private func moveUpPressed(_ sender: Any?) { perform { editing.moveUp() } }
+    @objc private func moveDownPressed(_ sender: Any?) { perform { editing.moveDown() } }
+    @objc private func createGroupPressed(_ sender: Any?) { perform { _ = editing.createGroup() } }
+    @objc private func removeGroupPressed(_ sender: Any?) { perform { _ = editing.removeGroups() } }
+
+    @objc private func addComparisonPressed(_ sender: Any?) {
+        perform {
+            _ = prompts.askName(
+                title: "Add Comparison", prefill: "", accept: { editing.addComparison($0) })
+        }
+    }
+
+    @objc private func renameComparisonPressed(_ sender: NSMenuItem) {
+        let old = sender.title
+        perform {
+            _ = prompts.askName(
+                title: "Rename Comparison", prefill: old,
+                accept: { editing.renameComparison(old, to: $0) })
+        }
+    }
+
+    @objc private func removeComparisonPressed(_ sender: NSMenuItem) {
+        let name = sender.title
+        perform { editing.removeComparison(name) }
+    }
+
+    @objc private func clearHistoryPressed(_ sender: Any?) {
+        perform { if prompts.confirm(.clearHistory) { editing.clearHistory() } }
+    }
+
+    @objc private func clearTimesPressed(_ sender: Any?) {
+        perform { if prompts.confirm(.clearTimes) { editing.clearTimes() } }
+    }
+
+    @objc func okPressed(_ sender: Any?) {
+        guard endFieldEditing() else { return }
+        ok()
+    }
     @objc func cancelPressed(_ sender: Any?) { cancel() }
 }
