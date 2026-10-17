@@ -238,6 +238,20 @@ import Testing
         #expect(content.setRun(other, ifAttemptCount: now) == .replaced)
     }
 
+    /// The splits editor's copy is read with the phase and the attempt count under one lock,
+    /// and only with no attempt in progress (spec §9).
+    @Test func aCopyOfTheRunIsReadOnlyWithNoAttempt() throws {
+        let content = TimerContent(lang: 0)
+        let sink = EventSink(timer: content.timer, report: { _ in }, decideReset: { .save })
+        let copy = try #require(content.copyOfRunWithNoAttempt())
+        #expect(copy.attempts == content.withRun { $0.attemptCount() })
+        #expect(copy.run.saveAsLss() == content.lssText())
+        _ = sink.handleCommand(#"{"command":"splitOrStart"}"#)
+        #expect(content.copyOfRunWithNoAttempt() == nil)
+        _ = sink.handleCommand(#"{"command":"reset","saveAttempt":true}"#)
+        #expect(content.copyOfRunWithNoAttempt()?.attempts == copy.attempts + 1)
+    }
+
     /// GameTime.lss with a `<LayoutPath>` element added, loaded as a run.
     private func run(linking layoutPath: String) throws -> Run {
         let folder = try TemporaryFolder()

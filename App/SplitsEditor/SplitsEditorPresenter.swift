@@ -57,10 +57,11 @@ final class SplitsEditorPresenter: NSObject, NSWindowDelegate {
     }
 
     /// Edit Splits…: does nothing while the editor is open or an attempt is in progress
-    /// (`TimerContent.canReplaceRun`, spec §7).
+    /// (the rule of `TimerContent.canReplaceRun`, spec §7, read with the copy).
     func open() {
-        guard !isOpen, content.canReplaceRun else { return }
-        let (copy, attempts) = content.withRun { ($0.clone(), $0.attemptCount()) }
+        // The phase is read with the copy and its count, not through `canReplaceRun`, so an
+        // attempt can't start between the check and the count.
+        guard !isOpen, let (copy, attempts) = content.copyOfRunWithNoAttempt() else { return }
         attemptsAtOpen = attempts
         lssAtOpen = copy.saveAsLss()
         let controller = SplitsEditorViewController(

@@ -118,6 +118,19 @@ final class TimerContent {
         return result
     }
 
+    /// A copy of the run and its attempt count, read under one read lock with the phase, or
+    /// nil if an attempt is in progress (spec §9). Read together, an attempt can't start between
+    /// the phase check and the count, which `setRun(_:ifAttemptCount:)` compares against.
+    func copyOfRunWithNoAttempt() -> (run: Run, attempts: UInt32)? {
+        var result: (run: Run, attempts: UInt32)?
+        timer.readWith { timer in
+            guard timer.currentPhase() == TimerPhase.notRunning.rawValue else { return }
+            let run = timer.getRun()
+            result = (run.clone(), run.attemptCount())
+        }
+        return result
+    }
+
     /// The timer's phase, read under the read lock.
     var phase: TimerPhase {
         var phase = TimerPhase.notRunning
