@@ -119,6 +119,25 @@ final class SplitsEditing {
         refresh()
     }
 
+    // MARK: Selection
+
+    /// Runs the calls in order, then reads the state once (spec §9). The group calls return
+    /// false only for an index with no group, and the indexes come from `state`.
+    func apply(_ selection: [EditorSelection.Call]) {
+        for call in selection {
+            switch call {
+            case .only(let index): editor.selectOnly(index)
+            case .additionally(let index): editor.selectAdditionally(index)
+            case .unselect(let index): editor.unselect(index)
+            case .range(let index): editor.selectRange(index)
+            case .group(let index): _ = editor.selectSegmentGroup(index)
+            case .toggleGroup(let index): _ = editor.toggleSegmentGroupSelection(index)
+            case .groupRange(let index): _ = editor.selectSegmentGroupRange(index)
+            }
+        }
+        refresh()
+    }
+
     // MARK: Groups
 
     /// Groups the selected segments, unnamed, so the group takes its last segment's name.

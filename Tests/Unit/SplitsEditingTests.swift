@@ -176,4 +176,39 @@ import Testing
         second.setGame("x")
         #expect(second.finish().hasBeenModified())
     }
+
+    @Test func selectingAGroupSelectsItsSegments() throws {
+        let editing = try editing("Grouped.lss")
+        editing.apply([.group(0)])
+        #expect(try segment(editing, row: 0).selected == .notSelected)
+        #expect(try segment(editing, row: 2).selected != .notSelected)
+        #expect(try segment(editing, row: 3).selected != .notSelected)
+        guard case .group(let group) = editing.state.rows[1] else { throw RowError() }
+        #expect(group.selected)
+        #expect(EditorSelection.selectedRows(editing.state.rows) == [1, 2, 3])
+    }
+
+    @Test func aShiftClickSelectsFromTheSelectionToTheRow() throws {
+        let editing = try editing("Grouped.lss")
+        editing.apply([.only(0)])
+        editing.apply(EditorSelection.click(row: 3, modifier: .shift, rows: editing.state.rows))
+        #expect(EditorSelection.selectedRows(editing.state.rows) == [0, 1, 2, 3])
+    }
+
+    @Test func aCommandClickTogglesASegmentInTheEditor() throws {
+        let editing = try editing("Grouped.lss")
+        editing.apply([.only(0)])
+        editing.apply(EditorSelection.click(row: 3, modifier: .command, rows: editing.state.rows))
+        #expect(EditorSelection.selectedRows(editing.state.rows) == [0, 3])
+        editing.apply(EditorSelection.click(row: 3, modifier: .command, rows: editing.state.rows))
+        #expect(EditorSelection.selectedRows(editing.state.rows) == [0])
+    }
+
+    @Test func aWholeTableProposalSelectsEveryRow() throws {
+        let editing = try editing("Grouped.lss")
+        editing.apply(
+            EditorSelection.proposed([0, 1, 2, 3], current: [0], rows: editing.state.rows))
+        #expect(EditorSelection.selectedRows(editing.state.rows) == [0, 1, 2, 3])
+        #expect(try segment(editing, row: 3).selected == .active)
+    }
 }
