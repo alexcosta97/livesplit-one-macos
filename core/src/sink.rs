@@ -12,7 +12,7 @@ use std::{
 };
 
 use livesplit_core::{
-    SharedTimer, TimeSpan, Timer, TimingMethod,
+    SharedTimer, StoredAutoSplitterSettings, TimeSpan, Timer, TimingMethod,
     event::{CommandSink, Error, Result, TimerQuery},
 };
 
@@ -234,6 +234,12 @@ impl<H: Host> CommandSink for EventSink<H> {
     ) -> impl Future<Output = Result> + 'static {
         ready(self.apply(|t| now(CommandSink::set_custom_variable(t, name, value))))
     }
+    fn set_auto_splitter_settings(
+        &self,
+        settings: StoredAutoSplitterSettings,
+    ) -> impl Future<Output = Result> + 'static {
+        ready(self.apply(|t| now(CommandSink::set_auto_splitter_settings(t, settings))))
+    }
 }
 
 impl<H: Host> TimerQuery for EventSink<H> {
@@ -301,6 +307,20 @@ pub(crate) mod tests {
         assert_eq!(
             sink.get_timer().current_phase(),
             livesplit_core::TimerPhase::Running
+        );
+    }
+
+    #[test]
+    fn stores_auto_splitter_settings_and_reports_it() {
+        let (sink, recorder) = sink(&["One"]);
+        let settings = StoredAutoSplitterSettings::new();
+        assert_eq!(
+            run(sink.set_auto_splitter_settings(settings)),
+            Ok(Event::AutoSplitterSettingsChanged)
+        );
+        assert_eq!(
+            *recorder.results.lock().unwrap(),
+            [Ok(Event::AutoSplitterSettingsChanged)]
         );
     }
 

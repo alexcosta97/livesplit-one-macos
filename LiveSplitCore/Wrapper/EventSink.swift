@@ -21,6 +21,7 @@ public enum TimerEvent: UInt32, Sendable {
     case gameTimeResumed = 15
     case loadingTimesSet = 16
     case customVariableSet = 17
+    case autoSplitterSettingsChanged = 18
 }
 
 /// Why livesplit-core rejected a command (its `src/event.rs`).
