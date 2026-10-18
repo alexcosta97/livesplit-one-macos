@@ -19,11 +19,8 @@ development environment and the conventions every change follows.
 
 ## Development setup
 
-The app is Swift and AppKit, built with Xcode. livesplit-core is linked
-through a Rust static library in `core/`, and its Swift bindings are generated
-into the `LiveSplitCore/` Xcode static library target. The Xcode project is
-generated from `project.yml` with [XcodeGen](https://github.com/yonaskolb/XcodeGen)
-and is not committed.
+The app is Swift and AppKit, built with Xcode, on top of a Rust library in
+`core/`. Spec §4 describes how the pieces fit together and how they're built.
 
 1. Install Xcode 26.6 or newer from the App Store (the version CI uses is
    set in `.github/actions/select-xcode/action.yml`). Then run
@@ -33,7 +30,9 @@ and is not committed.
    then run `mise install` and `npm ci` in the repository. Rust's version and
    targets come from `rust-toolchain.toml`. mise installs XcodeGen,
    git-cliff, shellcheck, actionlint and Node, and `npm ci` installs
-   commitlint from `package.json`.
+   commitlint from `package.json`. rustup from Homebrew doesn't put `cargo`
+   on your `PATH`: add `$(brew --prefix rustup)/bin` to it, or the `cargo`
+   checks below fail with "command not found".
 3. Build `core/` and generate the Xcode project:
 
    ```sh
@@ -41,14 +40,12 @@ and is not committed.
    xcodegen generate
    ```
 
-   `xcodegen generate` runs `scripts/build-core.sh --bindings-only`, and
-   building in Xcode runs `scripts/build-core.sh`, which builds `core/` with
-   Cargo and regenerates livesplit-core's Swift bindings when needed. The
-   first build downloads and compiles livesplit-core and takes a few minutes.
+   The first build downloads and compiles livesplit-core and takes a few
+   minutes. After that, building in Xcode rebuilds `core/` when it needs to.
 
-   Open the generated `LiveSplitOne.xcodeproj` in Xcode. The project is
-   generated from `project.yml` and never committed: run `xcodegen generate`
-   again after pulling changes to it.
+   Open the generated `LiveSplitOne.xcodeproj` in Xcode. It is never
+   committed: run `xcodegen generate` again after pulling changes to
+   `project.yml`.
 4. Before pushing, run the same checks CI runs, from the repository root:
 
    ```sh
@@ -71,35 +68,14 @@ and is not committed.
    commitlint checks every commit on the branch against the Conventional
    Commits rules in `commitlint.config.mjs`, as CI's `commitlint` check does,
    including a 100-character limit on each line of the body.
-   `actionlint` also runs shellcheck on the workflows' `run:` steps.
-   `scripts/build-app.sh` makes the universal release build CI's `build`
-   check makes, into `dist/`.
-
-   The release script tests need git-cliff (from `mise install`) and `jq`,
-   which macOS and the CI runners ship. The `lint` check runs them. The
-   advisory `Release scripts` workflow also builds the package on pull
-   requests that change release files.
+   `scripts/build-app.sh` writes the app to `dist/`. The release script tests
+   need git-cliff (from `mise install`) and `jq`, which macOS ships. Spec §15
+   lists what each CI check runs.
 
 ## Testing
 
-Tests follow a pyramid: many fast tests at the bottom, fewer integration
-tests, and a small end-to-end (E2E) suite at the top. Spec §14 has the full
-description, including the E2E harness and the list of E2E flows.
-
-| Kind | Tooling | What it covers |
-|---|---|---|
-| **Unit** | Swift Testing; `cargo test` for `core/` | One function or type, called directly |
-| **Headless UI** | Swift Testing, with views and view controllers but no window | One view: actions on it, then checks on its accessibility tree and what it asks the app to do |
-| **Integration** | Swift Testing with the real livesplit-core and an in-process fake server | Modules working together, with no user flow, through their APIs |
-| **E2E** | XCUITest | The whole app as a user uses it |
-
-E2E tests drive the app **only** through user input to the window (clicks,
-right-clicks, typing, keys, resizing, files the user picks) and check **only**
-what the user can observe (what the window shows, what the fake server
-receives, files on disk).
-
-Rough proportions by count: 70–80 % unit and headless UI, 15–25 %
-integration, under 10 % E2E.
+Spec §14 describes the test levels (unit, headless UI, integration and E2E),
+what each may drive and check, the E2E harness and the list of E2E flows.
 
 - A bug found at a higher level gets a test at the lowest level that can catch
   it.
@@ -108,9 +84,8 @@ integration, under 10 % E2E.
 
 ### Snapshot tests
 
-The integration tests compare rendered layouts with reference images in
-`Tests/Integration/Snapshots/`. When a change is meant to change how a
-layout looks (a livesplit-core update, for example), record new references,
+When a change is meant to change how a layout looks (a livesplit-core update,
+for example), record new reference images in `Tests/Integration/Snapshots/`,
 look at each one, and commit them with the change:
 
 ```sh
@@ -217,28 +192,18 @@ example `feat/always-on-top` or `fix/reconnect-state`.
 ## Dependency updates
 
 [Renovate](https://docs.renovatebot.com/) opens pull requests every week to
-update dependencies, configured in `renovate.json`. Their titles follow the
-conventions above, and the type decides whether the update is released:
+update dependencies, configured in `renovate.json`. Spec §15 says which
+updates are `fix(deps)` and released, and which are `ci(deps)` or
+`chore(deps)` and not.
 
-- `fix(deps)`: crates that ship in the app, including the LiveSplit crates
-  (one pull request, labelled `livesplit`, moves both to the same
-  livesplit-core revision), `core/Cargo.lock` refreshes, and the Swift
-  packages in `project.yml`. These produce a release. Renovate treats every
-  package in `project.yml` as shipping, so a package only the tests use needs
-  a rule in `renovate.json` making it `chore`.
-- `ci(deps)`: GitHub Actions. No release.
-- `chore(deps)`: tools pinned in `mise.toml` and development-only packages,
-  including the npm packages in `package.json` (commitlint). No release.
-  `package-lock.json` refreshes get their own pull request, so they never
-  join the `core/Cargo.lock` refresh, which is released.
-
-GitHub Actions are pinned to a full commit SHA, with the exact version as a
-comment, so a tag moved to different code can't change what CI and the release
-jobs run. When you add an action, pin it the same way, for example
-`uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1`
-(`gh api repos/actions/checkout/commits/v7.0.1 --jq .sha` gives the SHA).
-Renovate updates the SHA and the comment together. The release jobs that
-publish (`contents: write`) use no third-party action; keep it that way.
+- When you add a Swift package that only the tests use, add a rule to
+  `renovate.json` making its updates `chore`, or they'll be released.
+- When you add a GitHub Action, pin it to a full commit SHA with the exact
+  version as a comment, for example
+  `uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1`
+  (`gh api repos/actions/checkout/commits/v7.0.1 --jq .sha` gives the SHA).
+  Renovate then updates the SHA and the comment together. Don't add one to
+  the release jobs that publish (spec §15).
 
 Renovate's pull requests are the one exception to the linked-issue rule. They
 go through the same checks and are merged by a maintainer like any other pull
@@ -246,49 +211,23 @@ request. The Dependency Dashboard issue lists pending updates.
 
 ## Releases
 
-Releases are automated. There is no manual version bump and no
-`CHANGELOG.md`: the version and release notes come from the commits. The
-version is embedded in the app at build time: `CFBundleShortVersionString`
-holds `X.Y.Z` and `LSOVersion` holds the full version, e.g. `0.4.0-rc.2` (see
-`scripts/build-app.sh`).
+Releases are automated: there is no version bump to commit and no changelog
+to write. Spec §15 describes how the version is worked out, when candidates
+are published and what the release contains. A maintainer's part:
 
-- The version follows [Semantic Versioning](https://semver.org/) and is
-  calculated from the commits since the last full release, starting at
-  `0.1.0`. The largest change wins: a breaking change bumps major (minor
-  before 1.0.0), otherwise a `feat` bumps minor, otherwise a `fix` or `perf`
-  bumps patch. Commits of the other types alone don't produce a release.
-- Every merge to `main` that produces a version publishes a **release
-  candidate** as a GitHub pre-release, tagged `vX.Y.Z-rc.N`.
-- Once anything releasable (a `feat`, `fix`, `perf` or breaking commit) is
-  unreleased, every merge to `main` publishes a new candidate, including
-  `docs`, `ci` and `chore` merges (their "New since" notes read "No
-  user-facing changes."), and each new candidate cancels the pending approval
-  of the previous one.
-- A maintainer promotes a release candidate by approving the pending release
-  job in the `release` environment. That publishes the full release `vX.Y.Z`
-  from the same commit, marked **Latest**.
-- The release is a universal (Apple Silicon and Intel) `.app` in a `.zip`,
-  ad-hoc signed and not notarised, so users open it once with System Settings
-  → Privacy & Security → Open Anyway.
-- Only one Release run is live at a time: a newer merge cancels the older run.
-  That also cancels an approved run that is still building or publishing, so
-  approve when no merge is pending, and if a run is cancelled after approval,
-  approve the newer candidate. Never re-run an older Release run: it would
-  cancel the newer candidate, and approving it would publish an older commit.
-- A leftover draft release `vX.Y.Z[-rc.N]` means a publish was killed
-  mid-upload (for example by a newer merge). It has no tag. Don't publish it
-  by hand, and never re-run the killed run. A later Release run for the same
-  version deletes and replaces the draft by itself, since candidate numbers
-  come only from tags. If the version has moved on (after a newer `feat`, say),
-  the draft is orphaned: delete it with `gh release delete <tag> --yes`.
-- Repository settings that protect releases: the `release` environment deploys
-  only from `main`, with the maintainer as required reviewer. A tag ruleset,
-  "release tags", stops `v*` tags being moved or deleted. Creating them isn't
-  restricted: GitHub doesn't let the GitHub Actions app bypass a ruleset in a
-  personal repository, so restricting creation would block the release
-  workflow.
-- Release notes list every change since the previous full release, grouped by
-  type. They are the project's changelog.
+- Every merge to `main` that produces a version publishes a release
+  candidate, a GitHub pre-release tagged `vX.Y.Z-rc.N`. To release it,
+  approve its pending release job in the `release` environment. That
+  publishes `vX.Y.Z` from the same commit, marked **Latest**.
+- Approve when no merge is pending: a newer merge cancels the older Release
+  run, even one already approved and publishing. If a run is cancelled after
+  approval, approve the newer candidate.
+- Never re-run an older Release run: it would cancel the newer candidate, and
+  approving it would publish an older commit.
+- A leftover draft release `vX.Y.Z[-rc.N]` with no tag is from a publish that
+  was killed. Don't publish it by hand, and don't re-run the killed run: the
+  next Release run for that version replaces it. If the version has moved on
+  (after a newer `feat`, say), delete it with `gh release delete <tag> --yes`.
 
 ## License
 

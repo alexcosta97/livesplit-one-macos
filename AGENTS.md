@@ -9,13 +9,17 @@ where to find things; the information itself lives in the places below.
 | You need | Look in |
 |---|---|
 | What the project is for | `README.md` |
-| The design, and the reasoning behind decisions | `docs/superpowers/specs/` |
+| The design, technical rules for the code, and the reasoning behind them | `docs/superpowers/specs/` |
 | Implementation plans | `docs/superpowers/plans/` |
 | The work to do, its scope and acceptance criteria | GitHub issues, `alexcosta97/livesplit-one-macos` |
 | Work in progress | Open pull requests |
-| Conventions: commits, branches, pull requests, checks, tests, releases | `CONTRIBUTING.md` |
+| How the work is done: setup, checks, tests to add, commits, branches, pull requests, releases | `CONTRIBUTING.md` |
 | What a pull request must contain | `.github/pull_request_template.md` |
 | Release history | GitHub Releases |
+
+`CONTRIBUTING.md` holds only the logistics of the work, never how the project
+works. A technical rule or constraint, such as one found while fixing a bug,
+goes in the spec, in the section it concerns.
 
 The spec is the source of truth for design. If an issue, plan or pull request
 contradicts it, raise it rather than choosing silently. A change to the design
