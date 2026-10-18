@@ -170,6 +170,12 @@ committed, so pull requests never conflict on `project.pbxproj`.
 - An Xcode build phase runs the script before compiling Swift. Its inputs are
   `core/**`, `Cargo.lock` and `rust-toolchain.toml`, so Xcode skips it when
   nothing on the Rust side changed.
+- `xcodegen generate` runs `scripts/build-core.sh --bindings-only` first (its
+  `preGenCommand`), which regenerates only the Swift bindings, so the
+  generated project lists their files without waiting for a Cargo build.
+- `scripts/build-app.sh <version>` makes the universal release build, with
+  the version embedded, and zips it into `dist/`. CI's `build` check and the
+  release workflow both run it.
 - The version is embedded at build time from the release pipeline (section
   15): `LSOVersion` in `Info.plist` holds the full version, such as
   `0.4.0-rc.2`, which the app shows, and `CFBundleShortVersionString` holds
@@ -816,8 +822,12 @@ These follow livesplit-asr-bridge (its spec sections 13 and 14, and its
   `@AGENTS.md`. Rules for agents live in the repository, never only in an
   agent's memory. Git worktrees go beside the repository, for example
   `../livesplit-one-macos-wt/<name>`.
-- `CONTRIBUTING.md`: development setup, Conventional Commits, signed commits,
-  `<type>/<short-description>` branches, pull requests and how releases work.
+- `CONTRIBUTING.md`: how the work is done, and nothing about how the project
+  works: development setup, the checks to run, tests each pull request adds,
+  Conventional Commits, signed commits, `<type>/<short-description>`
+  branches, pull requests, dependency updates and the release steps a
+  maintainer takes. Technical rules and the reasoning behind them are in this
+  spec.
 - Issue forms for Task, Feature request and Bug report (the bug form names the
   log folder); blank issues disabled. Every pull request links an issue,
   except Renovate's. Labels match livesplit-asr-bridge's.
@@ -846,6 +856,9 @@ These follow livesplit-asr-bridge (its spec sections 13 and 14, and its
   - `commitlint` and `pr-title`: Conventional Commits on the title and every
     commit.
 
+  An advisory `Release scripts` workflow, not a required check, also builds
+  the release package on pull requests that change release files.
+
   On merge to `main` CI only runs `setup`, to save the Cargo cache that pull
   requests restore (a pull request can read its base branch's caches, not
   other pull requests'). Tests are not repeated, since a pull request can't
@@ -854,7 +867,15 @@ These follow livesplit-asr-bridge (its spec sections 13 and 14, and its
   LiveSplit crates (grouped, labelled `livesplit`) are `fix(deps)`; Swift
   packages that ship are `fix(deps)`; GitHub Actions are `ci(deps)`; mise tools
   and development-only packages, including the npm packages for commitlint,
-  are `chore(deps)`.
+  are `chore(deps)`. The `fix(deps)` updates produce a release; the others
+  don't.
+  - The livesplit group moves both LiveSplit crates to the same livesplit-core
+    revision in one pull request.
+  - `core/Cargo.lock` refreshes are `fix(deps)`, since the crates ship.
+    `package-lock.json` refreshes get their own `chore(deps)` pull request,
+    so they never join the `Cargo.lock` refresh, which is released.
+  - Renovate treats every package in `project.yml` as shipping, so a package
+    only the tests use needs a rule in `renovate.json` making it `chore`.
 - **GitHub Actions are pinned to a full commit SHA**, with the exact version
   as a comment (`uses: actions/checkout@<sha> # v7.0.1`), every action
   including GitHub's own. A tag can be moved to different code, and the
@@ -879,6 +900,22 @@ These follow livesplit-asr-bridge (its spec sections 13 and 14, and its
   and Intel) ad-hoc signed, not notarised `.app` in a `.zip`. Only one Release
   run is live at a time (a newer merge cancels the older run, even one already
   approved), and an older run must never be re-run.
+  - The version follows Semantic Versioning, calculated from the commits since
+    the last full release. The largest change wins: a breaking change bumps
+    major (minor before 1.0.0), otherwise a `feat` bumps minor, otherwise a
+    `fix` or `perf` bumps patch. Commits of the other types alone don't produce
+    a release. There is no `CHANGELOG.md`.
+  - Once anything releasable (a `feat`, `fix`, `perf` or breaking commit) is
+    unreleased, every merge to `main` publishes a new candidate, including
+    `docs`, `ci` and `chore` merges, whose "New since" notes read "No
+    user-facing changes.". Each new candidate cancels the pending approval of
+    the previous one.
+  - Release notes list every change since the previous full release, grouped
+    by type.
+  - A publish killed mid-upload, for example by a newer merge, leaves a draft
+    release with no tag. A later Release run for the same version deletes and
+    replaces the draft by itself, since candidate numbers come only from tags.
+    If the version has moved on, the draft is orphaned and is deleted by hand.
 
 ## 16. Documentation
 
