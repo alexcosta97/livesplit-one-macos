@@ -2,7 +2,7 @@
 name = "lso-core"
 version = "0.0.0"
 edition = "2024"
-rust-version = "1.95"
+rust-version = "1.96"
 description = "livesplit-core's C API plus the functions livesplit-one-macos adds to it."
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/alexcosta97/livesplit-one-macos"

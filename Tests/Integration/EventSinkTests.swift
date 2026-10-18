@@ -171,4 +171,11 @@ private func makeTimer(segments: Int = 1) -> SharedTimer {
     @Test func encodesEventsForTheServer() {
         #expect(EventSink.encodeEvent(.splitted) == #"{"event":"Splitted"}"#)
     }
+
+    /// The newest event livesplit-core has: its number here must name the same event there.
+    @Test func encodesTheNewestEvent() {
+        #expect(
+            EventSink.encodeEvent(.autoSplitterSettingsChanged)
+                == #"{"event":"AutoSplitterSettingsChanged"}"#)
+    }
 }
