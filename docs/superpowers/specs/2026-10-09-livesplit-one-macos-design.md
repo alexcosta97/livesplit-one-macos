@@ -186,6 +186,14 @@ committed, so pull requests never conflict on `project.pbxproj`.
 - The timer's lock lives in livesplit-core. Bridge commands run on a
   background queue and take the write lock. Drawing only takes the read lock,
   long enough to update the layout state.
+- While the timer is running, the app holds an idle display-sleep assertion
+  (`ProcessInfo.beginActivity` with `.idleDisplaySleepDisabled`), as a video
+  player does while it plays, so the display, the screen saver and the lock
+  that follows it stay off during a run. A paused, finished or reset timer
+  releases it, as a paused video does. The phase is followed after each
+  command and event (`CommandRunner`'s `changed`), not from the display link,
+  which macOS slows or stops while the window is hidden. The Mac can still be
+  slept or locked by hand.
 
 ### 5.2 Rendering
 

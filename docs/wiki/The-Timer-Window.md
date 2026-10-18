@@ -39,6 +39,10 @@ If the place the window was last isn't on a screen any more, or only a sliver of
 
 While the timer isn't running, the app redraws the window only when something changes, so an idle timer uses almost no processor time.
 
+## The display stays on during a run
+
+While the timer is running, your Mac's display doesn't go to sleep, so the screen saver doesn't start and the Mac doesn't lock, even if you play with a controller and never touch the keyboard or mouse. It works as it does while a video plays. Once you pause, finish or reset, the display sleeps again after the time set in System Settings. You can still put the Mac to sleep or lock it yourself.
+
 ## What it shows at first
 
 The first time, the window shows LiveSplit One's default layout and a run with one segment, **Time**. After you open splits or a layout, the app reopens them at launch: see [Splits and Layouts](Splits-and-Layouts#what-opens-at-launch).
