@@ -11,6 +11,7 @@ Files the tests open, copied into each test bundle as a folder (never into the a
 | `NotSplits.txt` | Written by hand: `hello`. Neither splits nor a layout. |
 | `Grouped.lss` | Made with livesplit-core's `RunEditor`: segments `A`, `B`, `C`, with `B` and `C` in a segment group named `Last`, a custom comparison `Goal`, and a 2 by 2 pixel game icon. |
 | `Empty.lss` | Written by hand: a `<Run>` with no segments. Parses, but has none. |
+| `Icon.png` | Written by a script: a 2 by 2 pixel red PNG, for choosing an icon. |
 
 The livesplit-core files are copied from the revision pinned in `core/Cargo.lock`.
 livesplit-core is dual licensed under the MIT and Apache-2.0 licenses, and so are these

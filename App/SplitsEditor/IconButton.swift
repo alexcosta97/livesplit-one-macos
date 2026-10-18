@@ -58,6 +58,10 @@ final class IconButton: NSButton {
         return menu
     }
 
+    /// The editor is app-modal, and the menu tracks in a window of its own, so AppKit sends the
+    /// items' actions to this button only if it works when modal (#80).
+    @objc var worksWhenModal: Bool { true }
+
     @objc private func showMenu(_ sender: Any?) {
         makeMenu().popUp(positioning: nil, at: NSPoint(x: 0, y: bounds.height), in: self)
     }

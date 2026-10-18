@@ -796,7 +796,8 @@ under 10 % E2E.
 - Reset with new best times: the prompt, and its answer saved (#12).
 - Connect to Server with the fake server: its commands start and split the
   timer; a local split reaches it; it drops and the app reconnects.
-- Edit Splits: rename a segment and change a time, then OK; and Cancel.
+- Edit Splits: rename a segment and change a time, then OK; and Cancel; and
+  choose a segment's icon through its menu (#80).
 - Unsaved changes on Quit: Save writes the file.
 - Compare Against and Real Time / Game Time change what the window shows.
 
