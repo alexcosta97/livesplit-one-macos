@@ -4,6 +4,7 @@
 - [The Timer Window](The-Timer-Window)
 - [The Menu](The-Menu)
 - [Splits and Layouts](Splits-and-Layouts)
+- [Editing Splits](Editing-Splits)
 - [Connecting to a Server](Connecting-to-a-Server)
 - [Settings and Logs](Settings-and-Logs)
 - [Troubleshooting](Troubleshooting)

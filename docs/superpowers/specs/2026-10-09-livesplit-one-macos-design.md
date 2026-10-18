@@ -533,10 +533,22 @@ Every change is saved at once and shows in the menus.
   if any edit changed them: livesplit-core marks the run changed on each
   edit, so OK with no edits leaves them as they were. **Cancel**, Escape and
   closing the window discard the copy.
-- If an attempt started while the window was open (a server can start one),
-  OK can't replace the run without dropping the attempt. It says so below
-  the table, **The splits can't change while an attempt is in progress.
-  Reset it, or choose Cancel.**, and the window stays open with the edits.
+- **OK** is the default button: Return is OK, except while a table cell is
+  being edited, where Return ends that cell's edit (checked as any other
+  edit) and leaves the window open, so Return again is OK.
+- While the window is open the timer's menus are unavailable, but a server
+  can still start an attempt. If one started since the window opened,
+  whether it is still in progress or was reset, OK is refused: replacing the
+  run would drop the attempt, or the history, best times and attempt count
+  it added, which the copy doesn't have. The app compares the timer's
+  attempt count with the one it read when it took the copy, under the lock
+  that replaces the run. OK says below the table **An attempt was started
+  while the splits editor was open, so these changes can't be applied.
+  Choose Cancel, then edit the splits again.**, and the window stays open
+  with the edits.
+- Quit waits while the window is open, since OK would replace the run after
+  the unsaved-changes question was answered: it beeps and brings the window
+  to the front, and does nothing else.
 - **The window holds no state of its own.** Every edit goes to `RunEditor`,
   which parses and validates input, and the window then redraws from the
   editor's state. The one exception is the linked layout, which `RunEditor`
@@ -570,7 +582,8 @@ Every change is saved at once and shows in the menus.
   - comparisons: **Add Comparison…**, **Rename Comparison ▸** and **Remove
     Comparison ▸**, the last two listing the custom comparisons. A name that
     is used already or starts with `[Race]` is refused, and the question
-    stays open saying **That name is already used, or starts with [Race].**;
+    asks again with the typed name kept, saying **That name is already used,
+    or starts with [Race].**;
   - a Real Time / Game Time switch for which times the table shows and edits;
   - **Other ▸** Clear History, Clear Times (each asks for confirmation).
 - Icons are read like splits files (section 7.1): a regular file, at most

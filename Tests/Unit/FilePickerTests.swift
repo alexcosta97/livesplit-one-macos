@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import UniformTypeIdentifiers
 
 @testable import LiveSplitOne
 
@@ -19,6 +20,18 @@ import Testing
         #expect(picker.fileToOpen(.splits)?.path == "/a.lss")
         #expect(picker.fileToSave(.layout, name: "Layout.ls1l", directory: nil)?.path == "/b.ls1l")
         #expect(picker.fileToOpen(.layout)?.path == "/c.ls1l")
+    }
+
+    @Test func theImageOpenPanelAllowsTheSevenFormats() {
+        let panel = SystemFilePicker.openPanel(.image)
+        #expect(panel.allowedContentTypes == [.png, .jpeg, .gif, .bmp, .tiff, .webP, .ico])
+        #expect(panel.allowedContentTypes.count == 7)
+    }
+
+    @Test func anImageIsLoggedAsAnImage() throws {
+        let (picker, _, _) = try makePicker([nil])
+        _ = picker.fileToOpen(.image)
+        #expect(picker.asked == ["open image"])
     }
 
     @Test func aNullCancels() throws {

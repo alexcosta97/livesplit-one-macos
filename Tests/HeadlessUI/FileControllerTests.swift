@@ -29,6 +29,7 @@ final class FakeFilePicker: FilePicker {
         switch kind {
         case .splits: "splits"
         case .layout: "layout"
+        case .image: "image"
         }
     }
 

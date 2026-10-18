@@ -3,37 +3,14 @@ import XCTest
 
 /// Opening, saving and closing files as a user does it (spec §7.1, §14.3).
 final class FileTests: XCTestCase {
-    /// Launches the app with file pickers that answer with `picks`, in order: a fixture's
-    /// name, or the name of a file to save under the run's folder, as `saved:Name`.
     @MainActor
     private func launched(picks: [String?] = []) -> E2EApp {
-        let e2e = E2EApp()
-        let paths: [String?] = picks.map { pick in
-            guard let pick else { return nil }
-            if pick.hasPrefix("saved:") {
-                return e2e.savedFile(String(pick.dropFirst("saved:".count))).path
-            }
-            return e2e.fixture(pick).path
-        }
-        e2e.launch(pickedFiles: paths)
-        XCTAssertTrue(e2e.timerWindow.waitForExistence(timeout: 10))
-        return e2e
+        E2EApp.launched(picks: picks)
     }
 
-    /// Picks an item of the right-click menu, going through `parents` first.
     @MainActor
     private func choose(_ identifier: String, under parents: [String] = [], _ e2e: E2EApp) {
-        e2e.timerWindow.rightClick()
-        var scope: XCUIElement = e2e.app
-        for parent in parents {
-            let item = scope.menuItems[parent]
-            XCTAssertTrue(item.waitForExistence(timeout: 5), parent)
-            item.hover()
-            scope = item
-        }
-        let item = scope.menuItems[identifier]
-        XCTAssertTrue(item.waitForExistence(timeout: 5), identifier)
-        item.click()
+        e2e.choose(identifier, under: parents)
     }
 
     @MainActor

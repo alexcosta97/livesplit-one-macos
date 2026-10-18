@@ -52,6 +52,7 @@ The timer shows **Connected to 192.168.1.20:9087**, and the auto splitter now st
 
 ## Next
 
+- [Editing Splits](Editing-Splits): renaming segments and changing times.
 - [The Menu](The-Menu): every command in the menus.
 - [Splits and Layouts](Splits-and-Layouts): everything about files.
 - [Connecting to a Server](Connecting-to-a-Server): everything about the bridge.

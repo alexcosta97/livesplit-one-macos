@@ -5,12 +5,15 @@ import UniformTypeIdentifiers
 enum FileKind: Sendable {
     case splits
     case layout
+    /// An icon: only ever opened.
+    case image
 
     /// How the kind reads in the log, as in "open splits".
     fileprivate var logName: String {
         switch self {
         case .splits: "splits"
         case .layout: "layout"
+        case .image: "image"
         }
     }
 }
@@ -46,7 +49,8 @@ final class SystemFilePicker: FilePicker {
     }
 
     /// The panel for opening a file of `kind`. Splits can be any file, because livesplit-core
-    /// reads many formats whatever their extension; layouts are `.lsl` or `.ls1l`.
+    /// reads many formats whatever their extension; layouts are `.lsl` or `.ls1l`; images are
+    /// the formats livesplit-core decodes (`ImageFile.formats`).
     static func openPanel(_ kind: FileKind) -> NSOpenPanel {
         let panel = NSOpenPanel()
         panel.canChooseFiles = true
@@ -59,6 +63,8 @@ final class SystemFilePicker: FilePicker {
             panel.allowedContentTypes = ["lsl", "ls1l"].compactMap {
                 UTType(filenameExtension: $0, conformingTo: .data)
             }
+        case .image:
+            panel.allowedContentTypes = ImageFile.formats
         }
         return panel
     }
@@ -70,6 +76,7 @@ final class SystemFilePicker: FilePicker {
             switch kind {
             case .splits: "lss"
             case .layout: "ls1l"
+            case .image: preconditionFailure("Images are opened, never saved")
             }
         panel.allowedContentTypes = [UTType(filenameExtension: fileExtension, conformingTo: .data)]
             .compactMap { $0 }

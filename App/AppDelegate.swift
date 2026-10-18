@@ -17,6 +17,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private(set) var menus: TimerMenus?
     /// Opens, saves and closes splits and layouts (spec §7).
     private(set) var files: FileController?
+    /// Opens the splits editor (spec §9).
+    private(set) var splitsEditor: SplitsEditorPresenter?
     private(set) var settingsWindow: SettingsWindowController?
     private var shortcutKeys: ShortcutKeys?
     /// Decides whether the app may quit (spec §7.1).
@@ -50,9 +52,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             timer: content.timer, resetSavesBestTimes: settings.settings.resetSavesBestTimes,
             changed: { [weak content] in content?.markChanged() },
             remember: { [weak self] in self?.rememberResetAnswer($0) })
+        let picker = SystemFilePicker.make()
         let files = FileController(
-            content: content, window: timerWindow, settings: settings,
-            picker: SystemFilePicker.make(), alerts: SystemFileAlerts())
+            content: content, window: timerWindow, settings: settings, picker: picker,
+            alerts: SystemFileAlerts())
+        let splitsEditor = SplitsEditorPresenter(
+            content: content, window: timerWindow,
+            prompts: SystemSplitsEditorPrompts(picker: picker))
+        self.splitsEditor = splitsEditor
         let client = ServerClient(
             sink: runner.sink, notices: { [weak timerWindow] in timerWindow?.notices.show($0) })
         runner.observeEvents { client.send($0) }
@@ -60,7 +67,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         let menus = TimerMenus(
             runner: runner, readState: { TimerMenuState.read(from: content.timer) },
             shortcuts: { settings.settings.shortcuts }, files: files,
-            connectionStatus: { client.status })
+            connectionStatus: { client.status }, splitsEditor: splitsEditor)
         client.onStatusChange = { [weak menus] _ in menus?.refreshConnection() }
         NSApp.mainMenu = menus.mainMenu
         NSApp.windowsMenu = menus.windowMenu
@@ -74,7 +81,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             perform: { [weak menus] in menus?.perform($0, from: .keyboard) })
         shortcutKeys.install()
         self.shortcutKeys = shortcutKeys
-        self.quitFlow = QuitFlow(content: content, runner: runner, files: files)
+        self.quitFlow = QuitFlow(
+            content: content, runner: runner, files: files, splitsEditor: splitsEditor)
         files.launch(settingsOutcome: settings.loadOutcome) {
             timerWindow.window.makeKeyAndOrderFront(nil)
             // After making it key, which can happen at once: `follow` reads whether it is key.
@@ -87,7 +95,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         true
     }
 
-    /// Quit (spec §7.1): resets an attempt in progress, then asks about unsaved changes.
+    /// Quit (spec §7.1): resets an attempt in progress, then asks about unsaved changes. It is
+    /// refused while the splits editor is open (spec §9).
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard let quitFlow else { return .terminateNow }
         return quitFlow.shouldTerminate { NSApp.reply(toApplicationShouldTerminate: $0) }
