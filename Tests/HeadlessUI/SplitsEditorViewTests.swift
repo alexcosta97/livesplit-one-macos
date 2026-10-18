@@ -285,6 +285,17 @@ import Testing
         #expect(icon.icon == nil)
     }
 
+    /// The editor is app-modal, and a pop-up menu tracks in a window of its own, so AppKit sends
+    /// a menu item's action only to a target that works when modal (#80).
+    @Test func theIconsMenuWorksInTheModalEditor() throws {
+        let controller = try makeController()
+        let icon: IconButton = try #require(find("editor-game-icon", in: controller.view))
+        for item in icon.makeMenu().items {
+            let target = try #require(item.target as? NSObject)
+            #expect(target.value(forKey: "worksWhenModal") as? Bool == true, "\(item.title)")
+        }
+    }
+
     @Test func okAndCancelCallTheirClosures() throws {
         let controller = try makeController()
         let ok = try button("editor-ok", controller)

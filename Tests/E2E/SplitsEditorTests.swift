@@ -70,4 +70,28 @@ final class SplitsEditorTests: XCTestCase {
         XCTAssertFalse(text?.contains("00:01:23.45") == true, "the split time was kept")
         XCTAssertNil(e2e.logText(containing: "Edited the splits", timeout: 0))
     }
+
+    /// Clicks the icon well `identifier` and picks Choose Image… from its menu.
+    @MainActor
+    private func chooseImage(_ identifier: String, in editor: XCUIElement, _ e2e: E2EApp) {
+        let well = editor.descendants(matching: .any)[identifier]
+        XCTAssertTrue(well.waitForExistence(timeout: 5), "no icon well \(identifier)")
+        well.click()
+        let item = e2e.app.menuItems["Choose Image…"]
+        XCTAssertTrue(item.waitForExistence(timeout: 5), "the icon's menu didn't show")
+        item.click()
+    }
+
+    @MainActor
+    func testChoosingASegmentIconSetsIt() {
+        let e2e = E2EApp.launched(picks: ["Icon.png", "saved:Edited.lss"])
+        let editor = openEditor(e2e)
+        chooseImage("editor-cell-icon-0", in: editor, e2e)
+        e2e.app.typeKey(.return, modifierFlags: [])
+        XCTAssertTrue(editor.waitForNonExistence(timeout: 5), "OK didn't close the editor")
+
+        let text = saved("Edited.lss", e2e)
+        XCTAssertNotNil(text, "Edited.lss wasn't written")
+        XCTAssertTrue(text?.contains("<Icon><![CDATA[") == true, text ?? "")
+    }
 }
