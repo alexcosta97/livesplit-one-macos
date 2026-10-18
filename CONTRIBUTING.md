@@ -123,27 +123,6 @@ Recording makes each snapshot test fail, so a run that records is never
 taken for a pass. Run the tests again without the variable to check. When a
 comparison fails, the message names a file with that run's image.
 
-## Menus in modal windows
-
-The splits editor runs app-modal (`NSApp.runModal(for:)`), and so may later
-windows. While a window is modal, AppKit sends a menu item's action to its
-target only if the target is in the modal window or answers `worksWhenModal`
-with true. A menu shown with `NSMenu.popUp` or as a right-click menu tracks in
-a window of its own, so its items' targets fail the first test even when they
-are views in the modal window. AppKit then drops the action without a sound or
-a log line (#80).
-
-- A menu shown from a modal window, whose items have an explicit target,
-  needs that target to answer `worksWhenModal` with true, as `IconButton`
-  does.
-- Buttons and other controls in the modal window are unaffected, including
-  ones that open a panel or an alert: their actions come from inside the
-  modal window.
-- A test that calls a menu's action directly, to avoid popping the menu up,
-  skips this check. Check the items' targets in a headless UI test, as
-  `SplitsEditorViewTests.theIconsMenuWorksInTheModalEditor` does, and drive
-  the real menu in the flow's E2E test.
-
 ## User documentation
 
 The user documentation is the repository's
