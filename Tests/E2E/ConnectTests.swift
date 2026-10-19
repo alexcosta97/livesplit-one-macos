@@ -4,24 +4,6 @@ import XCTest
 /// start the timer, a local split reaches it, it drops and the app reconnects, and Disconnect
 /// closes the connection.
 final class ConnectTests: XCTestCase {
-    /// Right-clicks the timer and returns the item `identifier`, going through `parents` first.
-    @MainActor
-    private func menuItem(
-        _ identifier: String, under parents: [String] = [], _ e2e: E2EApp
-    ) -> XCUIElement {
-        e2e.timerWindow.rightClick()
-        var scope: XCUIElement = e2e.app
-        for parent in parents {
-            let item = scope.menuItems[parent]
-            XCTAssertTrue(item.waitForExistence(timeout: 5), parent)
-            item.hover()
-            scope = item
-        }
-        let item = scope.menuItems[identifier]
-        XCTAssertTrue(item.waitForExistence(timeout: 5), identifier)
-        return item
-    }
-
     /// Waits until the overlay notice reads `text`. Returns whether it did within `timeout`.
     @MainActor
     private func waitForNotice(_ text: String, timeout: TimeInterval = 10, _ e2e: E2EApp)
@@ -58,7 +40,7 @@ final class ConnectTests: XCTestCase {
         XCTAssertTrue(e2e.timerWindow.waitForExistence(timeout: 10))
 
         // Connect.
-        let connect = menuItem("timer-connect", e2e)
+        let connect = e2e.menuItem("timer-connect")
         XCTAssertEqual(connect.title, "Connect to Server…")
         connect.click()
         let field = e2e.app.textFields["connect-url"]
@@ -79,7 +61,7 @@ final class ConnectTests: XCTestCase {
             Array(server.messages.prefix(2)), [#"{"event":"Started"}"#, #"{"success":null}"#])
 
         // A local split reaches the server. The default run has one segment: it finishes.
-        let split = menuItem("timer-start_split", under: ["timer-control"], e2e)
+        let split = e2e.menuItem("timer-start_split", under: ["timer-control"])
         XCTAssertEqual(split.title, "Split")
         split.click()
         let finished = await server.waitForMessage { $0 == #"{"event":"Finished"}"# }
@@ -98,14 +80,14 @@ final class ConnectTests: XCTestCase {
         XCTAssertEqual(server.connectionCount, 2)
 
         // Disconnect.
-        let disconnect = menuItem("timer-connect", e2e)
+        let disconnect = e2e.menuItem("timer-connect")
         XCTAssertEqual(disconnect.title, "Disconnect from \(host)")
         disconnect.click()
         // The close code is checked by URLSessionWebSocketTests: here URLSession can reset the
         // connection right after its close frame, and the server's read then fails with it.
         let closed = await server.wait { server.openConnections == 0 }
         XCTAssertTrue(closed, "the server's connection is still open")
-        XCTAssertEqual(menuItem("timer-connect", e2e).title, "Connect to Server…")
+        XCTAssertEqual(e2e.menuItem("timer-connect").title, "Connect to Server…")
         e2e.app.typeKey(.escape, modifierFlags: [])
         let settings = e2e.settingsText(containing: "last_server_url")
         XCTAssertTrue(settings?.contains(server.url.absoluteString) == true, settings ?? "")

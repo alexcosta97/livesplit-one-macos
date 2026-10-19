@@ -1,39 +1,7 @@
-import AppKit
 import XCTest
 
 /// The timer window as a user sees and handles it (spec §6, §14.3).
 final class TimerWindowTests: XCTestCase {
-    /// The number of different colours in a sample of the element's pixels. An empty window has
-    /// one or two; a drawn layout, with its text, many more.
-    @MainActor
-    private func colours(in element: XCUIElement) -> Int {
-        guard
-            let image = element.screenshot().image.cgImage(
-                forProposedRect: nil, context: nil, hints: nil),
-            let space = CGColorSpace(name: CGColorSpace.sRGB)
-        else { return 0 }
-        let (width, height) = (image.width, image.height)
-        var pixels = [UInt8](repeating: 0, count: width * height * 4)
-        let drew = pixels.withUnsafeMutableBytes { bytes -> Bool in
-            guard
-                let context = CGContext(
-                    data: bytes.baseAddress, width: width, height: height, bitsPerComponent: 8,
-                    bytesPerRow: width * 4, space: space,
-                    bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
-            else { return false }
-            context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
-            return true
-        }
-        guard drew else { return 0 }
-        var seen = Set<UInt32>()
-        for index in stride(from: 0, to: pixels.count, by: 4 * 7) {
-            seen.insert(
-                UInt32(pixels[index]) << 16 | UInt32(pixels[index + 1]) << 8
-                    | UInt32(pixels[index + 2]))
-        }
-        return seen.count
-    }
-
     @MainActor
     func testFirstLaunchShowsTheDefaultLayout() {
         let e2e = E2EApp()
@@ -45,10 +13,10 @@ final class TimerWindowTests: XCTestCase {
         let layout = window.images["timer-layout"]
         XCTAssertTrue(layout.waitForExistence(timeout: 5))
         let deadline = Date().addingTimeInterval(5)
-        while colours(in: window) <= 10, Date() < deadline {
+        while Set(e2e.picture(of: window)).count <= 10, Date() < deadline {
             RunLoop.current.run(until: Date().addingTimeInterval(0.2))
         }
-        XCTAssertGreaterThan(colours(in: window), 10, "the window shows no layout")
+        XCTAssertGreaterThan(Set(e2e.picture(of: window)).count, 10, "the window shows no layout")
     }
 
     @MainActor

@@ -1,3 +1,4 @@
+import AppKit
 import XCTest
 
 /// Launches the app with its own folders, so E2E runs never touch the user's settings and logs
@@ -61,8 +62,9 @@ final class E2EApp {
         return e2e
     }
 
-    /// Picks an item of the timer's right-click menu, going through `parents` first.
-    func choose(_ identifier: String, under parents: [String] = []) {
+    /// Right-clicks the timer and returns the item `identifier` of its menu, going through
+    /// `parents` first, without clicking it.
+    func menuItem(_ identifier: String, under parents: [String] = []) -> XCUIElement {
         timerWindow.rightClick()
         var scope: XCUIElement = app
         for parent in parents {
@@ -73,7 +75,71 @@ final class E2EApp {
         }
         let item = scope.menuItems[identifier]
         XCTAssertTrue(item.waitForExistence(timeout: 5), identifier)
-        item.click()
+        return item
+    }
+
+    /// Picks an item of the timer's right-click menu, going through `parents` first.
+    func choose(_ identifier: String, under parents: [String] = []) {
+        menuItem(identifier, under: parents).click()
+    }
+
+    /// Closes the open menus: a submenu, then the right-click menu.
+    func closeMenus() {
+        app.typeKey(.escape, modifierFlags: [])
+        app.typeKey(.escape, modifierFlags: [])
+    }
+
+    /// Waits until the log holds `text` `count` times, and returns the log. Fails the test if it
+    /// doesn't within `timeout` seconds.
+    @discardableResult
+    func waitForLog(_ text: String, count: Int = 1, timeout: TimeInterval = 10) -> String {
+        let deadline = Date().addingTimeInterval(timeout)
+        var log = ""
+        while Date() < deadline {
+            log = logText(containing: text, timeout: 1) ?? log
+            if log.components(separatedBy: text).count - 1 >= count { return log }
+        }
+        XCTFail("the log doesn't hold \"\(text)\" \(count) times. The log:\n\(log)")
+        return log
+    }
+
+    /// The element's pixels as RGB values, so two screenshots can be compared, or empty if the
+    /// screenshot can't be read.
+    func picture(of element: XCUIElement) -> [UInt32] {
+        guard
+            let image = element.screenshot().image.cgImage(
+                forProposedRect: nil, context: nil, hints: nil),
+            let space = CGColorSpace(name: CGColorSpace.sRGB)
+        else { return [] }
+        let (width, height) = (image.width, image.height)
+        var pixels = [UInt8](repeating: 0, count: width * height * 4)
+        let drew = pixels.withUnsafeMutableBytes { bytes -> Bool in
+            guard
+                let context = CGContext(
+                    data: bytes.baseAddress, width: width, height: height, bitsPerComponent: 8,
+                    bytesPerRow: width * 4, space: space,
+                    bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+            else { return false }
+            context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+            return true
+        }
+        guard drew else { return [] }
+        return stride(from: 0, to: pixels.count, by: 4).map {
+            UInt32(pixels[$0]) << 16 | UInt32(pixels[$0 + 1]) << 8 | UInt32(pixels[$0 + 2])
+        }
+    }
+
+    /// Waits until the element's picture differs from `before`, and returns it.
+    func waitForPicture(
+        differentFrom before: [UInt32], in element: XCUIElement, timeout: TimeInterval = 10
+    ) -> [UInt32] {
+        let deadline = Date().addingTimeInterval(timeout)
+        var now = picture(of: element)
+        while now == before, Date() < deadline {
+            RunLoop.current.run(until: Date().addingTimeInterval(0.3))
+            now = picture(of: element)
+        }
+        return now
     }
 
     /// All of the log files' text, once it contains `text`, or `nil` if it doesn't within
