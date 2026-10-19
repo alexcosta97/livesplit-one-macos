@@ -168,6 +168,31 @@ final class FileTests: XCTestCase {
         XCTAssertTrue(text?.contains("<AttemptCount>1<") == true, "the attempt count isn't 1")
     }
 
+    /// A finished attempt saved before it is reset is in the file, and the reset that keeps its
+    /// times leaves nothing unsaved, so quitting doesn't ask about changes (spec §7.1).
+    @MainActor
+    func testAFinishedAttemptSavedBeforeQuittingIsKept() {
+        let e2e = launched(picks: ["saved:Saved.lss"])
+        // The default run has one segment: Start, then Split, ends the attempt.
+        split(2, e2e)
+        waitForLog("Start/Split from the keyboard", count: 2, e2e)
+        choose("timer-save-splits-as", e2e)
+        waitForLog("Saved splits to", e2e)
+
+        e2e.app.typeKey("q", modifierFlags: .command)
+        let yes = alertButton("Yes", e2e)
+        XCTAssertTrue(yes.waitForExistence(timeout: 5), "quitting didn't ask the reset question")
+        yes.click()
+        XCTAssertTrue(e2e.app.wait(for: .notRunning, timeout: 10), "quitting asked about changes")
+
+        let text = try? String(contentsOf: e2e.savedFile("Saved.lss"), encoding: .utf8)
+        XCTAssertNotNil(text, "Saved.lss wasn't written")
+        XCTAssertTrue(text?.contains("<Attempt id=\"1\"") == true, "no attempt in Saved.lss")
+        XCTAssertTrue(
+            text?.contains(#"<SplitTime name="Personal Best"><RealTime>"#) == true,
+            "the attempt's time isn't the personal best in Saved.lss")
+    }
+
     @MainActor
     func testResetWithNewBestTimesAsksAndRemembersNo() {
         let e2e = launched()

@@ -106,6 +106,7 @@ final class TimerContent {
             if timer.setRun(run) != nil { result = .noSegments }
         }
         guard result == .replaced else { return result }
+        textSavedDuringAttempt = nil
         imageCache.collect()
         markChanged()
         return .replaced
@@ -142,11 +143,30 @@ final class TimerContent {
     /// which replacing the run would drop (spec §7). The one place this rule is written.
     var canReplaceRun: Bool { phase == .notRunning }
 
-    /// Whether the run changed since it was opened or last saved. A reset attempt counts.
-    var hasUnsavedChanges: Bool { withRun { $0.hasBeenModified() } }
+    /// Whether the run changed since it was opened or last saved. A reset attempt counts, and so
+    /// does a reset that left the run different from an attempt saved before it.
+    var hasUnsavedChanges: Bool {
+        var changed = false
+        timer.readWith { timer in
+            changed =
+                timer.getRun().hasBeenModified()
+                || textSavedDuringAttempt.map { timer.saveAsLss() != $0 } ?? false
+        }
+        return changed
+    }
 
-    /// The run as `.lss` text.
-    func lssText() -> String { withRun { $0.saveAsLss() } }
+    /// What was last saved, if it was saved during an attempt: livesplit-core doesn't mark the
+    /// run modified when a reset adds the attempt, or drops the times that were saved with it.
+    /// Opening other splits or saving with no attempt clears it.
+    private var textSavedDuringAttempt: String?
+
+    /// The run as `.lss` text, with an attempt that isn't reset yet added as a reset that keeps
+    /// its times would (spec §7.1). livesplit-core adds it to the run only when it resets.
+    func lssText() -> String {
+        var text = ""
+        timer.readWith { text = $0.saveAsLss() }
+        return text
+    }
 
     /// After `text` was written: marks the run saved, unless it changed since (a server command
     /// can change it meanwhile). Like `setRun`, it takes the write lock on the main thread, so
@@ -154,7 +174,10 @@ final class TimerContent {
     /// and a modal alert blocks them.
     func markSaved(_ text: String) {
         timer.writeWith { timer in
-            if timer.getRun().saveAsLss() == text { timer.markAsUnmodified() }
+            guard timer.saveAsLss() == text else { return }
+            timer.markAsUnmodified()
+            let attempt = timer.currentPhase() != TimerPhase.notRunning.rawValue
+            textSavedDuringAttempt = attempt ? text : nil
         }
     }
 

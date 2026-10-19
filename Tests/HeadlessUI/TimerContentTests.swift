@@ -153,6 +153,65 @@ import Testing
         #expect(!content.hasUnsavedChanges)
     }
 
+    /// A finished attempt is only added to the run by a reset, so the save adds it as a reset
+    /// that keeps its times would (spec §7.1).
+    @Test func aFinishedAttemptIsSavedWithItsTimes() {
+        let content = TimerContent(lang: 0)
+        let sink = EventSink(timer: content.timer, report: { _ in }, decideReset: { .save })
+        _ = sink.handleCommand(#"{"command":"splitOrStart"}"#)
+        _ = sink.handleCommand(#"{"command":"splitOrStart"}"#)
+        #expect(content.phase == .ended)
+        let text = content.lssText()
+        #expect(text != content.withRun { $0.saveAsLss() })
+        _ = sink.handleCommand(#"{"command":"reset","saveAttempt":true}"#)
+        #expect(content.withRun { $0.saveAsLss() } == text)
+    }
+
+    @Test func aResetThatKeepsASavedAttemptsTimesLeavesTheRunSaved() {
+        let content = TimerContent(lang: 0)
+        let sink = EventSink(timer: content.timer, report: { _ in }, decideReset: { .save })
+        _ = sink.handleCommand(#"{"command":"splitOrStart"}"#)
+        _ = sink.handleCommand(#"{"command":"splitOrStart"}"#)
+        content.markSaved(content.lssText())
+        #expect(!content.hasUnsavedChanges)
+        _ = sink.handleCommand(#"{"command":"reset","saveAttempt":true}"#)
+        #expect(!content.hasUnsavedChanges)
+    }
+
+    /// The file has the times the reset dropped, so the run no longer matches it.
+    @Test func aResetThatDropsASavedAttemptsTimesIsAnUnsavedChange() {
+        let content = TimerContent(lang: 0)
+        let sink = EventSink(timer: content.timer, report: { _ in }, decideReset: { .save })
+        _ = sink.handleCommand(#"{"command":"splitOrStart"}"#)
+        _ = sink.handleCommand(#"{"command":"splitOrStart"}"#)
+        content.markSaved(content.lssText())
+        _ = sink.handleCommand(#"{"command":"reset","saveAttempt":false}"#)
+        #expect(content.hasUnsavedChanges)
+    }
+
+    /// An attempt saved while running goes on changing until it is reset.
+    @Test func anAttemptSavedWhileRunningIsUnsavedOnceItGoesOn() {
+        let content = TimerContent(lang: 0)
+        let sink = EventSink(timer: content.timer, report: { _ in }, decideReset: { .save })
+        _ = sink.handleCommand(#"{"command":"splitOrStart"}"#)
+        content.markSaved(content.lssText())
+        _ = sink.handleCommand(#"{"command":"splitOrStart"}"#)
+        _ = sink.handleCommand(#"{"command":"reset","saveAttempt":true}"#)
+        #expect(content.hasUnsavedChanges)
+    }
+
+    /// Opening other splits starts again from their own modified flag.
+    @Test func newSplitsForgetASaveMadeDuringAnAttempt() throws {
+        let content = TimerContent(lang: 0)
+        let sink = EventSink(timer: content.timer, report: { _ in }, decideReset: { .save })
+        _ = sink.handleCommand(#"{"command":"splitOrStart"}"#)
+        _ = sink.handleCommand(#"{"command":"splitOrStart"}"#)
+        content.markSaved(content.lssText())
+        _ = sink.handleCommand(#"{"command":"reset","saveAttempt":false}"#)
+        #expect(content.setRun(try SplitsFile.load(Fixtures.url("GameTime.lss"))) == .replaced)
+        #expect(!content.hasUnsavedChanges)
+    }
+
     @Test func aNewLayoutIsDrawnAtOnce() throws {
         let content = TimerContent(lang: 0)
         _ = content.render(pixelWidth: 300, pixelHeight: 500)
