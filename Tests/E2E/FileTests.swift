@@ -33,8 +33,8 @@ final class FileTests: XCTestCase {
 
         openSplits(e2e)
         e2e.choose("timer-open-layout-choose", under: ["timer-open-layout"])
-        XCTAssertNotEqual(
-            e2e.waitForPicture(differentFrom: defaultPicture, in: window), defaultPicture,
+        XCTAssertFalse(
+            e2e.waitForPicture(differentFrom: defaultPicture, in: window) == defaultPicture,
             "the window still shows the default run and layout")
 
         let before = window.frame
@@ -48,6 +48,9 @@ final class FileTests: XCTestCase {
         let moved = window.frame
         XCTAssertEqual(moved.minX, before.minX + 120, accuracy: 2, "the window didn't move")
 
+        let shown = e2e.picture(of: window)
+        XCTAssertTrue(e2e.picture(of: window) == shown, "the window changes by itself")
+
         let saved = e2e.settingsText(containing: "x = \(Double(moved.minX))")
         XCTAssertNotNil(saved, "app.toml doesn't hold the moved frame")
         XCTAssertTrue(saved?.contains("[[windows]]") == true, saved ?? "")
@@ -58,9 +61,11 @@ final class FileTests: XCTestCase {
         XCTAssertTrue(window.waitForExistence(timeout: 10))
         XCTAssertEqual(window.frame.minX, moved.minX, accuracy: 1)
         XCTAssertEqual(window.frame.minY, moved.minY, accuracy: 1)
-        let after = e2e.settingsText(containing: "TextShadow.ls1l") ?? ""
-        XCTAssertTrue(after.contains("GameTime.lss"), after)
-        XCTAssertTrue(after.contains("TextShadow.ls1l"), after)
+        XCTAssertEqual(window.frame.size, moved.size)
+        // The first picture after the launch may be of the default run and layout.
+        _ = e2e.waitForPicture(differentFrom: defaultPicture, in: window)
+        XCTAssertTrue(
+            e2e.picture(of: window) == shown, "the relaunch didn't reopen the splits and layout")
     }
 
     /// Quitting with an attempt in progress goes through AppKit's `.terminateLater`: the reset
@@ -152,21 +157,6 @@ final class FileTests: XCTestCase {
     }
 
     @MainActor
-    func testCompareAgainstChangesWhatTheWindowShows() {
-        let e2e = E2EApp.launched(picks: ["GameTime.lss"])
-        openSplits(e2e)
-        e2e.app.typeKey(" ", modifierFlags: [])
-        let window = e2e.timerWindow
-        let started = e2e.picture(of: window)
-
-        e2e.choose("Best Segments", under: ["timer-compare-against"])
-        e2e.waitForLog("Compare Against Best Segments from the menu")
-        XCTAssertNotEqual(
-            e2e.waitForPicture(differentFrom: started, in: window), started,
-            "the window is the same against Best Segments")
-    }
-
-    @MainActor
     func testAFileThatIsNotSplitsShowsTheLoadFailedAlert() {
         let e2e = E2EApp.launched(picks: ["NotSplits.txt"])
         let window = e2e.timerWindow
@@ -177,7 +167,7 @@ final class FileTests: XCTestCase {
         XCTAssertTrue(ok.waitForExistence(timeout: 5), "no alert for a file that isn't splits")
         ok.click()
         XCTAssertTrue(ok.waitForNonExistence(timeout: 5))
-        XCTAssertEqual(e2e.picture(of: window), before, "the window changed")
+        XCTAssertTrue(e2e.picture(of: window) == before, "the window changed")
     }
 
     @MainActor

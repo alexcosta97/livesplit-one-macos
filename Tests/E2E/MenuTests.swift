@@ -97,21 +97,29 @@ final class MenuTests: XCTestCase {
         XCTAssertEqual(occurrences(of: "Undo Split from", in: log), 0, log)
     }
 
+    /// The timer isn't started: a running timer redraws the window all the time, so every
+    /// picture would differ. The default layout's splits show each segment's comparison time,
+    /// which differs between Personal Best and Best Segments, and between Real Time and Game Time
+    /// in GameTime.lss.
     @MainActor
-    func testCompareAgainstAndTheTimingMethod() {
-        let e2e = E2EApp.launched()
-        for choice in ["Best Segments", "Game Time", "Real Time"] {
-            e2e.timerWindow.rightClick()
-            let compare = e2e.app.menuItems["timer-compare-against"]
-            XCTAssertTrue(compare.waitForExistence(timeout: 5))
-            compare.hover()
-            let item = compare.menuItems[choice]
-            XCTAssertTrue(item.waitForExistence(timeout: 5))
-            item.click()
-        }
-        e2e.waitForLog(#"Compare Against Best Segments from the menu: {"success":null}"#)
-        e2e.waitForLog(#"Game Time from the menu: {"success":null}"#)
-        e2e.waitForLog(#"Real Time from the menu: {"success":null}"#)
+    func testCompareAgainstAndTheTimingMethodChangeWhatTheWindowShows() {
+        let e2e = E2EApp.launched(picks: ["GameTime.lss"])
+        let window = e2e.timerWindow
+        let empty = e2e.waitForPicture(differentFrom: [], in: window)
+        e2e.choose("timer-open-splits-choose", under: ["timer-open-splits"])
+        e2e.waitForLog("Opened splits")
+        let opened = e2e.waitForPicture(differentFrom: empty, in: window)
+        XCTAssertFalse(opened == empty, "the window doesn't show the opened splits")
+        XCTAssertTrue(e2e.picture(of: window) == opened, "the window changes by itself")
+
+        e2e.choose("Best Segments", under: ["timer-compare-against"])
+        let bestSegments = e2e.waitForPicture(differentFrom: opened, in: window)
+        XCTAssertFalse(bestSegments == opened, "Best Segments didn't change the window")
+
+        e2e.choose("Game Time", under: ["timer-compare-against"])
+        XCTAssertFalse(
+            e2e.waitForPicture(differentFrom: bestSegments, in: window) == bestSegments,
+            "Game Time didn't change the window")
     }
 
     @MainActor
