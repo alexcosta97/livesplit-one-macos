@@ -396,6 +396,16 @@ Quit                   ⌘Q
   in progress first resets it, as LiveSplit does when it closes, so the
   attempt is kept in the splits' history and asked about like any other
   change; that reset follows the rule below for new best times.
+- **Saving during an attempt:** livesplit-core adds an attempt to the run only
+  when it resets, so splits are saved through the timer (`Timer.saveAsLss`,
+  its `save_timer`), never the bare run: an attempt that isn't reset yet is
+  saved as a reset that keeps its times would, with its history, personal
+  best and best segments, as LiveSplit One does. livesplit-core marks the run
+  modified when an attempt starts and at each split, but not when it resets,
+  so after a save during an attempt the app keeps the text it saved: the run
+  counts as unsaved again while the timer's `.lss` text differs from it, for
+  example after a reset that drops the attempt's times. Opening other splits,
+  or a save with no attempt, forgets it.
 - **Linked layouts:** splits saved by LiveSplit can name a layout. Opening
   such splits from the menu opens that layout too, or the default layout when
   the link is to it. If the layout can't be opened, the current one stays and
@@ -826,6 +836,8 @@ under 10 % E2E.
 - Edit Splits: rename a segment and change a time, then OK; and Cancel; and
   choose a segment's icon through its menu (#80).
 - Unsaved changes on Quit: Save writes the file.
+- A finished attempt saved before Quit is in the file, and Quit doesn't ask
+  about changes.
 - Compare Against and Real Time / Game Time change what the window shows.
 
 ### 14.4 Manual, before each full release

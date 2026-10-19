@@ -25,6 +25,7 @@ private final class QuestionCount: Sendable {
     let alerts = FakeFileAlerts()
     private let questions = QuestionCount()
     private var runnerInUse: CommandRunner?
+    private var filesInUse: FileController?
     /// How many times a refused quit beeped.
     private var beeps = 0
 
@@ -67,6 +68,7 @@ private final class QuestionCount: Sendable {
         let files = FileController(
             content: content, window: window, settings: settings, picker: picker,
             alerts: alertsOverride ?? alerts, lang: 0, log: makeLog("logs"))
+        filesInUse = files
         return QuitFlow(
             content: content, runner: runner, files: files, splitsEditor: splitsEditor,
             beep: { [unowned self] in beeps += 1 })
@@ -245,6 +247,39 @@ private final class QuestionCount: Sendable {
         #expect(questions.value == 1)
         #expect(replies == [true])
         #expect(content.phase == .notRunning)
+    }
+
+    /// Saving a finished attempt before quitting keeps it in the file, and the quit's reset
+    /// that keeps its times leaves nothing to ask about.
+    @Test(.timeLimit(.minutes(1))) func aFinishedAttemptSavedBeforeQuittingIsInTheFile()
+        async throws
+    {
+        let flow = makeFlow(answering: .yes)
+        await finishAnAttempt(on: runnerInUse!)
+        let url = folder.url.appending(path: "Splits.lss")
+        picker.saveAnswers = [url]
+        #expect(filesInUse!.saveSplitsAs())
+        let (immediate, replies) = await quit(flow)
+        #expect(immediate == .terminateLater)
+        #expect(replies == [true])
+        #expect(alerts.asked.isEmpty)
+        let saved = try SplitsFile.load(url)
+        #expect(saved.attemptHistoryLen() == 1)
+        #expect(saved.saveAsLss() == content.withRun { $0.saveAsLss() })
+    }
+
+    /// When the quit's reset drops the saved attempt's times, the file no longer matches the
+    /// run, so quitting asks about it.
+    @Test(.timeLimit(.minutes(1))) func droppingASavedAttemptsTimesOnQuitAsksToSave() async {
+        let flow = makeFlow(answering: .no)
+        await finishAnAttempt(on: runnerInUse!)
+        picker.saveAnswers = [folder.url.appending(path: "Splits.lss")]
+        #expect(filesInUse!.saveSplitsAs())
+        alerts.choices = [.dontSave]
+        let (immediate, replies) = await quit(flow)
+        #expect(immediate == .terminateLater)
+        #expect(replies == [true])
+        #expect(alerts.asked.count == 1)
     }
 
     @Test(.timeLimit(.minutes(1))) func dontResetKeepsTheAppOpenAndTheAttempt() async {

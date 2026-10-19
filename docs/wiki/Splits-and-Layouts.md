@@ -33,6 +33,8 @@ The app always saves splits as `.lss`, LiveSplit's own format, whatever the file
 
 If the app can't save the file, an alert says why, and the splits stay marked as unsaved.
 
+If you save when an attempt is finished but not reset yet, the attempt is saved with the splits, with its times, and any new personal best or best segments. If you then reset and choose not to keep its new best times, the splits no longer match the file, so they count as unsaved again.
+
 ## Closing splits
 
 **Close Splits** goes back to a new run with one segment, **Time**, as when the app first opens. The layout stays. The app asks about unsaved changes first, and doesn't reopen the splits at the next launch.
