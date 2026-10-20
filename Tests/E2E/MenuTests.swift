@@ -43,11 +43,19 @@ final class MenuTests: XCTestCase {
     }
 
     @MainActor
-    func testSpaceStartsTheTimer() {
+    func testSpaceStartsAndSplits() {
         let e2e = E2EApp.launched()
         e2e.app.typeKey(" ", modifierFlags: [])
         e2e.waitForLog("Start/Split from the keyboard")
         XCTAssertEqual(e2e.menuItem("timer-start_split", under: ["timer-control"]).title, "Split")
+        e2e.closeMenus()
+
+        // The default run has one segment: the split ends the attempt.
+        e2e.app.typeKey(" ", modifierFlags: [])
+        e2e.waitForLog("Start/Split from the keyboard", count: 2)
+        let undo = e2e.menuItem("timer-undo_split", under: ["timer-control"])
+        XCTAssertTrue(undo.isEnabled, "the split didn't end the attempt")
+        XCTAssertFalse(e2e.app.menuItems["timer-start_split"].isEnabled)
         e2e.closeMenus()
     }
 
