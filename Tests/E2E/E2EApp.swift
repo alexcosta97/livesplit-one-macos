@@ -97,11 +97,15 @@ final class E2EApp {
     @discardableResult
     func waitForLog(_ text: String, count: Int = 1, timeout: TimeInterval = 10) -> String {
         let deadline = Date().addingTimeInterval(timeout)
-        var log = ""
         while Date() < deadline {
-            log = logText(containing: text, timeout: 1) ?? log
-            if log.components(separatedBy: text).count - 1 >= count { return log }
+            if let log = logText(containing: text, timeout: 1),
+                log.components(separatedBy: text).count - 1 >= count
+            {
+                return log
+            }
         }
+        // Every text contains "", so this is the whole log as it is now.
+        let log = logText(containing: "", timeout: 0) ?? ""
         XCTFail("the log doesn't hold \"\(text)\" \(count) times. The log:\n\(log)")
         return log
     }
