@@ -125,6 +125,13 @@ jobs:
         run: >-
           xcodebuild test-without-building -xctestrun "$XCTESTRUN"
           -destination 'platform=macOS' -only-testing:"$E2E_TARGET"
+          -resultBundlePath e2e.xcresult
+      # The result bundle holds the screenshots XCUITest takes at a failure.
+      - if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: e2e-result
+          path: e2e.xcresult
 
   build:
     name: build
