@@ -78,9 +78,12 @@ final class E2EApp {
         return item
     }
 
-    /// Picks an item of the timer's right-click menu, going through `parents` first.
+    /// Picks an item of the timer's right-click menu, going through `parents` first, and waits
+    /// for the menu to close, so a screenshot taken next doesn't show it over the window.
     func choose(_ identifier: String, under parents: [String] = []) {
-        menuItem(identifier, under: parents).click()
+        let item = menuItem(identifier, under: parents)
+        item.click()
+        _ = item.waitForNonExistence(timeout: 5)
     }
 
     /// Closes the open menus: a submenu, then the right-click menu.
@@ -129,15 +132,19 @@ final class E2EApp {
         }
     }
 
-    /// Waits until the element's picture differs from `before`, and returns it.
+    /// Waits until the element's picture differs from `before` and holds still, the same in two
+    /// pictures in a row, and returns it. A picture caught mid-redraw would differ from `before`
+    /// whatever the app does next.
     func waitForPicture(
         differentFrom before: [UInt32], in element: XCUIElement, timeout: TimeInterval = 10
     ) -> [UInt32] {
         let deadline = Date().addingTimeInterval(timeout)
         var now = picture(of: element)
-        while now == before, Date() < deadline {
+        while Date() < deadline {
             RunLoop.current.run(until: Date().addingTimeInterval(0.3))
-            now = picture(of: element)
+            let next = picture(of: element)
+            if next == now, now != before { return now }
+            now = next
         }
         return now
     }
