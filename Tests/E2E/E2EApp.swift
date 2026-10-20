@@ -132,6 +132,36 @@ final class E2EApp {
         }
     }
 
+    /// The number of different colours in a sample of every seventh pixel. An empty window has
+    /// one or two; a drawn layout, with its text, many more.
+    func colours(in picture: [UInt32]) -> Int {
+        Set(stride(from: 0, to: picture.count, by: 7).map { picture[$0] }).count
+    }
+
+    /// Waits until the element shows a drawn layout, more than 10 colours, and returns its
+    /// picture. A picture taken as soon as the window exists can be blank.
+    func waitForDrawnPicture(of element: XCUIElement, timeout: TimeInterval = 5) -> [UInt32] {
+        let deadline = Date().addingTimeInterval(timeout)
+        var now = picture(of: element)
+        while colours(in: now) <= 10, Date() < deadline {
+            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+            now = picture(of: element)
+        }
+        return now
+    }
+
+    /// Waits until the element's picture is `expected`. Returns whether it was within `timeout`.
+    func waitForPicture(
+        equalTo expected: [UInt32], in element: XCUIElement, timeout: TimeInterval = 10
+    ) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while picture(of: element) != expected {
+            if Date() >= deadline { return false }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.3))
+        }
+        return true
+    }
+
     /// Waits until the element's picture differs from `before` and holds still, the same in two
     /// pictures in a row, and returns it. A picture caught mid-redraw would differ from `before`
     /// whatever the app does next.

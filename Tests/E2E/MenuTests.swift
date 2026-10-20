@@ -113,7 +113,7 @@ final class MenuTests: XCTestCase {
     func testCompareAgainstAndTheTimingMethodChangeWhatTheWindowShows() {
         let e2e = E2EApp.launched(picks: ["GameTime.lss"])
         let window = e2e.timerWindow
-        let empty = e2e.waitForPicture(differentFrom: [], in: window)
+        let empty = e2e.waitForDrawnPicture(of: window)
         e2e.choose("timer-open-splits-choose", under: ["timer-open-splits"])
         e2e.waitForLog("Opened splits")
         let opened = e2e.waitForPicture(differentFrom: empty, in: window)

@@ -29,7 +29,7 @@ final class FileTests: XCTestCase {
     func testOpenedFilesAreReopenedAtTheSameWindowPosition() {
         let e2e = E2EApp.launched(picks: ["GameTime.lss", "TextShadow.ls1l"])
         let window = e2e.timerWindow
-        let defaultPicture = e2e.picture(of: window)
+        let defaultPicture = e2e.waitForDrawnPicture(of: window)
 
         openSplits(e2e)
         e2e.choose("timer-open-layout-choose", under: ["timer-open-layout"])
@@ -62,10 +62,9 @@ final class FileTests: XCTestCase {
         XCTAssertEqual(window.frame.minX, moved.minX, accuracy: 1)
         XCTAssertEqual(window.frame.minY, moved.minY, accuracy: 1)
         XCTAssertEqual(window.frame.size, moved.size)
-        // The first picture after the launch may be of the default run and layout.
-        _ = e2e.waitForPicture(differentFrom: defaultPicture, in: window)
         XCTAssertTrue(
-            e2e.picture(of: window) == shown, "the relaunch didn't reopen the splits and layout")
+            e2e.waitForPicture(equalTo: shown, in: window),
+            "the relaunch didn't reopen the splits and layout")
     }
 
     /// Quitting with an attempt in progress goes through AppKit's `.terminateLater`: the reset

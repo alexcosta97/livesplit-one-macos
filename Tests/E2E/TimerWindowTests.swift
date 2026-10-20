@@ -12,17 +12,17 @@ final class TimerWindowTests: XCTestCase {
         XCTAssertEqual(window.frame.size, CGSize(width: 300, height: 500))
         let layout = window.images["timer-layout"]
         XCTAssertTrue(layout.waitForExistence(timeout: 5))
-        let deadline = Date().addingTimeInterval(5)
-        while Set(e2e.picture(of: window)).count <= 10, Date() < deadline {
-            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
-        }
-        XCTAssertGreaterThan(Set(e2e.picture(of: window)).count, 10, "the window shows no layout")
+        XCTAssertGreaterThan(
+            e2e.colours(in: e2e.waitForDrawnPicture(of: window)), 10, "the window shows no layout")
 
         // The empty run: one segment named "Time" (TimerContent.defaultRun()), seen in the editor.
         e2e.choose("timer-edit-splits")
         let editor = e2e.app.dialogs["splits-editor"]
         XCTAssertTrue(editor.waitForExistence(timeout: 5), "Edit Splits… didn't open the editor")
         let cells = editor.descendants(matching: .any)
+        XCTAssertTrue(
+            cells["editor-cell-name-0"].waitForExistence(timeout: 5),
+            "no name cell for the first segment")
         XCTAssertEqual(cells["editor-cell-name-0"].value as? String, "Time")
         XCTAssertFalse(cells["editor-cell-name-1"].exists, "the run has a second segment")
         e2e.app.typeKey(.escape, modifierFlags: [])
