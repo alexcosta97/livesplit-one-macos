@@ -1,7 +1,7 @@
 import XCTest
 
 /// Connect to Server with the fake server, as a user does it (spec §8, §14.3): its commands
-/// start the timer, a local split reaches it, it drops and the app reconnects, and Disconnect
+/// start and split the timer, a local split reaches it, it drops and the app reconnects, and Disconnect
 /// closes the connection.
 final class ConnectTests: XCTestCase {
     /// Waits until the overlay notice reads `text`. Returns whether it did within `timeout`.
@@ -35,9 +35,11 @@ final class ConnectTests: XCTestCase {
         let server = try FakeServer()
         defer { server.stop() }
         let host = "127.0.0.1:\(server.port)"
-        let e2e = E2EApp()
-        e2e.launch()
-        XCTAssertTrue(e2e.timerWindow.waitForExistence(timeout: 10))
+        // GameTime.lss has 13 segments, so the run goes on after the server's split and the
+        // local one.
+        let e2e = E2EApp.launched(picks: ["GameTime.lss"])
+        e2e.choose("timer-open-splits-choose", under: ["timer-open-splits"])
+        e2e.waitForLog("Opened splits")
 
         // Connect.
         let connect = e2e.menuItem("timer-connect")
@@ -53,19 +55,26 @@ final class ConnectTests: XCTestCase {
         let opened = await server.waitForConnection()
         XCTAssertTrue(opened)
 
-        // The server's command starts the timer; its event comes before its reply.
+        // The server's commands start and split the timer; each event comes before its reply.
         server.send(#"{"command":"splitOrStart"}"#)
-        let replied = await server.wait { server.messages.count >= 2 }
-        XCTAssertTrue(replied)
+        let started = await server.wait { server.messages.count >= 2 }
+        XCTAssertTrue(started)
         XCTAssertEqual(
             Array(server.messages.prefix(2)), [#"{"event":"Started"}"#, #"{"success":null}"#])
+        server.send(#"{"command":"splitOrStart"}"#)
+        let splitByServer = await server.wait { server.messages.count >= 4 }
+        XCTAssertTrue(splitByServer, "the server's split got no reply")
+        XCTAssertEqual(
+            Array(server.messages.dropFirst(2).prefix(2)),
+            [#"{"event":"Splitted"}"#, #"{"success":null}"#])
 
-        // A local split reaches the server. The default run has one segment: it finishes.
+        // A local split reaches the server.
         let split = e2e.menuItem("timer-start_split", under: ["timer-control"])
         XCTAssertEqual(split.title, "Split")
         split.click()
-        let finished = await server.waitForMessage { $0 == #"{"event":"Finished"}"# }
-        XCTAssertNotNil(finished, "the local split didn't reach the server")
+        let splitLocally = await server.wait { server.messages.count >= 5 }
+        XCTAssertTrue(splitLocally, "the local split didn't reach the server")
+        XCTAssertEqual(server.messages.dropFirst(4).first, #"{"event":"Splitted"}"#)
 
         // The server drops; the app says so and reconnects. The first Connected notice goes
         // first, so the second one isn't taken for it.
