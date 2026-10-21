@@ -45,6 +45,14 @@ for key in CFBundleShortVersionString:"$short" CFBundleVersion:"$short" \
     exit 1
   fi
 done
+# The third-party notices (spec §4.4).
+notices="$app/Contents/Resources/Acknowledgements.txt"
+for expected in "  livesplit-core " "swift-toml " "toml++ " "Fira Sans"; do
+  if ! grep -qF -- "$expected" "$notices" 2>/dev/null; then
+    echo "$notices is missing or doesn't list '$expected'" >&2
+    exit 1
+  fi
+done
 
 mkdir -p dist
 rm -f "$zip"

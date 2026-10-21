@@ -1,0 +1,11 @@
+# What notices/other.txt was checked against (spec §4.4). The build fails
+# when one of these changes, so the notices are read again before it ships:
+# update other.txt if needed, then this file.
+#
+# swift-toml <version>      the TOML package in project.yml; its notice and
+#                           the toml++ version built into it
+# font <file> <sha-256>     each file in livesplit-core's src/rendering/font/assets/
+swift-toml 2.0.0
+font FiraSans-Regular.ttf a389cef71891df1232370fcebd7cfde5f74e741967070399adc91fd069b2094b
+# No notice yet: its licence is being found out (#92).
+font Timer.ttf 56ae9536ba331b10af73b23aec912668083441d35560af64c5cda3eb4dc8b9b4

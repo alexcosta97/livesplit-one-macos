@@ -151,8 +151,10 @@ livesplit-one-macos/
 │   ├── Config/
 │   └── Log/
 ├── Tests/                   Unit, HeadlessUI, Integration, E2E
+├── notices/                 third-party notices: cargo-about's config and the hand-kept part (4.4)
 ├── project.yml              XcodeGen project definition
 ├── scripts/build-core.sh    builds core and regenerates the bindings
+├── scripts/build-notices.sh writes the third-party notices into the app (4.4)
 ├── mise.toml                pinned tools
 ├── rust-toolchain.toml
 └── .github/                 workflows, issue forms, PR template
@@ -175,7 +177,8 @@ committed, so pull requests never conflict on `project.pbxproj`.
   generated project lists their files without waiting for a Cargo build.
 - `scripts/build-app.sh <version>` makes the universal release build, with
   the version embedded, and zips it into `dist/`. CI's `build` check and the
-  release workflow both run it.
+  release workflow both run it. It checks the app it built holds both
+  architectures, the version, and the third-party notices (section 4.4).
 - The version is embedded at build time from the release pipeline (section
   15): `LSOVersion` in `Info.plist` holds the full version, such as
   `0.4.0-rc.2`, which the app shows, and `CFBundleShortVersionString` holds
@@ -202,6 +205,57 @@ drops the action without a sound or a log line (#80).
   skips this check. A headless UI test checks the items' targets, as
   `SplitsEditorViewTests.theIconsMenuWorksInTheModalEditor` does, and the
   flow's E2E test drives the real menu (section 14).
+
+### 4.4 Third-party notices
+
+The app statically links code whose licences require their notices to go
+with every copy: livesplit-core and the crates `core/` builds, the Rust
+standard library, swift-toml and the toml++ library built into it. It also
+carries two fonts livesplit-core builds into its binary with `include_bytes!`.
+The notices ship inside the app, as `Contents/Resources/Acknowledgements.txt`,
+and **Help ▸ Acknowledgements** shows them in a read-only window (section 7).
+
+- **Written at build time**, never committed: an Xcode build phase of the app
+  target runs `scripts/build-notices.sh`, in every configuration, so
+  development builds and the tests have the file too. A committed copy would
+  have to be regenerated in every dependency update, which Renovate can't do,
+  so its pull requests would fail.
+- **The crates** come from cargo-about (pinned in `mise.toml`), configured in
+  `notices/about.toml`. It lists the crates built for the two Mac targets,
+  with each crate's licence files from Cargo's checkouts (`--offline`), and
+  groups them by licence text. The script leaves out `lso-core`, which is the
+  app's own code.
+  - `accepted` lists the licences a crate may be under, in order of
+    preference. A crate under any other licence fails the build, so a new
+    kind of licence is read before it ships.
+  - livesplit-core-capi declares no licence, and livesplit-hotkey and
+    livesplit-title-abbreviations are packaged without their licence files.
+    `clarify` entries point all three at the livesplit-core repository's
+    `LICENSE-MIT` and `LICENSE-APACHE`, by checksum, so a changed licence
+    file stops them being used.
+  - cargo-about's dependency graph (the krates crate) takes
+    livesplit-core-capi for livesplit-core, because the C API's library is
+    named `livesplit_core`, and panics. The script runs cargo-about on a copy
+    of `core/Cargo.toml` whose livesplit-core dependency is renamed: the same
+    crates, features and lock file.
+  - Crates packaged without a licence file get the licence's standard text,
+    without a copyright line, since `--offline` never fetches their
+    repositories. base64-simd, vsimd and libm are like this today.
+- **Everything Cargo can't see** is kept by hand in `notices/other.txt`: Fira
+  Sans (SIL Open Font License 1.1, with its full text), swift-toml, toml++,
+  the UTF-8 decoder built into toml++, and the Rust standard library.
+  `notices/pins.txt` records what that file was checked against, and the
+  script fails the build when one of them changes:
+  - swift-toml's version, against `exactVersion` in `project.yml`. Its notice
+    and the toml++ version it builds in are read again on every update.
+  - each file in livesplit-core's `src/rendering/font/assets/`, by SHA-256. A
+    changed, added or removed font fails until its notice is checked.
+  - The LiveSplit Timer font (`Timer.ttf`) has no copyright or licence in its
+    metadata and none in livesplit-core's repository, so it has no notice yet
+    (#92).
+- **Checked in CI** by every build: `setup` and `build` build the app, so a
+  crate under a licence not accepted, or a pin that no longer matches, fails
+  them. `scripts/build-app.sh` checks the release app holds the file.
 
 ## 5. Timer and rendering
 
@@ -375,7 +429,7 @@ Quit                   ⌘Q
   - *Control* and *Compare Against*, as in the right-click menu.
   - *Window*: Close (⌘W, for the Settings window; the timer window has no
     close button), Minimize (⌘M), Always on Top.
-  - *Help*: Open Log Folder.
+  - *Help*: Open Log Folder, Acknowledgements (section 4.4).
 - **Compare Against** lists the run's comparisons, including custom ones, with
   a tick on the current one, and the timing method below a separator.
 - **Save Layout As…** saves LiveSplit One's `.ls1l` format, the only layout
@@ -839,6 +893,7 @@ under 10 % E2E.
 - A finished attempt saved before Quit is in the file, and Quit doesn't ask
   about changes.
 - Compare Against and Real Time / Game Time change what the window shows.
+- Help ▸ Acknowledgements shows the third-party notices (section 4.4).
 
 ### 14.4 Manual, before each full release
 
@@ -919,10 +974,10 @@ These follow livesplit-asr-bridge (its spec sections 13 and 14, and its
   action: the release notes are written in the read-only `version` job and
   passed on as an artifact. This departs from livesplit-asr-bridge, which
   pins actions by tag.
-- **Tools** (XcodeGen, git-cliff, shellcheck, actionlint, Node) are pinned in
-  `mise.toml` and used both locally and in CI. commitlint is pinned in
-  `package.json` and installed with `npm ci`, so the local check and CI's
-  `commitlint` check run the same version. Rust comes from
+- **Tools** (XcodeGen, git-cliff, shellcheck, actionlint, Node, cargo-about)
+  are pinned in `mise.toml` and used both locally and in CI. commitlint is
+  pinned in `package.json` and installed with `npm ci`, so the local check
+  and CI's `commitlint` check run the same version. Rust comes from
   `rust-toolchain.toml`.
 - **Releases** work as in livesplit-asr-bridge, except for strict rc tag
   matching, idempotent and draft-safe publish steps, the release script tests
@@ -1106,10 +1161,9 @@ three):
 - #18 E2E harness and suite (section 14.2), filled in alongside #11–#17:
   each issue adds its own flows from section 14.3, and #18 closes when they
   all pass.
-- #48 Third-party licence notices: the release `.app` carries the notices
-  of every third-party component it links (livesplit-core and its crates,
-  swift-toml, toml++), generated or checked in CI. Before the first full
-  release, since those licences require their notices to go with copies.
+- #48 Third-party licence notices (section 4.4).
+- #92 The LiveSplit Timer font's licence, and its notice. Before the first
+  full release, like #48.
 - #41 Complete the wiki for the first release: screenshots (section 16.4),
   a whole-wiki pass, Troubleshooting.
 
