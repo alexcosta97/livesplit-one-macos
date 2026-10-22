@@ -187,7 +187,12 @@ final class TimerMenus: NSObject, NSMenuDelegate, NSMenuItemValidation {
             .separator(),
             item("Always on Top", #selector(AppDelegate.toggleAlwaysOnTop(_:))),
         ]
-        helpMenu.items = [item("Open Log Folder", #selector(AppDelegate.openLogFolder(_:)))]
+        helpMenu.items = [
+            item("Open Log Folder", #selector(AppDelegate.openLogFolder(_:))),
+            identified(
+                item("Acknowledgements", #selector(AppDelegate.showAcknowledgements(_:))),
+                "help-acknowledgements"),
+        ]
         // For the text fields of the splits editor and the Connect sheet, which only get these
         // keys from menu items (spec §7). They have no target, so they reach the first
         // responder. They aren't in `Shortcuts.reserved`: the Settings window's recorder takes

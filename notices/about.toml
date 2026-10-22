@@ -1,0 +1,65 @@
+# cargo-about's configuration for the notices of the crates core/ links into
+# the app (spec §4.4). scripts/build-notices.sh runs it.
+
+# Only the crates built for the app's two architectures.
+targets = ["aarch64-apple-darwin", "x86_64-apple-darwin"]
+ignore-build-dependencies = true
+ignore-dev-dependencies = true
+
+# The licences a crate may be under, in order of preference: for "A OR B",
+# the first one listed here is used. A crate whose licence isn't listed fails
+# the build, so a new kind of licence is read before it ships.
+accepted = [
+    "MIT",
+    "Apache-2.0",
+    "Zlib",
+    "BSD-3-Clause",
+    "BSD-2-Clause",
+    "0BSD",
+    "Unlicense",
+    "Unicode-3.0",
+]
+
+# livesplit-core's C API declares no licence. It is in the livesplit-core
+# repository, under the repository's licence files. The checksums stop this
+# being used if they change.
+[livesplit-core-capi.clarify]
+license = "MIT OR Apache-2.0"
+
+[[livesplit-core-capi.clarify.git]]
+path = "LICENSE-MIT"
+license = "MIT"
+checksum = "bd0165d70b2d18a607ecef8cbd7d5c201c167fa51a5d7106f3ad9feedb589e3d"
+
+[[livesplit-core-capi.clarify.git]]
+path = "LICENSE-APACHE"
+license = "Apache-2.0"
+checksum = "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+
+# Two more crates from the livesplit-core repository, packaged without their
+# licence files.
+[livesplit-hotkey.clarify]
+license = "MIT OR Apache-2.0"
+
+[[livesplit-hotkey.clarify.git]]
+path = "LICENSE-MIT"
+license = "MIT"
+checksum = "bd0165d70b2d18a607ecef8cbd7d5c201c167fa51a5d7106f3ad9feedb589e3d"
+
+[[livesplit-hotkey.clarify.git]]
+path = "LICENSE-APACHE"
+license = "Apache-2.0"
+checksum = "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+
+[livesplit-title-abbreviations.clarify]
+license = "MIT OR Apache-2.0"
+
+[[livesplit-title-abbreviations.clarify.git]]
+path = "LICENSE-MIT"
+license = "MIT"
+checksum = "bd0165d70b2d18a607ecef8cbd7d5c201c167fa51a5d7106f3ad9feedb589e3d"
+
+[[livesplit-title-abbreviations.clarify.git]]
+path = "LICENSE-APACHE"
+license = "Apache-2.0"
+checksum = "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"

@@ -53,4 +53,4 @@ The menu bar has the same commands, in the places Mac apps keep them:
 - **Edit**: **Undo** (⌘Z), **Redo** (⇧⌘Z), **Cut** (⌘X), **Copy** (⌘C), **Paste** (⌘V) and **Select All** (⌘A). They work in the text fields of the splits editor and the Connect to Server sheet. macOS adds its own items to this menu, such as AutoFill, Start Dictation and Emoji & Symbols.
 - **Control** and **Compare Against**, as above.
 - **Window**: **Close** (⌘W, for the Settings window, and for the splits editor, where it is **Cancel**), **Minimize** (⌘M), **Always on Top**.
-- **Help**: **Open Log Folder**.
+- **Help**: **Open Log Folder**, and **Acknowledgements**, which opens a window listing the open-source software built into the app, with the notices and licences it comes under.

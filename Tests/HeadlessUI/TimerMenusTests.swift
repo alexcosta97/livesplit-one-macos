@@ -147,8 +147,10 @@ import Testing
 
         let help = try submenu("Help", in: menus.mainMenu)
         #expect(help === menus.helpMenu)
-        #expect(titles(help) == ["Open Log Folder"])
+        #expect(titles(help) == ["Open Log Folder", "Acknowledgements"])
         #expect(help.items[0].action == #selector(AppDelegate.openLogFolder(_:)))
+        #expect(help.items[1].action == #selector(AppDelegate.showAcknowledgements(_:)))
+        #expect(help.items[1].identifier?.rawValue == "help-acknowledgements")
     }
 
     @Test func theRightClickMenu() throws {

@@ -1,5 +1,6 @@
-# Tools for the Xcode project, the release scripts, workflow linting, and Node
-# for commitlint (package.json). Rust itself comes from rustup via
+# Tools for the Xcode project, the release scripts, workflow linting, Node
+# for commitlint (package.json), and cargo-about for the third-party notices
+# (scripts/build-notices.sh). Rust itself comes from rustup via
 # rust-toolchain.toml, and Swift from Xcode.
 [tools]
 xcodegen = "2.46.0"
@@ -7,3 +8,4 @@ git-cliff = "2.14.2"
 shellcheck = "0.11.0"
 actionlint = "1.7.12"
 node = "24.22.0"
+"github:EmbarkStudios/cargo-about" = "0.9.2"

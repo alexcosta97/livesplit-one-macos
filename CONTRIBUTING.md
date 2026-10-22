@@ -29,8 +29,8 @@ The app is Swift and AppKit, built with Xcode, on top of a Rust library in
 2. Install [rustup](https://rustup.rs/) and [mise](https://mise.jdx.dev/),
    then run `mise install` and `npm ci` in the repository. Rust's version and
    targets come from `rust-toolchain.toml`. mise installs XcodeGen,
-   git-cliff, shellcheck, actionlint and Node, and `npm ci` installs
-   commitlint from `package.json`. rustup from Homebrew doesn't put `cargo`
+   git-cliff, shellcheck, actionlint, Node and cargo-about (which the app's
+   build runs), and `npm ci` installs commitlint from `package.json`. rustup from Homebrew doesn't put `cargo`
    on your `PATH`: add `$(brew --prefix rustup)/bin` to it, or the `cargo`
    checks below fail with "command not found".
 3. Build `core/` and generate the Xcode project:

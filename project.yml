@@ -64,6 +64,26 @@ targets:
         PRODUCT_NAME: LiveSplit One
         PRODUCT_MODULE_NAME: LiveSplitOne
         PRODUCT_BUNDLE_IDENTIFIER: dev.alexcosta.livesplit-one-macos
+        # The notices script reads Cargo's checkouts in ~/.cargo.
+        ENABLE_USER_SCRIPT_SANDBOXING: NO
+    # Help > Acknowledgements (spec §4.4). The crates' notices come from
+    # Cargo.lock and the crates' own files, so these inputs cover them.
+    postCompileScripts:
+      - name: Write the third-party notices
+        script: >-
+          "$SRCROOT/scripts/build-notices.sh"
+          "$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/Acknowledgements.txt"
+        inputFiles:
+          - $(SRCROOT)/scripts/build-notices.sh
+          - $(SRCROOT)/notices/about.toml
+          - $(SRCROOT)/notices/other.txt
+          - $(SRCROOT)/notices/pins.txt
+          - $(SRCROOT)/core/Cargo.toml
+          - $(SRCROOT)/core/Cargo.lock
+          - $(SRCROOT)/project.yml
+          - $(SRCROOT)/mise.toml
+        outputFiles:
+          - $(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/Acknowledgements.txt
     scheme:
       testTargets:
         - LiveSplitOneUnitTests

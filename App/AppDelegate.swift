@@ -20,6 +20,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// Opens the splits editor (spec §9).
     private(set) var splitsEditor: SplitsEditorPresenter?
     private(set) var settingsWindow: SettingsWindowController?
+    private(set) var acknowledgementsWindow: AcknowledgementsWindowController?
     private var shortcutKeys: ShortcutKeys?
     /// Decides whether the app may quit (spec §7.1).
     private var quitFlow: QuitFlow?
@@ -173,6 +174,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             .applicationVersion: AppVersion.current,
             .version: "",
         ])
+        NSApp.activate()
+    }
+
+    /// Help ▸ Acknowledgements (spec §4.4). The window is made once and shown again after it is
+    /// closed.
+    @objc func showAcknowledgements(_ sender: Any?) {
+        if acknowledgementsWindow == nil {
+            let text = Acknowledgements.text()
+            if text == nil {
+                Log.shared.record(
+                    .error, "Acknowledgements.txt is missing from the app's resources")
+            }
+            acknowledgementsWindow = AcknowledgementsWindowController(
+                text: text ?? Acknowledgements.missing)
+        }
+        guard let controller = acknowledgementsWindow else { return }
+        controller.showWindow(sender)
+        controller.window?.makeKeyAndOrderFront(sender)
         NSApp.activate()
     }
 
