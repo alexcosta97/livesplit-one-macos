@@ -64,6 +64,14 @@ request, and each goes to a GitHub issue:
   should be separate work. Open an issue with the matching template.
 
 The pull request description lists each of these with a link to its issue.
+
+Every issue opened, for any reason, is added to the
+[LiveSplit One for macOS project](https://github.com/users/alexcosta97/projects/2)
+when it is opened: `gh issue create --project "LiveSplit One for macOS"`, or
+`gh project item-add 2 --owner alexcosta97 --url <issue URL>` for an issue
+opened another way. Adding to the project needs the `project` scope on the
+`gh` token (`gh auth refresh -h github.com -s project`).
+
 Notes for later work, such as a constraint that was found or a check to
 repeat, go on the issue they concern as a comment. Anything posted outside
 this repository, such as a bug report to livesplit-core, needs the
