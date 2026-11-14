@@ -29,7 +29,7 @@ settings:
 packages:
   TOML:
     url: https://github.com/mattt/swift-toml
-    exactVersion: 2.0.0
+    exactVersion: 2.1.1
 targets:
   LiveSplitOne:
     type: application
