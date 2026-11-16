@@ -418,7 +418,7 @@ checksum = "b6d2cec3eae94f9f509c767b45932f1ada8350c4bdb85af2fcab4a3c14807981"
 [[package]]
 name = "livesplit-core"
 version = "0.13.0"
-source = "git+https://github.com/LiveSplit/livesplit-core?rev=f348cf69180ba910df9450c4d64079a7695572db#f348cf69180ba910df9450c4d64079a7695572db"
+source = "git+https://github.com/LiveSplit/livesplit-core?rev=428d1ea3281cab6a339e860a7068aa3cacb9d7ed#428d1ea3281cab6a339e860a7068aa3cacb9d7ed"
 dependencies = [
  "base64-simd",
  "bytemuck",
@@ -427,7 +427,6 @@ dependencies = [
  "foldhash",
  "hashbrown 0.17.1",
  "image",
- "itoa",
  "libc",
  "libm",
  "livesplit-hotkey",
@@ -450,7 +449,7 @@ dependencies = [
 [[package]]
 name = "livesplit-core-capi"
 version = "0.11.0"
-source = "git+https://github.com/LiveSplit/livesplit-core?rev=f348cf69180ba910df9450c4d64079a7695572db#f348cf69180ba910df9450c4d64079a7695572db"
+source = "git+https://github.com/LiveSplit/livesplit-core?rev=428d1ea3281cab6a339e860a7068aa3cacb9d7ed#428d1ea3281cab6a339e860a7068aa3cacb9d7ed"
 dependencies = [
  "livesplit-core",
  "serde_json",
@@ -461,7 +460,7 @@ dependencies = [
 [[package]]
 name = "livesplit-hotkey"
 version = "0.8.1"
-source = "git+https://github.com/LiveSplit/livesplit-core?rev=f348cf69180ba910df9450c4d64079a7695572db#f348cf69180ba910df9450c4d64079a7695572db"
+source = "git+https://github.com/LiveSplit/livesplit-core?rev=428d1ea3281cab6a339e860a7068aa3cacb9d7ed#428d1ea3281cab6a339e860a7068aa3cacb9d7ed"
 dependencies = [
  "bitflags",
  "crossbeam-channel",
@@ -477,7 +476,7 @@ dependencies = [
 [[package]]
 name = "livesplit-title-abbreviations"
 version = "0.3.0"
-source = "git+https://github.com/LiveSplit/livesplit-core?rev=f348cf69180ba910df9450c4d64079a7695572db#f348cf69180ba910df9450c4d64079a7695572db"
+source = "git+https://github.com/LiveSplit/livesplit-core?rev=428d1ea3281cab6a339e860a7068aa3cacb9d7ed#428d1ea3281cab6a339e860a7068aa3cacb9d7ed"
 
 [[package]]
 name = "log"
